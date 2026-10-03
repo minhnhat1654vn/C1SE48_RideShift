@@ -78,6 +78,33 @@ C1SE48_RideShift/
 └── docker-compose.yml      # db + backend + frontend (+ osrm tuỳ chọn)
 ```
 
+## 💻 Yêu cầu môi trường
+
+Để chạy dự án bằng Docker, máy cần cài:
+
+- Git
+- Docker Desktop
+- Docker Compose v2
+
+Kiểm tra:
+
+```bash
+git --version
+docker --version
+docker compose version
+```
+
+## ⚡ Quick Start
+
+```bash
+git clone <REPOSITORY_URL>
+cd C1SE48_RideShift
+
+cp .env.example .env
+
+docker compose up --build
+```
+
 ## 🚀 Chạy bằng Docker (khuyên dùng)
 
 ```bash
