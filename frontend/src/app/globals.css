@@ -1,0 +1,221 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(0.985 0.005 150);
+  --foreground: oklch(0.16 0.02 155);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.16 0.02 155);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.16 0.02 155);
+  --primary: oklch(0.55 0.14 155);
+  --primary-foreground: oklch(0.985 0.005 150);
+  --secondary: oklch(0.955 0.02 150);
+  --secondary-foreground: oklch(0.28 0.05 155);
+  --muted: oklch(0.955 0.012 150);
+  --muted-foreground: oklch(0.52 0.02 155);
+  --accent: oklch(0.94 0.045 150);
+  --accent-foreground: oklch(0.28 0.06 155);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.9 0.015 150);
+  --input: oklch(0.9 0.015 150);
+  --ring: oklch(0.6 0.12 155);
+  --chart-1: oklch(0.55 0.14 155);
+  --chart-2: oklch(0.65 0.13 145);
+  --chart-3: oklch(0.7 0.14 120);
+  --chart-4: oklch(0.75 0.13 95);
+  --chart-5: oklch(0.6 0.15 45);
+  --sidebar: oklch(0.985 0.005 150);
+  --sidebar-foreground: oklch(0.16 0.02 155);
+  --sidebar-primary: oklch(0.55 0.14 155);
+  --sidebar-primary-foreground: oklch(0.985 0.005 150);
+  --sidebar-accent: oklch(0.94 0.045 150);
+  --sidebar-accent-foreground: oklch(0.28 0.06 155);
+  --sidebar-border: oklch(0.9 0.015 150);
+  --sidebar-ring: oklch(0.6 0.12 155);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* ---- RideShift map: ward (phường/xã) layer styling (Task 30) ---- */
+
+/* Permanent ward-name labels on the non-interactive visual layer.
+   Hidden by default; shown only when the map container has .ward-labels-on
+   (zoom 10–11 + admin layer enabled). */
+.leaflet-tooltip.ward-label {
+  display: none;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  color: #0f172a;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  text-shadow:
+    -1.5px -1.5px 0 rgba(255, 255, 255, 0.9),
+    1.5px -1.5px 0 rgba(255, 255, 255, 0.9),
+    -1.5px 1.5px 0 rgba(255, 255, 255, 0.9),
+    1.5px 1.5px 0 rgba(255, 255, 255, 0.9);
+  pointer-events: none;
+}
+.ward-labels-on .leaflet-tooltip.ward-label {
+  display: block;
+}
+
+/* Hover tooltip for the interactive hit layer */
+.leaflet-tooltip.ward-tip {
+  background: rgba(15, 23, 42, 0.92);
+  color: #f8fafc;
+  border: none;
+  border-radius: 8px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+.leaflet-tooltip.ward-tip::before {
+  border-top-color: rgba(15, 23, 42, 0.92);
+}
+
+/* Faint attribution styling to keep the map clean */
+.leaflet-control-attribution {
+  font-size: 9px !important;
+  opacity: 0.75;
+}
+
+/* ward-layer v2 */
+
+/* ---- Task 31: 3D pop-up (extrusion) for the hovered/selected ward ----
+   The pop-up copies live in a dedicated Leaflet pane (leaflet-extrusion-pane,
+   zIndex 380, pointer-events: none). Each copy is an SVG path carrying a
+   per-element --lift custom property; adding .lifted makes every copy rise
+   to its own height with the same duration, so the wall "grows" smoothly. */
+
+.leaflet-pane.leaflet-extrusion-pane {
+  pointer-events: none;
+}
+
+.ward-ext {
+  transform: translateY(0);
+  transition: transform 0.18s ease-out;
+  will-change: transform;
+}
+.ward-ext.lifted {
+  transform: translateY(var(--lift, -12px));
+}
+.ward-ext-off {
+  display: none;
+}
+/* top face: also fades in a drop shadow that lands on the base below */
+.ward-ext-top {
+  transition:
+    transform 0.18s ease-out,
+    filter 0.18s ease-out;
+  filter: drop-shadow(0 0 0 rgba(2, 6, 23, 0));
+}
+.ward-ext-top.lifted {
+  filter:
+    drop-shadow(0 10px 8px rgba(2, 6, 23, 0.4))
+    drop-shadow(0 3px 3px rgba(2, 6, 23, 0.3));
+}
+
+/* the flat permanent label of the lifted ward steps aside while it rises */
+.leaflet-tooltip.ward-label {
+  transition: opacity 0.15s ease;
+}
+.ward-label-hidden {
+  opacity: 0 !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ward-ext,
+  .ward-ext-top {
+    transition: none !important;
+  }
+}

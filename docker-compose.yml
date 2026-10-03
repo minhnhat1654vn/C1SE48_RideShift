@@ -1,0 +1,68 @@
+name: rideshift
+
+# RideShift — full deployment per proposal technology stack:
+#   frontend  : Next.js (ReactJS + Tailwind + Leaflet)      -> http://localhost:3000
+#   backend   : Python + FastAPI + pandas + Shapely         -> http://localhost:8000 (docs /docs)
+#   database  : PostgreSQL 16 + PostGIS (postgis/postgis)   -> localhost:5432
+#   external  : OpenStreetMap tiles, OSRM, Nominatim, Open-Meteo (public APIs)
+#
+# Usage:
+#   cp .env.example .env
+#   docker compose up --build
+
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-rideshift}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Schema được tạo tự động lần đầu (idempotent CREATE TABLE IF NOT EXISTS);
+      # backend cũng tự đảm bảo schema + seed khi khởi động.
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-rideshift}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-rideshift}
+      RIDESHIFT_SALT: ${RIDESHIFT_SALT:-rideshift-c1se48}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-http://localhost:8000}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+  # ── Tuỳ chọn: tự host OSRM thay vì dùng provider công cộng ──
+  # Xem osrm/README.md: chạy download.sh -> build.sh -> đặt data vào ./osrm/data
+  # rồi bỏ comment service dưới đây và thêm "http://osrm:5000" vào
+  # OSRM_PROVIDERS_DRIVING trong backend/app/config.py.
+  #
+  # osrm:
+  #   image: osrm/osrm-backend:latest
+  #   volumes:
+  #     - ./osrm/data:/data
+  #   ports:
+  #     - "5000:5000"
+  #   command: osrm-routed --algorithm mld /data/vietnam-latest.osrm
+
+volumes:
+  pgdata:

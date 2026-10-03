@@ -1,0 +1,39 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.*
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# env
+.env*
+!.env.example
+
+# python tooling (scripts/)
+__pycache__/
+*.py[cod]
+
+# logs / misc
+*.log
+dev.log
+server.log
+.DS_Store
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# vercel
+.vercel
+
+# coverage
+/coverage
+
+# embedded postgres data (sandbox helper)
+/db/pgdata/
+/db/pg.log

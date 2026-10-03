@@ -1,0 +1,8 @@
+mode_id,trips,avg_distance_km,avg_speed_kmh,avg_cost_per_km
+bicycle,31,8.063,10.662,0.0
+bus,210,7.204,15.764,1721.095
+electric_motorbike,300,7.564,20.639,122.508
+gasoline_motorbike,1444,7.431,21.859,328.125
+private_car,260,7.273,20.075,2125.315
+taxi,113,7.565,24.358,15074.856
+walking,42,7.923,4.02,0.0

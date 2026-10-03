@@ -1,29 +1,34 @@
-# RideShift
+# ── Node / Next.js (frontend) ─────────────────────────────
+node_modules/
+.next/
+out/
+build/
+*.tsbuildinfo
+next-env.d.ts
+.vercel
+/coverage
 
-RideShift - Smart Transport Transition Advisor
+# ── Python (backend) ──────────────────────────────────────
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
 
-## Project
+# ── Environment ───────────────────────────────────────────
+.env
+.env.local
+.env.*.local
 
-Capstone Project 1 - C1SE48
+# ── OSRM data (large — tải bằng osrm/scripts/download.sh) ─
+osrm/data/
 
-## Technology Stack
+# ── Databases / runtime ───────────────────────────────────
+*.db
+*.sqlite3
+/db/pgdata/
+/db/pg.log
 
-### Frontend
-- React
-- JavaScript
-- Vite
-
-### Backend
-- Python
-- FastAPI
-
-### Database
-- PostgreSQL
-- PostGIS
-
-### Routing
-- OSRM
-
-### Infrastructure
-- Docker
-- Docker Compose
+# ── Logs / misc ───────────────────────────────────────────
+*.log
+.DS_Store

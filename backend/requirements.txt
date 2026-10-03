@@ -1,0 +1,8 @@
+# RideShift backend runtime dependencies (proposal: Backend = Python + FastAPI)
+fastapi==0.128.0
+uvicorn[standard]==0.40.0
+psycopg[binary]==3.3.6
+pandas==2.2.3
+numpy==2.1.3
+shapely==2.1.2
+httpx==0.28.1

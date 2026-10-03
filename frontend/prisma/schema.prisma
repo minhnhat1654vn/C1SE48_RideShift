@@ -1,0 +1,119 @@
+// RideShift – Smart Transport Transition Advisor
+// C1SE.48 Capstone Project 1
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model AdminUser {
+  id           String         @id @default(cuid())
+  username     String         @unique
+  passwordHash String
+  fullName     String?
+  createdAt    DateTime       @default(now())
+  sessions     AdminSession[]
+}
+
+model AdminSession {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model LezZone {
+  id          String       @id @default(cuid())
+  name        String
+  description String?
+  coordinates String // JSON array of [lat, lng] pairs forming a polygon
+  active      Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  rules       PolicyRule[]
+}
+
+model PolicyRule {
+  id              String        @id @default(cuid())
+  zoneId          String
+  zone            LezZone       @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  modeId          String
+  mode            TransportMode @relation(fields: [modeId], references: [id], onDelete: Cascade)
+  restrictionType String // 'banned' | 'conditional'
+  condition       String? // e.g. "Must meet Euro 4 emission standard"
+  startTime       String // "06:00"
+  endTime         String // "22:00"
+  days            String // "Mon,Tue,Wed,Thu,Fri,Sat,Sun"
+  active          Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+}
+
+model TransportMode {
+  id               String        @id // e.g. 'gasoline_motorbike'
+  name             String
+  description      String?
+  icon             String // icon key for UI
+  avgSpeedKmh      Float
+  baseCostVnd      Float
+  costPerKmVnd     Float
+  co2PerKmG        Float
+  baseAccessibility Float
+  baseConvenience  Float
+  waitMinutes      Float         @default(0)
+  enabled          Boolean       @default(true)
+  sortOrder        Int           @default(0)
+  rules            PolicyRule[]
+}
+
+model CriteriaWeight {
+  id        String @id @default(cuid())
+  criterion String @unique // travelTime | cost | lezCompliance | accessibility | convenience | environment | trend
+  weight    Float // percentage, sum of all = 100
+  label     String
+}
+
+model TransportationLocation {
+  id     String  @id @default(cuid())
+  name   String
+  type   String // bus_stop | metro | brt
+  lat    Float
+  lng    Float
+  active Boolean @default(true)
+}
+
+model TripRecord {
+  id             String   @id @default(cuid())
+  originName     String
+  destName       String
+  originDistrict String
+  originLat      Float
+  originLng      Float
+  destLat        Float
+  destLng        Float
+  distanceKm     Float
+  durationMin    Float
+  vehicleId      String // user's current vehicle mode id
+  purpose        String // work | school | shopping | leisure | other
+  departureHour  Int
+  lezAffected    Boolean
+  topModeId      String // top recommended mode id
+  topScore       Float
+  avgCostVnd     Float
+  avgTimeMin     Float
+  chosenModeId   String? // mode the user decided to use (switching intention)
+  switched       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+}
+
+model AirQualityCache {
+  id        String   @id @default(cuid())
+  cacheKey  String   @unique
+  payload   String // JSON serialized air quality data
+  fetchedAt DateTime
+}

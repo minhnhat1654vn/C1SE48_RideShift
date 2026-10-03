@@ -1,0 +1,12 @@
+{
+  "name": "rideshift-fastapi-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "RideShift REST API backend — Python + FastAPI + pandas + Shapely on PostgreSQL (per proposal technology stack)",
+  "scripts": {
+    "dev": "python3 -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload",
+    "start": "python3 -m uvicorn main:app --host 127.0.0.1 --port 8000",
+    "seed": "python3 -m app.seed",
+    "dataset": "python3 -m app.services.trend"
+  }
+}

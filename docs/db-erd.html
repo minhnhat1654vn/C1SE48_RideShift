@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>RideShift — Database ERD</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #FAFBFC; }
+  #canvas {
+    position: relative;
+    width: 2200px;
+    height: 1880px;
+    background: #FAFBFC;
+    font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    overflow: hidden;
+  }
+  #wires { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+
+  .title-block { position: absolute; left: 70px; top: 24px; }
+  .title-block h1 { font-size: 21px; font-weight: 650; color: #243447; letter-spacing: 0.1px; }
+  .title-block p  { font-size: 13px; color: #8A919A; margin-top: 5px; }
+
+  .tbl {
+    position: absolute;
+    width: 330px;
+    background: #F4F5F7;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(36, 52, 71, 0.07);
+    overflow: hidden;
+  }
+  .tbl-header {
+    background: #2D5F8B;
+    color: #FFFFFF;
+    font-size: 16.5px;
+    font-weight: 600;
+    padding: 12px 20px;
+    letter-spacing: 0.2px;
+  }
+  .trow {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 7px 20px;
+  }
+  .trow .cname { font-size: 14.5px; color: #33383F; }
+  .trow .ctype { font-size: 13.5px; color: #A0A6AE; white-space: nowrap; margin-left: 12px; }
+
+  .legend {
+    position: absolute;
+    left: 70px;
+    bottom: 26px;
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    font-size: 13px;
+    color: #5A626B;
+  }
+  .legend .item { display: flex; align-items: center; gap: 8px; }
+  .legend svg { display: block; }
+</style>
+</head>
+<body>
+<div id="canvas">
+  <svg id="wires"></svg>
+  <div class="title-block">
+    <h1>RideShift — Database Schema (PostgreSQL)</h1>
+    <p>11 tables &nbsp;·&nbsp; source: mini-services/fastapi-backend/app/schema.sql &nbsp;·&nbsp; database: rideshift @ PostgreSQL 18.4</p>
+  </div>
+  <div id="tables"></div>
+  <div class="legend">
+    <div class="item">
+      <svg width="34" height="8"><line x1="1" y1="4" x2="33" y2="4" stroke="#C6CDD5" stroke-width="2"/></svg>
+      FK constraint (ON DELETE CASCADE)
+    </div>
+    <div class="item">
+      <svg width="34" height="8"><line x1="1" y1="4" x2="33" y2="4" stroke="#C6CDD5" stroke-width="2" stroke-dasharray="5,4"/></svg>
+      logical reference (text id)
+    </div>
+    <div class="item" style="color:#8A919A;">
+      lez_zone.geom&nbsp;geometry(Polygon,4326)&nbsp;+&nbsp;GIST — auto-added when PostGIS is available (docker-compose)
+    </div>
+  </div>
+</div>
+
+<script>
+const TABLES = [
+  { id: 'admin_user', x: 70, y: 115, cols: [
+    ['id', 'text'], ['username', 'text'], ['password_hash', 'text'], ['full_name', 'text'], ['created_at', 'timestamptz'] ] },
+
+  { id: 'admin_session', x: 70, y: 445, cols: [
+    ['id', 'text'], ['token', 'text'], ['user_id', 'text'], ['expires_at', 'timestamptz'], ['created_at', 'timestamptz'] ] },
+
+  { id: 'transportation_location', x: 70, y: 790, cols: [
+    ['id', 'text'], ['name', 'text'], ['type', 'text'], ['lat', 'double precision'], ['lng', 'double precision'], ['active', 'boolean'] ] },
+
+  { id: 'lez_zone', x: 610, y: 115, cols: [
+    ['id', 'text'], ['name', 'text'], ['description', 'text'], ['coordinates', 'text'], ['active', 'boolean'], ['created_at', 'timestamptz'], ['updated_at', 'timestamptz'] ] },
+
+  { id: 'policy_rule', x: 610, y: 530, cols: [
+    ['id', 'text'], ['zone_id', 'text'], ['mode_id', 'text'], ['restriction_type', 'text'], ['condition', 'text'], ['start_time', 'text'], ['end_time', 'text'], ['days', 'text'], ['active', 'boolean'], ['created_at', 'timestamptz'] ] },
+
+  { id: 'trip_record', x: 610, y: 1035, cols: [
+    ['id', 'text'], ['origin_name', 'text'], ['dest_name', 'text'], ['origin_district', 'text'],
+    ['origin_lat', 'double precision'], ['origin_lng', 'double precision'], ['dest_lat', 'double precision'], ['dest_lng', 'double precision'],
+    ['distance_km', 'double precision'], ['duration_min', 'double precision'], ['vehicle_id', 'text'], ['purpose', 'text'],
+    ['departure_hour', 'integer'], ['lez_affected', 'boolean'], ['top_mode_id', 'text'], ['top_score', 'double precision'],
+    ['avg_cost_vnd', 'double precision'], ['avg_time_min', 'double precision'], ['chosen_mode_id', 'text'], ['switched', 'boolean'],
+    ['created_at', 'timestamptz'] ] },
+
+  { id: 'transport_mode', x: 1180, y: 160, cols: [
+    ['id', 'text'], ['name', 'text'], ['description', 'text'], ['icon', 'text'],
+    ['avg_speed_kmh', 'double precision'], ['base_cost_vnd', 'double precision'], ['cost_per_km_vnd', 'double precision'],
+    ['co2_per_km_g', 'double precision'], ['base_accessibility', 'double precision'], ['base_convenience', 'double precision'],
+    ['wait_minutes', 'double precision'], ['enabled', 'boolean'], ['sort_order', 'integer'] ] },
+
+  { id: 'criteria_weight', x: 1180, y: 990, cols: [
+    ['id', 'text'], ['criterion', 'text'], ['weight', 'double precision'], ['label', 'text'] ] },
+
+  { id: 'air_quality_cache', x: 1180, y: 1330, cols: [
+    ['id', 'text'], ['cache_key', 'text'], ['payload', 'text'], ['fetched_at', 'timestamptz'] ] },
+
+  { id: 'dataset_trend', x: 1750, y: 160, cols: [
+    ['id', 'text'], ['mode_id', 'text'], ['month', 'text'], ['share', 'double precision'], ['trend_index', 'double precision'], ['sample_count', 'integer'] ] },
+
+  { id: 'dataset_run', x: 1750, y: 560, cols: [
+    ['id', 'text'], ['ran_at', 'timestamptz'], ['source_file', 'text'], ['rows_in', 'integer'], ['rows_clean', 'integer'], ['notes', 'text'] ] },
+];
+
+// [fromTable, fromCol, toTable, toCol, dashed, targetOffsetPx]
+const LINKS = [
+  ['admin_session', 'user_id',       'admin_user', 'id', false, 0],
+  ['policy_rule',   'zone_id',       'lez_zone',   'id', false, 0],
+  ['policy_rule',   'mode_id',       'transport_mode', 'id', false, +12],
+  ['trip_record',   'vehicle_id',    'transport_mode', 'id', true,  +4],
+  ['trip_record',   'top_mode_id',   'transport_mode', 'id', true,  -4],
+  ['trip_record',   'chosen_mode_id','transport_mode', 'id', true,  -12],
+  ['dataset_trend', 'mode_id',       'transport_mode', 'id', true,   0],
+];
+
+const container = document.getElementById('tables');
+const tblPos = {};
+
+TABLES.forEach(t => {
+  const el = document.createElement('div');
+  el.className = 'tbl';
+  el.id = 'tbl-' + t.id;
+  el.style.left = t.x + 'px';
+  el.style.top = t.y + 'px';
+  let html = '<div class="tbl-header">' + t.id + '</div>';
+  t.cols.forEach(([name, type]) => {
+    html += '<div class="trow" data-col="' + name + '"><span class="cname">' + name + '</span><span class="ctype">' + type + '</span></div>';
+  });
+  el.innerHTML = html;
+  container.appendChild(el);
+  tblPos[t.id] = { x: t.x, y: t.y, el };
+});
+
+function rowRect(tblId, colName) {
+  const { x, y, el } = tblPos[tblId];
+  const row = el.querySelector('.trow[data-col="' + colName + '"]');
+  const r = row.getBoundingClientRect();
+  const c = document.getElementById('canvas').getBoundingClientRect();
+  // row spans full table width; left/right edges = table edges
+  return { left: x, right: x + r.width, cy: r.top - c.top + r.height / 2 };
+}
+
+const svg = document.getElementById('wires');
+const NS = 'http://www.w3.org/2000/svg';
+
+LINKS.forEach(([ft, fc, tt, tc, dashed, off]) => {
+  const f = rowRect(ft, fc);
+  const t = rowRect(tt, tc);
+  const tcy = t.cy + off;
+
+  let x0, x1, d;
+  if (t.left >= f.right) {
+    // source on the left of target: exit right edge, enter left edge
+    x0 = f.right; x1 = t.left;
+    const dx = Math.min(Math.max((x1 - x0) * 0.5, 40), 120);
+    d = `M ${x0} ${f.cy} C ${x0 + dx} ${f.cy}, ${x1 - dx} ${tcy}, ${x1} ${tcy}`;
+  } else if (f.left >= t.right) {
+    // source on the right of target: exit left edge, enter right edge
+    x0 = f.left; x1 = t.right;
+    const dx = Math.min(Math.max((x0 - x1) * 0.5, 40), 120);
+    d = `M ${x0} ${f.cy} C ${x0 - dx} ${f.cy}, ${x1 + dx} ${tcy}, ${x1} ${tcy}`;
+  } else {
+    // same column: curve out the left side
+    const bulge = Math.max(36, Math.min(f.left - 12, 56));
+    const bx = f.left - bulge;
+    d = `M ${f.left} ${f.cy} C ${bx} ${f.cy}, ${bx} ${tcy}, ${t.left} ${tcy}`;
+  }
+
+  const p = document.createElementNS(NS, 'path');
+  p.setAttribute('d', d);
+  p.setAttribute('fill', 'none');
+  p.setAttribute('stroke', '#C6CDD5');
+  p.setAttribute('stroke-width', '1.6');
+  if (dashed) p.setAttribute('stroke-dasharray', '6,4');
+  svg.appendChild(p);
+});
+</script>
+</body>
+</html>
