@@ -99,19 +99,21 @@
 
 ---
 
-## GC-Sprint 5 — Regression + đo hiệu năng
-**Thời gian:** 02/11 → 08/11 (3–4 ngày) · **Gap đáp ứng:** Phase 7 evaluation (dataset: ĐÃ CHỐT giữ 2.400 dòng → task Kaggle hủy)
+## GC-Sprint 5 — Dataset Kaggle >25k + regression + đo hiệu năng
+**Thời gian:** 02/11 → 08/11 (5 ngày) · **Gap đáp ứng:** Deliverable #11 (Q4: LÀM — owner đã assign từ tuần 1) + Phase 7 evaluation
 
-**Mục tiêu:** Chứng minh hệ thống ổn định trên dữ liệu hiện có + có số đo hiệu năng thật cho báo cáo.
+**Mục tiêu:** Deliverable #11 đạt chuẩn quy mô ">25,000 samples" và hệ thống được chứng minh ổn định + có số đo hiệu năng thật.
 
 | STT | Task | Chi tiết / AC |
 |---|---|---|
-| 5.1 | Full regression | Chạy toàn bộ suite (GC-S1–GC-S3) trên dữ liệu 2.400 dòng hiện tại. AC: 100% xanh. |
-| 5.2 | Đo hiệu năng | Script `backend/tools/bench.py`: time `/api/trip/analyze` (n=20), spatial check, `topsis()` (n=1000) → bảng vào `docs/evaluation.md` (NFR-01). AC: có số p50/p95. |
-| 5.3 | Sensitivity report | Từ test GC-S2: bảng trọng số→rank + so baseline (sắp xếp 1 tiêu chí) → `docs/evaluation.md` (Recommendation Evaluation). AC: có kết luận 2-3 câu. |
-| 5.4 | Ghi deviation dataset | Trong `docs/evaluation.md` + GAP_ANALYSIS B10: "giữ dataset 2.400 dòng — accepted deviation với Deliverable #11; nguyên nhân + hướng mở rộng". |
+| 5.1 | Tải dataset *(owner đã assign từ tuần 1 — file phải có sẵn trước khi sprint bắt đầu)* | Kaggle "Vehicle at Ha Noi Dataset" (25.590 × 58 cột). Đặt `backend/data/vehicle_at_hanoi_kaggle.csv`; **giữ scaffold 2.400 dòng làm fixture test**. |
+| 5.2 | Thích ứng pipeline | So 58 cột Kaggle với schema `trend.py` đọc; điều chỉnh phần load/feature **giữ aggregation theo tháng** (schema DB không đổi); xử lý null/cột lạ (Review Focus #2). AC: `run_pipeline()` xong, `dataset_run.rows_in ≥ 25.000`, không exception. |
+| 5.3 | Verify dashboard | Compose up → admin Overview trend chart render từ dữ liệu thật; `GET /api/dataset/summary` đúng. |
+| 5.4 | Full regression | Chạy toàn bộ suite (GC-S1–GC-S3) trên dữ liệu mới. AC: 100% xanh. |
+| 5.5 | Đo hiệu năng | Script `backend/tools/bench.py`: time `/api/trip/analyze` (n=20), spatial check, `topsis()` (n=1000) → `docs/evaluation.md` (NFR-01). AC: có số p50/p95. |
+| 5.6 | Sensitivity report | Từ test GC-S2: bảng trọng số→rank + so baseline → `docs/evaluation.md`. AC: có kết luận 2-3 câu. |
 
-**Deliverable:** `docs/evaluation.md` (perf + sensitivity + deviation note); regression xanh.
+**Deliverable:** CSV Kaggle nạp + pipeline run mới; `docs/evaluation.md` (perf + sensitivity); regression xanh; GAP_ANALYSIS B10 → ✅.
 
 ---
 
@@ -142,17 +144,18 @@
 
 | Rủi ro | Impact | Mitigation |
 |---|---|---|
-| ~~Kaggle cần account/quyền tải~~ | ~~High~~ | **ĐÃ GIẢI QUYẾT 04/10:** giữ dataset 2.400 dòng — deviation được ghi nhận ở GC-S5 task 5.4 |
+| Kaggle cần account/quyền tải | High (GC-S5 chặn) | **Q4: owner được assign trong tuần này**, tải xong trước 02/11; nếu bế tắc thật sự thì mới quay lại phương án dataset 2.400 dòng + deviation |
 | Bật type-check lộ nhiều lỗi | Medium (GC-S1 trôi) | Giới hạn sửa trong `src/`; nếu >1 ngày → tạm suppress có ghi chú từng dòng, hoàn tất ở GC-S4 |
 | Test cần DB làm CI chậm | Low | DB disposable qua compose; suite target < 3 phút |
 | Sprint trùng lịch học | Medium | Mỗi sprint có 1 task "nice-to-have" đánh dấu rõ để drop trước |
 
 ## Open Questions → ĐÃ CHỐT (04/10/2026)
 
-Ba quyết định đã được Scrum Master chốt — **tất cả giữ hiện trạng**:
+Bốn quyết định đã được Scrum Master chốt:
 
-1. **PostGIS:** giữ Shapely làm đường chính (PostGIS là hạ tầng đồng bộ dự phòng). GC-S2 task 2.5 **hủy**; decision được ghi vào architecture.md ở GC-S4.
-2. **Impact Estimator:** giữ 4 trường hiện có (thỏa US-12 AC, vượt thêm 1 trường CO₂). GC-S4 task 4.1–4.3 **hủy**; phần lệch với Objective 8 ghi là *accepted deviation* trong báo cáo.
-3. **Dataset:** giữ scaffold 2.400 dòng, **không nạp Kaggle**. GC-S5 task 5.1–5.3 **hủy**; độ lệch với ">25.000 samples" (Deliverable #11) ghi là *accepted deviation* trong báo cáo — kèm nguyên nhân (nguồn Kaggle yêu cầu account; bản tích hợp trước đã mất khi sandbox reset) và hướng mở rộng tương lai.
+1. **Q1 — PostGIS:** giữ Shapely làm đường chính (PostGIS là hạ tầng dự phòng cho scale). GC-S2 task 2.5 **hủy**; decision được ghi vào architecture.md ở GC-S4.
+2. **Q2 — Impact Estimator:** giữ 4 trường hiện có (thỏa US-12 AC, vượt thêm CO₂). GC-S4 task tính năng **hủy**; lệch với Objective 8 = *accepted deviation* trong báo cáo.
+3. **Q3 — Alternative route suggestion:** **KHÔNG LÀM** — không FR/US nào yêu cầu → out of scope, ghi "future work", không tạo US.
+4. **Q4 — Dataset Kaggle:** **LÀM** (đảo ngược quyết định "giữ 2.400 dòng" cùng ngày) — owner được assign trong tuần này, nạp **trước GC-Sprint 5** → GC-S5 task 5.1–5.3 **phục hoạt**; deviation Deliverable #11 được đóng khi nạp xong.
 
-→ **Hệ quả:** hai deviation này bắt buộc xuất hiện trong Báo cáo capstone + `GAP_ANALYSIS.md` mục accepted deviation (GC-S6 task 6.2). Mục tiêu mới: đóng mọi gap có thể đóng, phần còn lại ghi nhận deviation rõ ràng có nguyên nhân.
+→ **Hệ quả:** sau 6 sprint dự kiến **51/54 ✅ (~94%)**; 3 deviation chính thức còn lại: A6 (PostGIS — Q1), B8 (Impact — Q2), D2 (GIST chưa dùng — hệ quả Q1). Q3 ghi future work. Deviation chỉ còn ở những mục **không thể/không nên đóng** — mọi mục closable đều có sprint sở hữu.
