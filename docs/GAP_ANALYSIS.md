@@ -12,7 +12,7 @@
 | A3 | Leaflet/MapLibre | ✅ | leaflet `1.9.4` + react-leaflet `5.0.0`; `map-view.tsx` (polyline, polygon, markers, 3D wards) | Chọn Leaflet trong 2 lựa chọn của proposal |
 | A4 | Python + FastAPI | ✅ | `requirements.txt`: fastapi `==0.128.0`, uvicorn `==0.40.0`; `backend/Dockerfile`: `python:3.12-slim` | 25 REST endpoints, Swagger `/docs` |
 | A5 | PostgreSQL | ✅ | `docker-compose.yml:15`: image `postgis/postgis:16-3.4` | 11 bảng, schema do backend sở hữu |
-| A6 | PostGIS | ⚠️ | `db.py:58-120`: `CREATE EXTENSION` + cột `geom geometry(Polygon,4326)` + GIST + backfill/sync. **Nhưng grep toàn backend: 0 câu truy vấn `ST_*` trong app** — phân tích outside/partial/within chạy Shapely (`geo.py`) | **Mâu thuẫn**: proposal Objective 3 ("spatial operations using PostgreSQL/PostGIS") + `docs/db.md` §5 claim "Docker: spatial query chạy trong DB" — **không đúng với code**. Kết quả nghiệp vụ tương đương; hạ tầng PostGIS có sẵn nếu muốn chuyển query xuống DB |
+| A6 | PostGIS | ⚠️ | `db.py:58-120`: `CREATE EXTENSION` + cột `geom geometry(Polygon,4326)` + GIST + backfill/sync. **Nhưng grep toàn backend: 0 câu truy vấn `ST_*` trong app** — phân tích outside/partial/within chạy Shapely (`geo.py`) | **Mâu thuẫn**: proposal Objective 3 ("spatial operations using PostgreSQL/PostGIS") + `docs/db.md` §5 claim "Docker: spatial query chạy trong DB" — **không đúng với code**. Kết quả nghiệp vụ tương đương; hạ tầng PostGIS có sẵn nếu muốn chuyển query xuống DB. **QUYẾT ĐỊNH 04/10: giữ Shapely làm đường chính** — accepted deviation, decision sẽ ghi vào architecture.md (GC-S4) |
 | A7 | OpenStreetMap | ✅ | `config.py:28` Nominatim; OSM tiles trong map-view | |
 | A8 | OSRM | ✅ | `config.py:29-34`: provider chain driving/cycling/walking; `external.py` + cache TTL + fallback synthetic | Self-host là module tùy chọn `osrm/` |
 | A9 | Open-Meteo/OpenAQ | ✅ | `config.py:35`: air-quality-api.open-meteo.com; cache DB `air_quality_cache` | Proposal là "Open-Meteo **/ OpenAQ**" — dùng 1 nguồn là hợp lệ; OpenAQ không dùng |
@@ -31,9 +31,9 @@
 | B5 | 5. Air Quality Integration | ✅ | `airquality.py` (Open-Meteo, pm2.5/pm10/us_aqi, `measuredAt`, nhãn dự phòng) + cache `air_quality_cache` (schema.sql:111); 4 component hiển thị AQ | Proposal form đăng ký ghi "real-time AQI" — cache là thiết kế Objective 5 cho phép |
 | B6 | 6. Recommendation Engine | ✅ | `mcdm.py` TOPSIS + 7 tiêu chí (time/cost/lezCompliance/accessibility/convenience/environment/trend); purpose (`PURPOSE_CONVENIENCE`), preferences 0-100 (planner 4 preset), trend từ `dataset_trend`, contributions giải trình | |
 | B7 | 7. Option Comparison | ✅ | `results.tsx:630` `ComparisonTable` — time/distance/cost/compliance + "Điểm tổng" :654 | |
-| B8 | 8. Impact Estimator | 🟡 | `results.tsx:700-775` "Ước lượng tác động": delta time/cost/CO₂ + badge compliance, so current vs top (hoặc runner-up) | **Mâu thuẫn nội bộ proposal**: Objective 8 liệt kê 6 trường; US-12 AC chỉ yêu cầu 3 (time/cost/compliance). Code có 4 — **vượt AC, thiếu 3 trường so với Objective 8** (accessibility/convenience/overall) |
+| B8 | 8. Impact Estimator | 🟡 | `results.tsx:700-775` "Ước lượng tác động": delta time/cost/CO₂ + badge compliance, so current vs top (hoặc runner-up) | **Mâu thuẫn nội bộ proposal**: Objective 8 liệt kê 6 trường; US-12 AC chỉ yêu cầu 3 (time/cost/compliance). Code có 4 — **vượt AC, thiếu 3 trường so với Objective 8** (accessibility/convenience/overall). **QUYẾT ĐỊNH 04/10: giữ 4 trường hiện trạng** (chuẩn nghiệm thu = US-12 AC) — Objective 8 là accepted deviation |
 | B9 | 9. Administrative Dashboard | ✅ | `admin.py`: zones/rules CRUD + modes PUT + weights (sum=100) + analytics pandas (total, lezAffectedPct, switchingPct, byDistrict, byPurpose, switched-to) + dataset card + reprocess | |
-| B10 | 10. Data Processing (>25k survey) | 🟡 | `trend.py` pipeline pandas đầy đủ (clean→transform→trend) + auto-run khi trống + `dataset_run` audit log. **Nhưng nguồn = `vehicle_at_hanoi.csv` 2.400 dòng scaffold** | **Mâu thuẫn**: proposal cam kết ">25,000 samples" (Kaggle 25.590×58 cột); `architecture.md` §8 xác nhận bản tích hợp thật đã mất khi sandbox reset |
+| B10 | 10. Data Processing (>25k survey) | 🟡 | `trend.py` pipeline pandas đầy đủ (clean→transform→trend) + auto-run khi trống + `dataset_run` audit log. **Nhưng nguồn = `vehicle_at_hanoi.csv` 2.400 dòng scaffold** | **Mâu thuẫn**: proposal cam kết ">25,000 samples" (Kaggle 25.590×58 cột); `architecture.md` §8 xác nhận bản tích hợp thật đã mất khi sandbox reset. **QUYẾT ĐỊNH 04/10: giữ dataset 2.400 dòng** — accepted deviation với Deliverable #11 (nguyên nhân + hướng mở rộng ghi ở GC-S5 5.4) |
 
 ## PHẦN C — Functional Requirements (FR-01…FR-15)
 
@@ -91,6 +91,8 @@
 - **% hoàn thành có trọng số** (✅=1, 🟡=0.5): 49/54 ≈ **91%**
 
 ## Top 5 Critical trước demo 06/12/2026
+
+> **Cập nhật 04/10 (sau khi Scrum Master chốt):** mục 2 (dataset Kaggle) và phần Impact của mục 5 → **giữ hiện trạng, chuyển thành accepted deviation** (xem GC-S5 5.4 / GC-S4 4.1 trong kế hoạch 6-sprint); mục 5 còn lại phần mini-evaluation. Bảng dưới giữ nguyên như bản audit gốc để đối chiếu.
 
 1. **🔴 D15 — Dựng bộ kiểm thử + Testing Documentation** (Deliverable #13 là mục nộp bắt buộc). 4 seam sẵn sàng: HTTP contract, `topsis()`, spatial, pipeline. Ảnh hưởng: không có lưới an toàn cho mọi thay đổi trước demo + thiếu cả deliverable.
 2. **🟡 B10 — Nạp dataset Kaggle >25.000 dòng** (Deliverable #11, Objective 10). Bằng chứng nhìn thấy được ngay trên dashboard; cần account Kaggle — phân công người sớm.

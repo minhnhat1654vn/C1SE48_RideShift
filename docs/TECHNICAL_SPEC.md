@@ -126,7 +126,8 @@ Tóm tắt **chênh lệch** giữa Phương tiện hiện tại và các phươ
 
 **Trạng thái:** ✅ khối "Ước lượng tác động" so sánh phương tiện hiện tại với đề xuất hàng đầu
 (khi trùng thì so với phương án kế tiếp), hiển thị delta thời gian, chi phí, phát thải CO₂ và badge tuân thủ.
-🟡 còn thiếu 3 trường theo Objective 8: delta tính tiếp cận, tính tiện lợi, điểm tổng — xem Task 7 trong `tasks/todo.md`.
+**ĐÃ CHỐT 04/10: giữ 4 trường hiện trạng** — thỏa và vượt US-12 AC (3 trường); phần lệch với Objective 8
+(6 trường) là accepted deviation, giải trình trong báo cáo cuối.
 
 ### F8 — Ghi nhận lựa chọn & chuyển dịch (Mode Shift)
 
@@ -287,8 +288,8 @@ Sản phẩm giữ vai trò **prototype hỗ trợ quyết định**, không ph�
 
 | # | Vấn đề | Chi tiết | Đề xuất |
 |---|---|---|---|
-| 1 | Quy mô dataset | CSV hiện có ~2.400 mẫu vs cam kết ">25.000 mẫu" của proposal (Deliverable #11) | Nạp dataset Kaggle đầy đủ vào pipeline trước demo |
-| 2 | Impact Estimator | Chưa có mô-đun tóm tắt delta so với phương tiện hiện tại (F7) | Bổ sung khối "so với xe bạn đang dùng" trong UI kết quả |
+| 1 | Quy mô dataset | CSV hiện có ~2.400 mẫu vs cam kết ">25.000 mẫu" của proposal (Deliverable #11) | **ĐÃ CHỐT 04/10: giữ dataset 2.400 dòng** — accepted deviation, giải trình trong báo cáo |
+| 2 | Impact Estimator | Chưa có mô-đun tóm tắt delta so với phương tiện hiện tại (F7) | **ĐÃ CHỐT 04/10: giữ 4 trường hiện có** (thỏa US-12 AC) — Objective 8 là accepted deviation |
 | 3 | Auth JWT | Proposal (đơn đăng ký) ghi JWT; thực tế dùng cookie phiên | Giữ cookie phiên, ghi chú vào báo cáo như quyết định thiết kế |
 | 4 | Kiểm thử & đánh giá | Chưa có test; Phase 7 (đo hiệu năng, SUS, sensitivity) chưa thực hiện | Ưu tiên 4 seam ở §8 trước khi冻结 code |
 | 5 | Air Quality nguồn | Proposal cho phép Open-Meteo *hoặc* OpenAQ — đang dùng Open-Meteo | Không cần thêm; nêu rõ trong báo cáo |
