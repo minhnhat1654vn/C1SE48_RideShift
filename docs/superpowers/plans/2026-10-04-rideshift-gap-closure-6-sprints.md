@@ -23,7 +23,7 @@
 ## Review Focus (input classes dễ gây lỗi — mỗi dòng được pin bởi test của task sở hữu)
 
 1. **Polygon tự giao / < 3 điểm khi admin vẽ zone** → kỳ vọng: bị từ chối bằng lỗi tiếng Việt, không crash, không lưu. *Pin: Task 3.3 (admin CRUD tests).*
-2. **CSV Kaggle có cột lạ / null / tên cột khác scaffold** → kỳ vọng: pipeline không crash, `rows_clean < rows_in` được ghi `dataset_run`, dashboard vẫn render. *Pin: Task 5.2.*
+2. **CSV nguồn có dòng rác / null / cột lạ** → kỳ vọng: pipeline không crash, `rows_clean < rows_in` được ghi `dataset_run`, dashboard vẫn render. *Pin: Task 3.2 (GC-S3).*
 3. **`CORS_ORIGINS` env rỗng / sai định dạng** → kỳ vọng: fallback an toàn (chỉ same-origin + localhost:3000), không ai bị lock khỏi trang chính. *Pin: Task 3.4.*
 4. **PUT weights giá trị âm / NaN / thiếu criterion** → kỳ vọng: 400 envelope `{error}` tiếng Việt, dữ liệu cũ giữ nguyên. *Pin: Task 1.6.*
 5. **Khung giờ biên (đúng 06:00, 22:00) và ngày không trong `days` của rule** → kỳ vọng: compliance trả đúng trạng thái ở biên inclusive. *Pin: Task 3.1/3.3.*
@@ -58,8 +58,7 @@
 | 2.1 | Golden tests `topsis()` | `tests/test_mcdm.py`: ≥5 ma trận tính tay (2–3 alternatives × 7 tiêu chí, giá trị đơn giản) → assert score/rank/contributions gần đúng (tolerance 1e-6). Bao gồm case cả 7 mode seed với trọng số mặc định 25/20/20/10/10/10/5. |
 | 2.2 | Sensitivity tests | ≥3 test: tăng trọng số một tiêu chí làm rank của alternative mạnh ở tiêu chí đó tăng đúng chiều (pin "Recommendation Evaluation" của proposal). |
 | 2.3 | Bất biến tests | Alternatives rỗng → `[]`; toàn trọng số 0 → không chia 0 (normalize theo `w_sum or 1.0`); cost-criteria (travelTime/cost) đảo chiều đúng; điểm luôn trong [0,1]. AC: ≥4 test. |
-| 2.4 | Quyết định PostGIS (A6) | Viết decision vào `docs/architecture.md` (mục mới "Quyết định không gian") + cập nhật GAP_ANALYSIS A6. Khuyến nghị mặc định: **giữ Shapely primary**, PostGIS là hạ tầng đồng bộ; lý do: kết quả like-for-like, một code path được test duy nhất. Nếu team chọn DB-path → chạy 2.5. |
-| 2.5 | *(Điều kiện)* DB query path | Chỉ làm nếu 2.4 chọn chuyển: thêm nhánh `postgis_available()` trong analyze dùng `ST_Contains/ST_Intersects` thay Shapely; test so kết quả 2 path trên cùng bộ polygon fixture. AC: 2 path cho cùng output trên ≥5 case. |
+| 2.4 | Quyết định PostGIS (A6) — **ĐÃ CHỐT: giữ Shapely primary** | Ghi decision vào `docs/architecture.md` (mục "Quyết định không gian": Shapely là đường chính — kết quả like-for-like, một code path được test; PostGIS geom+GIST là hạ tầng dự phòng khi mở rộng) + cập nhật GAP_ANALYSIS A6 thành deviation được chấp nhận. ~~Task 2.5 DB-path: HỦY theo quyết định.~~ |
 | 2.6 | Checkpoint sprint | Tag `gc-sprint2-checkpoint`; toàn bộ suite xanh. |
 
 **Deliverable:** `tests/test_mcdm.py` ≥12 test; decision PostGIS ghi trong architecture.md + GAP_ANALYSIS.md cập nhật.
@@ -84,40 +83,35 @@
 
 ---
 
-## GC-Sprint 4 — Impact Estimator đủ trường + dọn nợ tài liệu
-**Thời gian:** 26/10 → 01/11 (4–5 ngày) · **Gap đáp ứng:** B8 (Objective 8) + drift tài liệu
+## GC-Sprint 4 — Dọn nợ tài liệu
+**Thời gian:** 26/10 → 01/11 (3–4 ngày) · **Gap đáp ứng:** drift tài liệu (Impact Estimator đã CHỐT giữ hiện trạng → task tính năng hủy)
 
-**Mục tiêu:** Khối "Ước lượng tác động" đủ 6 trường theo Objective 8 (chỉ còn thiếu tiếp cận + tiện lợi; điểm tổng là stretch), và tài liệu nội bộ khớp layout repo thật.
+**Mục tiêu:** Tài liệu nội bộ khớp layout repo thật và ghi nhận 2 accepted deviation đúng chỗ.
 
 | STT | Task | Chi tiết / AC |
 |---|---|---|
-| 4.1 | Delta "Tính tiếp cận" | `results.tsx` khối Ước lượng tác động: thêm ô delta accessibility (giá trị 0..1 đã có trong recommendation `normalized.accessibility`), format ±0.0x + label VI. AC: hiển thị đúng chiều (dương = tốt hơn), không phá layout mobile. |
-| 4.2 | Delta "Tính tiện lợi" | Như trên cho `normalized.convenience`. AC: cùng tiêu chí. |
-| 4.3 | *(Stretch)* Delta "Điểm tổng" | Ô % điểm hai phương án (dữ liệu đã có `score`). AC: hiển thị khi cả 2 có điểm. |
-| 4.4 | Cập nhật spec/gap | `TECHNICAL_SPEC.md` F7 → ✅ (ghi rõ đủ 6 trường); `GAP_ANALYSIS.md` B8 → ✅. |
-| 4.5 | Sửa path docs | `architecture.md` + `tech-stack.md`: `mini-services/fastapi-backend` → `backend`; `BACKUP.md` thêm header "HISTORICAL — sandbox layout, không còn tồn tại trong repo này". |
-| 4.6 | ERD header + db-schema.sql | `docs/db-erd.html`: sửa caption path `mini-services/...` → `backend/app/schema.sql` (re-render PNG nếu môi trường có playwright, không thì ghi note); `docs/db-schema.sql` thêm header "GENERATED annotated export — không sửa tay, sync từ backend/app/schema.sql". AC: grep không còn `mini-services` trong docs sống. |
-| 4.7 | Commit + checkpoint | Suite vẫn xanh; UI smoke khối tác động trên 3 scenario (xe hiện tại = best / ≠ best / banned). |
+| 4.1 | Cập nhật spec/gap về Impact | `TECHNICAL_SPEC.md` F7 + `GAP_ANALYSIS.md` B8: ghi "✅ theo US-12 AC (vượt thêm CO₂); Objective 8 = accepted deviation 04/10". |
+| 4.2 | Sửa path docs | `architecture.md` + `tech-stack.md`: `mini-services/fastapi-backend` → `backend`; `BACKUP.md` thêm header "HISTORICAL — sandbox layout, không còn tồn tại trong repo này"; thêm mục "Quyết định không gian" (Shapely primary) từ GC-S2. |
+| 4.3 | ERD header + db-schema.sql | `docs/db-erd.html`: sửa caption path `mini-services/...` → `backend/app/schema.sql` (re-render PNG nếu có playwright, không thì ghi note); `docs/db-schema.sql` thêm header "GENERATED annotated export — không sửa tay, sync từ backend/app/schema.sql". AC: grep không còn `mini-services` trong docs sống. |
+| 4.4 | Commit + checkpoint | Suite vẫn xanh; UI smoke khối tác động 3 scenario (xe hiện tại = best / ≠ best / banned) — chỉ xác nhận hiển thị, không sửa code. |
 
-**Deliverable:** results.tsx đủ 6 trường; 4 file docs cập nhật; GAP_ANALYSIS B8 ✅.
+**Deliverable:** 4 file docs cập nhật + 2 deviation ghi nhận (Impact, PostGIS).
 
 ---
 
-## GC-Sprint 5 — Dataset Kaggle >25k + regression + đo hiệu năng
-**Thời gian:** 02/11 → 08/11 (5 ngày) · **Gap đáp ứng:** Critical #2 (Deliverable #11) + mở đầu Phase 7 evaluation
+## GC-Sprint 5 — Regression + đo hiệu năng
+**Thời gian:** 02/11 → 08/11 (3–4 ngày) · **Gap đáp ứng:** Phase 7 evaluation (dataset: ĐÃ CHỐT giữ 2.400 dòng → task Kaggle hủy)
 
-**Mục tiêu:** Deliverable #11 đạt chuẩn quy mô ">25,000 samples" và hệ thống được chứng minh ổn định + có số đo hiệu năng thật.
+**Mục tiêu:** Chứng minh hệ thống ổn định trên dữ liệu hiện có + có số đo hiệu năng thật cho báo cáo.
 
 | STT | Task | Chi tiết / AC |
 |---|---|---|
-| 5.1 | Tải dataset | Kaggle "Vehicle at Ha Noi Dataset" (25.590 × 58 cột — *cần account; owner: Scrum Master*). Đặt `backend/data/vehicle_at_hanoi_kaggle.csv`; **giữ scaffold 2.400 dòng làm fixture test**. |
-| 5.2 | Thích ứng pipeline | So 58 cột Kaggle với schema `trend.py` đọc; điều chỉnh phần load/feature **giữ aggregation theo tháng** (schema DB không đổi). Xử lý null/cột lạ theo Review Focus #2. AC: `run_pipeline()` xong, `dataset_run.rows_in ≥ 25.000`, `rows_clean` ghi nhận, không exception. |
-| 5.3 | Verify dashboard | Compose up → admin Overview: trend chart render từ dữ liệu thật; `GET /api/dataset/summary` đúng. AC: screenshot/chk đáp ứng. |
-| 5.4 | Full regression | Chạy toàn bộ suite (GC-S1–GC-S3) trên dữ liệu mới. AC: 100% xanh. |
-| 5.5 | Đo hiệu năng | Script `backend/tools/bench.py`: time `/api/trip/analyze` (n=20), spatial check, `topsis()` (n=1000) → bảng vào `docs/evaluation.md` (NFR-01). AC: có số p50/p95. |
-| 5.6 | Sensitivity report | Từ test 2.2: bảng trọng số→rank + so baseline (sắp xếp 1 tiêu chí) → `docs/evaluation.md` (Recommendation Evaluation). AC: có kết luận 2-3 câu. |
+| 5.1 | Full regression | Chạy toàn bộ suite (GC-S1–GC-S3) trên dữ liệu 2.400 dòng hiện tại. AC: 100% xanh. |
+| 5.2 | Đo hiệu năng | Script `backend/tools/bench.py`: time `/api/trip/analyze` (n=20), spatial check, `topsis()` (n=1000) → bảng vào `docs/evaluation.md` (NFR-01). AC: có số p50/p95. |
+| 5.3 | Sensitivity report | Từ test GC-S2: bảng trọng số→rank + so baseline (sắp xếp 1 tiêu chí) → `docs/evaluation.md` (Recommendation Evaluation). AC: có kết luận 2-3 câu. |
+| 5.4 | Ghi deviation dataset | Trong `docs/evaluation.md` + GAP_ANALYSIS B10: "giữ dataset 2.400 dòng — accepted deviation với Deliverable #11; nguyên nhân + hướng mở rộng". |
 
-**Deliverable:** CSV Kaggle nạp + pipeline run mới; `docs/evaluation.md` (perf + sensitivity); regression xanh.
+**Deliverable:** `docs/evaluation.md` (perf + sensitivity + deviation note); regression xanh.
 
 ---
 
@@ -148,13 +142,17 @@
 
 | Rủi ro | Impact | Mitigation |
 |---|---|---|
-| Kaggle cần account/quyền tải | High (GC-S5 chặn) | Owner tải từ GC-Sprint 1-2 (sớm hơn lịch); nếu bế tắc: dùng dataset 25k tổng hợp khác + ghi deviation |
+| ~~Kaggle cần account/quyền tải~~ | ~~High~~ | **ĐÃ GIẢI QUYẾT 04/10:** giữ dataset 2.400 dòng — deviation được ghi nhận ở GC-S5 task 5.4 |
 | Bật type-check lộ nhiều lỗi | Medium (GC-S1 trôi) | Giới hạn sửa trong `src/`; nếu >1 ngày → tạm suppress có ghi chú từng dòng, hoàn tất ở GC-S4 |
 | Test cần DB làm CI chậm | Low | DB disposable qua compose; suite target < 3 phút |
 | Sprint trùng lịch học | Medium | Mỗi sprint có 1 task "nice-to-have" đánh dấu rõ để drop trước |
 
-## Open Questions (cần chốt trước Sprint tương ứng)
+## Open Questions → ĐÃ CHỐT (04/10/2026)
 
-- **Trước GC-Sprint 2:** PostGIS giữ Shapely-primary (khuyến nghị) hay chuyển DB-path? (Q2 vòng grilling còn mở)
-- **Trước GC-Sprint 4:** Đếm Impact theo Objective 8 (6 trường — kế hoạch này) hay dừng ở US-12 AC? (Q1 vòng grilling còn mở)
-- **Trước GC-Sprint 5:** Ai sở hữu account Kaggle tải dataset?
+Ba quyết định đã được Scrum Master chốt — **tất cả giữ hiện trạng**:
+
+1. **PostGIS:** giữ Shapely làm đường chính (PostGIS là hạ tầng đồng bộ dự phòng). GC-S2 task 2.5 **hủy**; decision được ghi vào architecture.md ở GC-S4.
+2. **Impact Estimator:** giữ 4 trường hiện có (thỏa US-12 AC, vượt thêm 1 trường CO₂). GC-S4 task 4.1–4.3 **hủy**; phần lệch với Objective 8 ghi là *accepted deviation* trong báo cáo.
+3. **Dataset:** giữ scaffold 2.400 dòng, **không nạp Kaggle**. GC-S5 task 5.1–5.3 **hủy**; độ lệch với ">25.000 samples" (Deliverable #11) ghi là *accepted deviation* trong báo cáo — kèm nguyên nhân (nguồn Kaggle yêu cầu account; bản tích hợp trước đã mất khi sandbox reset) và hướng mở rộng tương lai.
+
+→ **Hệ quả:** hai deviation này bắt buộc xuất hiện trong Báo cáo capstone + `GAP_ANALYSIS.md` mục accepted deviation (GC-S6 task 6.2). Mục tiêu mới: đóng mọi gap có thể đóng, phần còn lại ghi nhận deviation rõ ràng có nguyên nhân.
