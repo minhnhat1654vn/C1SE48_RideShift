@@ -33,7 +33,7 @@
 | B7 | 7. Option Comparison | ✅ | `results.tsx:630` `ComparisonTable` — time/distance/cost/compliance + "Điểm tổng" :654 | |
 | B8 | 8. Impact Estimator | 🟡 | `results.tsx:700-775` "Ước lượng tác động": delta time/cost/CO₂ + badge compliance, so current vs top (hoặc runner-up) | **Mâu thuẫn nội bộ proposal**: Objective 8 liệt kê 6 trường; US-12 AC chỉ yêu cầu 3 (time/cost/compliance). Code có 4 — **vượt AC, thiếu 3 trường so với Objective 8** (accessibility/convenience/overall). **QUYẾT ĐỊNH 04/10: giữ 4 trường hiện trạng** (chuẩn nghiệm thu = US-12 AC) — Objective 8 là accepted deviation |
 | B9 | 9. Administrative Dashboard | ✅ | `admin.py`: zones/rules CRUD + modes PUT + weights (sum=100) + analytics pandas (total, lezAffectedPct, switchingPct, byDistrict, byPurpose, switched-to) + dataset card + reprocess | |
-| B10 | 10. Data Processing (>25k survey) | 🟡 | `trend.py` pipeline pandas đầy đủ (clean→transform→trend) + auto-run khi trống + `dataset_run` audit log. **Nhưng nguồn = `vehicle_at_hanoi.csv` 2.400 dòng scaffold** | **Mâu thuẫn**: proposal cam kết ">25,000 samples" (Kaggle 25.590×58 cột); `architecture.md` §8 xác nhận bản tích hợp thật đã mất khi sandbox reset. **QUYẾT ĐỊNH 04/10: giữ dataset 2.400 dòng** — accepted deviation với Deliverable #11 (nguyên nhân + hướng mở rộng ghi ở GC-S5 5.4) |
+| B10 | 10. Data Processing (>25k survey) | 🟡 | `trend.py` pipeline pandas đầy đủ (clean→transform→trend) + auto-run khi trống + `dataset_run` audit log. **Nhưng nguồn = `vehicle_at_hanoi.csv` 2.400 dòng scaffold** | **Mâu thuẫn**: proposal cam kết ">25,000 samples" (Kaggle 25.590×58 cột); `architecture.md` §8 xác nhận bản tích hợp thật đã mất khi sandbox reset. **CẬP NHẬT Q4 (04/10): sẽ nạp dataset Kaggle trước GC-S5** — owner được assign trong tuần này → B10 là mục có thể đóng. (Quyết định trước đó "giữ 2.400 dòng" bị đảo ngược bởi Q4) |
 
 ## PHẦN C — Functional Requirements (FR-01…FR-15)
 
@@ -92,7 +92,7 @@
 
 ## Top 5 Critical trước demo 06/12/2026
 
-> **Cập nhật 04/10 (sau khi Scrum Master chốt):** mục 2 (dataset Kaggle) và phần Impact của mục 5 → **giữ hiện trạng, chuyển thành accepted deviation** (xem GC-S5 5.4 / GC-S4 4.1 trong kế hoạch 6-sprint); mục 5 còn lại phần mini-evaluation. Bảng dưới giữ nguyên như bản audit gốc để đối chiếu.
+> **Cập nhật 04/10 (sau khi Scrum Master chốt):** mục 5 phần Impact → **giữ hiện trạng, accepted deviation** (GC-S4 4.1); **mục 2 dataset Kaggle QUAY LẠI kế hoạch theo Q4** — owner được assign trong tuần này, nạp trước GC-S5. Bảng dưới giữ nguyên như bản audit gốc để đối chiếu.
 
 1. **🔴 D15 — Dựng bộ kiểm thử + Testing Documentation** (Deliverable #13 là mục nộp bắt buộc). 4 seam sẵn sàng: HTTP contract, `topsis()`, spatial, pipeline. Ảnh hưởng: không có lưới an toàn cho mọi thay đổi trước demo + thiếu cả deliverable.
 2. **🟡 B10 — Nạp dataset Kaggle >25.000 dòng** (Deliverable #11, Objective 10). Bằng chứng nhìn thấy được ngay trên dashboard; cần account Kaggle — phân công người sớm.
