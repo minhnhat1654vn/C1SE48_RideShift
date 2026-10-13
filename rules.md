@@ -1,4 +1,4 @@
-MUST READ rule.md
+# MUST READ rule.md
 # RULES.md — Quy tắc làm việc nhóm RideShift (C1SE.48)
 
 > **Đọc hết file này trước khi viết dòng code đầu tiên.**
