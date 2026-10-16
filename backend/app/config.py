@@ -34,6 +34,16 @@ OSRM_PROVIDERS_CYCLING = ["https://routing.openstreetmap.de/routed-bike"]
 OSRM_PROVIDERS_WALKING = ["https://routing.openstreetmap.de/routed-foot"]
 OPEN_METEO_AQ_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
 
+# Goong (Zalo) — geocode hiểu số nhà Việt Nam tốt hơn Nominatim; đặt ĐẦU chuỗi
+# khi có key. Key nằm trong .env (gitignored), KHÔNG commit (rules.md §1.2).
+# LƯU Ý: Goong V2 dùng rsapi.goong.io — api.goong.io cũ đã chết (NXDOMAIN).
+GOONG_API_KEY = os.getenv("GOONG_API_KEY", "")
+GOONG_GEOCODE_URL = "https://rsapi.goong.io/v2/geocode"
+# Goong V2 không có tham số bias -> lọc khoảng cách phía backend:
+# kết quả ngoài bán kính này so với tâm khu vực bị coi là lệch tỉnh, nhường Nominatim.
+STUDY_CENTER = (21.0285, 105.8542)  # (lat, lng) — nội thành Hà Nội
+GOONG_MAX_KM = 25.0
+
 TIMEOUT_GEOCODE = 5.0
 TIMEOUT_ROUTE = 8.0
 TIMEOUT_AIR = 6.0

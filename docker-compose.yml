@@ -35,6 +35,7 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-rideshift}
       RIDESHIFT_SALT: ${RIDESHIFT_SALT:-rideshift-c1se48}
+      GOONG_API_KEY: ${GOONG_API_KEY:-}
     ports:
       - "8000:8000"
     depends_on:
