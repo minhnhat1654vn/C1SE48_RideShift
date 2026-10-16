@@ -87,10 +87,63 @@ LOCAL_PLACES: List[GeocodeResult] = [
 ]
 
 
+def _dist_km(lat: float, lng: float, center: tuple[float, float]) -> float:
+    """Ước lượng khoảng cách phẳng (đủ chính xác cho bán kính < 100km)."""
+    dlat = (lat - center[0]) * 111.32
+    dlng = (lng - center[1]) * 111.32 * 0.93  # cos(21°) ≈ 0.93
+    return math.hypot(dlat, dlng)
+
+
+def _goong_geocode(q: str) -> List[GeocodeResult]:
+    """Goong Forward Geocode V2 — hiểu số nhà Việt Nam tốt hơn Nominatim.
+
+    V2 không có tham số bias -> kết quả được lọc/xếp theo khoảng cách tới tâm
+    khu vực nghiên cứu; trả [] khi tất cả đều quá xa (chuyển sang Nominatim).
+    """
+    if not config.GOONG_API_KEY:
+        return []
+    url = (
+        f"{config.GOONG_GEOCODE_URL}?api_key={config.GOONG_API_KEY}"
+        f"&address={httpx.QueryParams({'address': q})['address']}"
+    )
+    try:
+        resp = http().get(url, timeout=config.TIMEOUT_GEOCODE)
+        if resp.status_code != 200:
+            return []
+        data = resp.json()
+        results = []
+        for d in data.get("results", [])[:6]:
+            loc = d.get("geometry", {}).get("location", {})
+            if loc.get("lat") is None or loc.get("lng") is None:
+                continue
+            results.append({
+                "name": d.get("formatted_address") or d.get("name") or q,
+                "lat": float(loc["lat"]),
+                "lng": float(loc["lng"]),
+                "source": "goong",
+            })
+        near = [
+            r for r in results
+            if _dist_km(r["lat"], r["lng"], config.STUDY_CENTER) <= config.GOONG_MAX_KM
+        ]
+        near.sort(key=lambda r: _dist_km(r["lat"], r["lng"], config.STUDY_CENTER))
+        return near
+    except Exception:
+        return []
+
+
 def geocode_address(query: str) -> List[GeocodeResult]:
     q = (query or "").strip()
     if not q:
         return []
+
+    # 1) Goong — ưu tiên vì dữ liệu số nhà VN đầy đủ (nhóm đã duyệt, Q-goong);
+    #    chỉ nhận kết quả trong bán kính khu vực, quá xa -> nhường nguồn sau.
+    goong_all = _goong_geocode(q)
+    if goong_all:
+        return goong_all
+
+    # 2) Nominatim (fallback, giới hạn viewbox Hà Nội)
     url = (
         f"{config.NOMINATIM_URL}?format=json&limit=6&countrycodes=vn"
         f"&viewbox=105.60,21.18,106.05,20.70&bounded=1&q={httpx.QueryParams({'q': q})['q']}"

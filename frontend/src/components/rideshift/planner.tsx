@@ -47,7 +47,7 @@ import {
   Search,
   TriangleAlert,
 } from 'lucide-react'
-import type { AnalyzeResponse, LezZoneDto, ModeInfo, TripPurpose } from '@/lib/types'
+import type { AnalyzeResponse, GeocodeResult, LezZoneDto, ModeInfo, TripPurpose } from '@/lib/types'
 import { TRIP_PURPOSES, CRITERION_LABELS } from '@/lib/types'
 import type { MapMarker } from '@/components/rideshift/map-view'
 import {
@@ -59,7 +59,6 @@ import {
   TripOverviewCard,
   MODE_ICONS,
 } from './results'
-import type { GeocodeResult } from '@/lib/external'
 
 const MapView = dynamic(() => import('./map-view'), {
   ssr: false,

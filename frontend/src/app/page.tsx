@@ -19,6 +19,15 @@ const TripPlanner = dynamic(() => import('@/components/rideshift/planner'), {
   ),
 })
 
+const PlannerV2 = dynamic(() => import('@/components/rideshift/planner-v2'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-64 items-center justify-center text-muted-foreground">
+      <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Đang tải tư vấn v2…
+    </div>
+  ),
+})
+
 const AdminDashboard = dynamic(
   () => import('@/components/rideshift/admin-dashboard'),
   {
@@ -31,7 +40,16 @@ const AdminDashboard = dynamic(
   }
 )
 
-type TabKey = 'planner' | 'admin'
+const AdminV2 = dynamic(() => import('@/components/rideshift/admin-v2'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-64 items-center justify-center text-muted-foreground">
+      <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Đang tải quản trị v2…
+    </div>
+  ),
+})
+
+type TabKey = 'planner' | 'planner2' | 'admin' | 'admin2'
 
 export default function Home() {
   const [tab, setTab] = useState<TabKey>('planner')
@@ -110,6 +128,18 @@ export default function Home() {
             </button>
             <button
               type="button"
+              onClick={() => setTab('planner2')}
+              aria-current={tab === 'planner2' ? 'page' : undefined}
+              className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                tab === 'planner2'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Leaf className="h-4 w-4" aria-hidden /> Tư vấn v2
+            </button>
+            <button
+              type="button"
               onClick={() => setTab('admin')}
               aria-current={tab === 'admin' ? 'page' : undefined}
               className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
@@ -119,6 +149,18 @@ export default function Home() {
               }`}
             >
               <ShieldCheck className="h-4 w-4" aria-hidden /> Quản trị
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab('admin2')}
+              aria-current={tab === 'admin2' ? 'page' : undefined}
+              className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                tab === 'admin2'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <ShieldCheck className="h-4 w-4" aria-hidden /> Quản trị v2
             </button>
             </div>
             <button
@@ -138,11 +180,19 @@ export default function Home() {
         <main className="relative flex-1 overflow-hidden">
           <TripPlanner zones={zones} onZonesChanged={handleZonesChanged} />
         </main>
-      ) : (
+      ) : tab === 'planner2' ? (
+        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-5">
+          <PlannerV2 />
+        </main>
+      ) : tab === 'admin' ? (
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-5">
           <AdminDashboard zones={zones} onZonesChanged={handleZonesChanged} />
         </main>
-      )}
+      ) : tab === 'admin2' ? (
+        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-5">
+          <AdminV2 />
+        </main>
+      ) : null}
 
       {/* ---------------- docs viewer ---------------- */}
       <DocsViewer open={docsOpen} onOpenChange={setDocsOpen} />
