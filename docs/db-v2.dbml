@@ -1,0 +1,390 @@
+// RideShift Database v2 - DBML cho dbdiagram.io
+// Khop 100% voi backend/app/schema_v2.sql (da verify chay tren PostGIS 16).
+// 22 bang / 7 schema (gom admin_sessions phien dang nhap). Guest khong dang nhap - core.admins chi luu quan tri vien.
+// Cach dung: dbdiagram.io -> New Diagram -> dan toan bo noi dung nay.
+
+Project rideshift_v2 {
+  database_type: 'PostgreSQL'
+  Note: 'RideShift - Smart Transport Transition Advisor. 7 schema: core gis transportation policy trip decision survey. Mo rong da khu vuc qua study_areas.'
+}
+
+// ============================== SCHEMA core ==============================
+
+Table study_areas [note: 'Goc mo rong da khu vuc: them thanh pho = them 1 dong, khong doi schema'] {
+  study_area_id bigserial [pk]
+  code varchar(30) [unique, not null]
+  name varchar(150) [not null]
+  area_type varchar(30) [not null, note: 'CITY | PROVINCE']
+  country_code varchar(10) [not null]
+  description text
+  geometry geometry [note: 'MultiPolygon 4326 - ranh gioi khu vuc, GIST index']
+  status varchar(20) [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table admins [note: 'CHI tai khoan quan tri vien. Guest khong dang nhap, khong co du lieu ca nhan'] {
+  admin_id bigserial [pk]
+  full_name varchar(150) [not null]
+  email varchar(200) [not null, unique]
+  password_hash text [not null, note: 'bcrypt hoac argon2 - RULES.md bat buoc']
+  role varchar(30) [not null, note: 'ADMIN duy nhat']
+  status varchar(20) [not null, note: 'ACTIVE | LOCKED | DISABLED']
+  last_login_at timestamp
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table admin_sessions [note: 'Phien dang nhap admin - dang xuat xoa dong = thu hoi phien that su (RULES.md 7)'] {
+  session_id bigserial [pk]
+  admin_id bigint [not null]
+  token varchar(64) [not null, unique]
+  expires_at timestamp [not null]
+  created_at timestamp [not null]
+}
+
+Table system_logs [note: 'Nhat ky Admin + loi he thong. KHONG ghi hanh vi vi tri Guest'] {
+  log_id bigserial [pk]
+  admin_id bigint [note: 'NULL = he thong tu ghi']
+  level varchar(10) [not null, note: 'INFO | WARNING | ERROR']
+  action varchar(100) [not null]
+  entity_type varchar(100)
+  entity_id bigint
+  description text
+  ip_address inet [note: 'chi dien cho thao tac Admin']
+  created_at timestamp [not null]
+}
+
+// ========================== SCHEMA transportation =========================
+
+Table transportation_modes [note: 'Phuong thuc di lai + tham so MCDM (config duoc, khong hard-code)'] {
+  transportation_mode_id bigserial [pk]
+  code varchar(50) [unique, not null]
+  name varchar(100) [not null]
+  category varchar(30)
+  description text
+  routing_profile varchar(20) [not null, note: 'car | bike | foot - cac mode cung profile dung chung route OSRM']
+  speed_factor numeric [not null, note: 'thoi gian = OSRM duration x speed_factor + avg_wait_min']
+  avg_wait_min numeric [not null]
+  base_fare numeric [not null]
+  cost_per_km numeric [not null]
+  accessibility_score smallint [note: '1..5']
+  convenience_score smallint [note: '1..5']
+  is_active boolean [not null]
+}
+
+Table transportation_locations {
+  transportation_location_id bigserial [pk]
+  study_area_id bigint [not null]
+  transportation_mode_id bigint [not null]
+  name varchar(200)
+  location_type varchar(50) [note: 'BUS_STOP | METRO_STATION | BRT...']
+  address text
+  geometry geometry [not null, note: 'Point 4326, GIST index']
+  source varchar(100)
+  status varchar(20) [not null]
+}
+
+// ============================== SCHEMA policy =============================
+
+Table lez_zones [note: 'Vung LEZ co ngay hieu luc (vd Chi thi 20: 01/07/2026)'] {
+  lez_zone_id bigserial [pk]
+  study_area_id bigint [not null]
+  name varchar(200) [not null]
+  description text
+  geometry geometry [not null, note: 'MultiPolygon 4326, GIST index, ST_IsValid check']
+  effective_from date
+  effective_to date
+  status varchar(30) [not null, note: 'DRAFT | ACTIVE | INACTIVE | EXPIRED']
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table lez_rules [note: 'Quy dinh: khung gio + ngay trong tuan + ngay hieu luc'] {
+  lez_rule_id bigserial [pk]
+  lez_zone_id bigint [not null]
+  rule_name varchar(200) [not null]
+  description text
+  start_time time [not null]
+  end_time time [not null, note: 'end < start = khung gio qua nua dem']
+  days_of_week smallint_array [not null, note: 'ISO: 1=Thu Hai .. 7=Chu Nhat']
+  effective_from date
+  effective_to date
+  status varchar(30) [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table vehicle_types [note: 'Loai xe Guest chon tren UI. emission_level so: 0=khong ro, 1..5=Euro 1..5, 9=khong phat thai EV'] {
+  vehicle_type_id bigserial [pk]
+  code varchar(50) [unique, not null]
+  name varchar(100) [not null]
+  category varchar(50) [not null, note: 'MOTORCYCLE | CAR | BUS | TAXI...']
+  fuel_type varchar(50) [not null, note: 'PETROL | DIESEL | ELECTRIC | HYBRID']
+  emission_standard varchar(50) [note: 'nhan hien thi EURO_3, ZERO_EMISSION']
+  emission_level smallint [not null]
+  transportation_mode_id bigint [not null, note: 'FIX 2: noi 2 phan loai - compliance qua vehicle_types']
+  is_default boolean [not null, note: 'TRUE = loai dai dien cua mode khi danh gia phuong an thay the (1/mode)']
+  description text
+  status varchar(20) [not null]
+}
+
+Table vehicle_restrictions [note: 'Cap (rule x loai xe): ALLOWED=duoc phep, PROHIBITED=cam, CONDITIONAL+min_emission_level=can Euro toi thieu, CONDITIONAL NULL=de kien khac'] {
+  vehicle_restriction_id bigserial [pk]
+  lez_rule_id bigint [not null]
+  vehicle_type_id bigint [not null]
+  restriction_type varchar(20) [not null, note: 'ALLOWED | CONDITIONAL | PROHIBITED']
+  min_emission_level smallint [note: 'NULL = khong yeu cau Euro']
+  restriction_reason text
+  indexes {
+    (lez_rule_id, vehicle_type_id) [unique]
+  }
+}
+
+// ================================ SCHEMA gis ==============================
+// Du lieu import tu nguon GIS ngoai (OSM / QGIS), khong tu ve
+
+Table administrative_regions [note: 'Import 126 phuong xa Ha Noi tu GeoJSON. UNIQUE (study_area_id, code)'] {
+  region_id bigserial [pk]
+  study_area_id bigint [not null]
+  parent_region_id bigint [note: 'NULL = khong co cap cha']
+  code varchar(50) [not null]
+  name varchar(150) [not null]
+  region_type varchar(50)
+  geometry geometry [not null, note: 'MultiPolygon 4326, GIST index']
+  source varchar(100)
+  status varchar(20) [not null]
+}
+
+Table road_segments [note: 'OSM import. Loc highway_type khi import de bang khong qua lon'] {
+  road_segment_id bigserial [pk]
+  study_area_id bigint [not null]
+  osm_id bigint [note: 'khong UNIQUE - mot way OSM co the bi cat nhieu doan']
+  name varchar(200)
+  highway_type varchar(50)
+  oneway boolean
+  max_speed smallint
+  length_m numeric
+  geometry geometry [not null, note: 'LineString 4326, GIST index']
+  source varchar(100)
+  updated_at timestamp [not null]
+}
+
+Table points_of_interest [note: 'Muc uu tien thap - khong nam trong chuc nang cot loi proposal'] {
+  poi_id bigserial [pk]
+  study_area_id bigint [not null]
+  name varchar(200)
+  category varchar(100)
+  address text
+  source varchar(100)
+  geometry geometry [not null, note: 'Point 4326, GIST index']
+  status varchar(20) [not null]
+}
+
+// ================================ SCHEMA trip =============================
+// Chuyen di AN DANH cua Guest: khong user_id / session / IP / ten dia chi.
+// Backend lam tron luoi ~100m; purge_location_data() xoa toa do sau thoi gian luu giu.
+
+Table trips [note: 'GUEST KHONG LOGIN: khong luu vi tri ca nhan - chi toa do lam tron phuc vu thong ke tong hop, purge sau 24h. chosen_vehicle_type_id + switched = chi so y dinh chuyen doi'] {
+  trip_id bigserial [pk]
+  study_area_id bigint [not null]
+  origin geometry [note: 'NULL sau khi purge']
+  destination geometry [note: 'NULL sau khi purge']
+  origin_region_id bigint [note: 'xa phuong - thong ke theo khu vuc sau khi purge toa do']
+  destination_region_id bigint
+  vehicle_type_id bigint [not null, note: 'xe hien tai Guest chon luc nhap']
+  chosen_vehicle_type_id bigint [note: 'lua chon SAU khi xem khuyen nghi - NULL = khong chon. KPI chuyen doi phuong tien']
+  switched boolean [not null, note: 'TRUE = doi xe so voi xe hien tai']
+  travel_time timestamp [not null]
+  trip_purpose varchar(50)
+  preferences jsonb [not null, note: 'trong so tieu chi Guest uu tien, ghi de default_weight']
+  created_at timestamp [not null]
+}
+
+Table trip_routes [note: 'Route OSRM theo routing_profile; route_index 1.. = tuyen thay the. Cac mode cung profile dung chung'] {
+  route_id bigserial [pk]
+  trip_id bigint [not null]
+  routing_profile varchar(20) [not null, note: 'car | bike | foot']
+  route_index smallint [not null, note: '0 = tuyen chinh']
+  provider varchar(50) [not null, note: 'OSRM | ESTIMATED (fallback)']
+  distance_m numeric
+  duration_sec integer
+  geometry geometry [note: 'LineString 4326 - NULL sau khi purge']
+  created_at timestamp [not null]
+  indexes {
+    (trip_id, routing_profile, route_index) [unique]
+  }
+}
+
+Table trip_lez_analysis [note: 'Ket qua PostGIS duoc LUU LAI: giao tuyen x vung LEZ x loai xe. route_lez_status va compliance_status ngay trong DB'] {
+  trip_lez_analysis_id bigserial [pk]
+  route_id bigint [not null]
+  lez_zone_id bigint [not null]
+  vehicle_type_id bigint [not null]
+  applicable_lez_rule_id bigint [note: 'NULL = khong co rule ap dung']
+  intersects boolean [not null]
+  intersection_length_m numeric
+  intersection_percentage numeric [note: '0..100']
+  route_lez_status varchar(10) [not null, note: 'OUTSIDE | PARTIAL | INSIDE']
+  compliance_status varchar(20) [not null, note: 'COMPLIANT | CONDITIONAL | NOT_COMPLIANT']
+  compliance_reason text
+  analyzed_at timestamp [not null]
+  indexes {
+    (route_id, lez_zone_id, vehicle_type_id) [unique]
+  }
+}
+
+// =============================== SCHEMA decision ==========================
+
+Table air_quality_observations [note: 'Mo hinh observation thay cache: lich su do theo khu vuc, serve fallback khi API loi'] {
+  air_quality_observation_id bigserial [pk]
+  study_area_id bigint [not null]
+  source varchar(50) [not null, note: 'OPEN_METEO | OPENAQ']
+  observed_at timestamp [not null]
+  location geometry
+  aqi numeric
+  pm25 numeric
+  pm10 numeric
+  no2 numeric
+  o3 numeric
+  raw_data jsonb
+  created_at timestamp [not null, note: 'thoi diem he thong lay ve - dung cho fallback']
+}
+
+Table recommendation_criteria [note: '7 tieu chi MCDM. default_weight 0..1 tong = 1 (backend kiem tra). Guest ghi de qua preferences'] {
+  criteria_id bigserial [pk]
+  code varchar(50) [unique, not null, note: 'TRAVEL_TIME | COST | LEZ_COMPLIANCE | ACCESSIBILITY | CONVENIENCE | ENVIRONMENT | SURVEY_TREND']
+  name varchar(100) [not null]
+  criteria_type varchar(30) [not null, note: 'COST (thap tot hon) | BENEFIT (cao tot hon)']
+  default_weight numeric [not null]
+  description text
+  status varchar(20) [not null]
+}
+
+Table recommendation_runs [note: 'Moi lan phan tich = 1 run. duration_ms phuc vu do hieu nang Phase 7'] {
+  recommendation_run_id bigserial [pk]
+  trip_id bigint [not null]
+  algorithm varchar(50) [not null, note: 'TOPSIS (Hwang & Yoon 1981)']
+  status varchar(30) [not null, note: 'PENDING | COMPLETED | FAILED']
+  duration_ms integer
+  created_at timestamp [not null]
+  completed_at timestamp
+}
+
+Table recommendation_scores [note: 'Giai trinh day du: moi mode x tieu chi co raw -> normalized -> weighted. final_score va rank_position CUA MODE, lap tren cac dong tieu chi cung mode (chu y cua thay de truy van xep hang don gian)'] {
+  recommendation_score_id bigserial [pk]
+  recommendation_run_id bigint [not null]
+  transportation_mode_id bigint [not null]
+  criteria_id bigint [not null]
+  raw_value numeric
+  normalized_value numeric
+  weight numeric [note: 'snapshot trong so luc chay - khong doi khi admin sua sau']
+  weighted_score numeric
+  final_score numeric [note: 'diem cuoi cua mode (lap tren moi dong tieu chi cua mode do)']
+  rank_position smallint [note: 'thu hang cua mode']
+  indexes {
+    (recommendation_run_id, transportation_mode_id, criteria_id) [unique]
+  }
+}
+
+Table impact_assessments [note: 'Impact Estimator thanh DU LIEU - dong tron Objective 8. Cot chenh lech la GENERATED (tu tinh, khong the lech voi goc)'] {
+  impact_assessment_id bigserial [pk]
+  trip_id bigint [not null]
+  recommendation_run_id bigint [note: 'NULL neu run bi xoa']
+  current_transportation_mode_id bigint [not null]
+  alternative_transportation_mode_id bigint [not null]
+  current_time_min numeric
+  alternative_time_min numeric
+  current_cost numeric
+  alternative_cost numeric
+  current_compliance_status varchar(20)
+  alternative_compliance_status varchar(20)
+  current_score numeric
+  alternative_score numeric
+  time_difference numeric [note: 'GENERATED: alternative - current']
+  cost_difference numeric [note: 'GENERATED']
+  score_difference numeric [note: 'GENERATED']
+  created_at timestamp [not null]
+}
+
+// ================================ SCHEMA survey ===========================
+// Dataset "Vehicle at Ha Noi" (Kaggle, >25.000 mau) - Deliverable 11.
+// Cot thiet ke theo MUC TIEU proposal, chua doi chieu cot that cua file Kaggle:
+// sau khi inspect dataset thi doi ten / them bot - cot goc luon giu trong raw_data.
+
+Table vehicle_survey_responses [note: 'Nguon tieu chi SURVEY_TREND + phan tich y dinh chuyen doi. is_valid FALSE = bi loai khi lam sach'] {
+  response_id bigserial [pk]
+  source_dataset varchar(100) [not null]
+  source_row_id varchar(50)
+  study_area_id bigint [not null]
+  region_id bigint
+  area_label varchar(150) [note: 'ten khu vuc nguyen ban trong survey']
+  trip_purpose varchar(50)
+  current_mode_id bigint [note: 'phuong tien hien tai cua nguoi khao sat']
+  preferred_mode_id bigint [note: 'phuong tien muon chuyen toi']
+  willing_to_switch boolean
+  trip_distance_km numeric
+  trip_time_min numeric
+  is_valid boolean [not null]
+  raw_data jsonb [not null, note: 'giu nguyen dong goc - khong mat thong tin']
+  imported_at timestamp [not null]
+  indexes {
+    (source_dataset, source_row_id) [unique]
+  }
+}
+
+// ============================== QUAN HE (FK) ==============================
+
+Ref: system_logs.admin_id > admins.admin_id [delete: set null]
+Ref: admin_sessions.admin_id > admins.admin_id [delete: cascade]
+
+Ref: lez_zones.study_area_id > study_areas.study_area_id
+Ref: lez_rules.lez_zone_id > lez_zones.lez_zone_id [delete: cascade]
+Ref: vehicle_restrictions.lez_rule_id > lez_rules.lez_rule_id [delete: cascade]
+Ref: vehicle_restrictions.vehicle_type_id > vehicle_types.vehicle_type_id
+Ref: vehicle_types.transportation_mode_id > transportation_modes.transportation_mode_id
+
+Ref: administrative_regions.study_area_id > study_areas.study_area_id
+Ref: administrative_regions.parent_region_id > administrative_regions.region_id [delete: set null]
+Ref: road_segments.study_area_id > study_areas.study_area_id
+Ref: points_of_interest.study_area_id > study_areas.study_area_id
+
+Ref: transportation_locations.study_area_id > study_areas.study_area_id
+Ref: transportation_locations.transportation_mode_id > transportation_modes.transportation_mode_id [delete: cascade]
+
+Ref: trips.study_area_id > study_areas.study_area_id
+Ref: trips.origin_region_id > administrative_regions.region_id [delete: set null]
+Ref: trips.destination_region_id > administrative_regions.region_id [delete: set null]
+Ref: trips.vehicle_type_id > vehicle_types.vehicle_type_id
+Ref: trips.chosen_vehicle_type_id > vehicle_types.vehicle_type_id [delete: set null]
+
+Ref: trip_routes.trip_id > trips.trip_id [delete: cascade]
+Ref: trip_lez_analysis.route_id > trip_routes.route_id [delete: cascade]
+Ref: trip_lez_analysis.lez_zone_id > lez_zones.lez_zone_id
+Ref: trip_lez_analysis.vehicle_type_id > vehicle_types.vehicle_type_id
+Ref: trip_lez_analysis.applicable_lez_rule_id > lez_rules.lez_rule_id
+
+Ref: air_quality_observations.study_area_id > study_areas.study_area_id
+Ref: recommendation_runs.trip_id > trips.trip_id [delete: cascade]
+Ref: recommendation_scores.recommendation_run_id > recommendation_runs.recommendation_run_id [delete: cascade]
+Ref: recommendation_scores.transportation_mode_id > transportation_modes.transportation_mode_id
+Ref: recommendation_scores.criteria_id > recommendation_criteria.criteria_id
+Ref: impact_assessments.trip_id > trips.trip_id [delete: cascade]
+Ref: impact_assessments.recommendation_run_id > recommendation_runs.recommendation_run_id [delete: set null]
+Ref: impact_assessments.current_transportation_mode_id > transportation_modes.transportation_mode_id
+Ref: impact_assessments.alternative_transportation_mode_id > transportation_modes.transportation_mode_id
+
+Ref: vehicle_survey_responses.study_area_id > study_areas.study_area_id
+Ref: vehicle_survey_responses.region_id > administrative_regions.region_id [delete: set null]
+Ref: vehicle_survey_responses.current_mode_id > transportation_modes.transportation_mode_id
+Ref: vehicle_survey_responses.preferred_mode_id > transportation_modes.transportation_mode_id
+
+// ====================== NHOM SCHEMA (khung mau) ===========================
+
+TableGroup core { study_areas admins admin_sessions system_logs }
+TableGroup gis { administrative_regions road_segments points_of_interest }
+TableGroup transportation { transportation_modes transportation_locations }
+TableGroup policy { lez_zones lez_rules vehicle_types vehicle_restrictions }
+TableGroup trip { trips trip_routes trip_lez_analysis }
+TableGroup decision { air_quality_observations recommendation_criteria recommendation_runs recommendation_scores impact_assessments }
+TableGroup survey { vehicle_survey_responses }

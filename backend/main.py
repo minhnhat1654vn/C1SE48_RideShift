@@ -18,7 +18,7 @@ from fastapi import FastAPI  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 
 from app import db, seed  # noqa: E402
-from app.routers import admin, public, trip  # noqa: E402
+from app.routers import admin, admin_v2, public, trip, trip_v2  # noqa: E402
 
 
 @asynccontextmanager
@@ -26,6 +26,9 @@ async def lifespan(application: FastAPI):
     try:
         db.init_db()
         seed.seed()
+        from app import db_v2
+
+        db_v2.init_v2()  # schema v2 (7 nhóm) + seed v2 — song song với v1
         from app.services import trend
 
         with db.get_conn() as conn:
@@ -60,6 +63,8 @@ app.add_middleware(
 app.include_router(public.router)
 app.include_router(trip.router)
 app.include_router(admin.router)
+app.include_router(trip_v2.router)
+app.include_router(admin_v2.router)
 
 
 @app.exception_handler(Exception)
