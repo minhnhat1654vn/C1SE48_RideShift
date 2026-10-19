@@ -12,9 +12,11 @@ import {
   FileText,
   Image as ImageIcon,
   Landmark,
+  Layers,
   Loader2,
   Database,
   ExternalLink,
+  Scale,
 } from 'lucide-react'
 import {
   Dialog,
@@ -26,12 +28,13 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 
-type DocKey = 'architecture' | 'db' | 'tech-stack'
+type DocKey = 'architecture' | 'db' | 'tech-stack' | 'topsis'
 
 const DOC_LABELS: Record<DocKey, string> = {
   architecture: 'Kiến trúc hệ thống',
   db: 'Thiết kế cơ sở dữ liệu',
   'tech-stack': 'Đối chiếu tech stack',
+  topsis: 'Mô hình chấm điểm TOPSIS',
 }
 
 const DOCS_STYLING = [
@@ -98,6 +101,13 @@ const DOWNLOADS = [
   },
   {
     icon: FileText,
+    name: 'topsis.md (mô hình chấm điểm TOPSIS — 7 tiêu chí, ví dụ tính tay)',
+    href: '/docs/topsis.md',
+    download: 'topsis.md',
+    size: '≈ 6 KB',
+  },
+  {
+    icon: FileText,
     name: 'Proposal gốc C1SE48_ProposalDocument_v1.0 (docx)',
     href: '/docs/C1SE48_ProposalDocument_v1.0.docx',
     download: 'C1SE48_ProposalDocument_v1.0.docx',
@@ -109,6 +119,7 @@ interface DocsPayload {
   architecture: string
   db: string
   'tech-stack': string
+  topsis: string
 }
 
 export function DocsViewer({
@@ -163,6 +174,12 @@ export function DocsViewer({
               <TabsTrigger value="db" className="gap-1.5 text-xs">
                 <Database className="h-3.5 w-3.5" aria-hidden /> CSDL
               </TabsTrigger>
+              <TabsTrigger value="topsis" className="gap-1.5 text-xs">
+                <Scale className="h-3.5 w-3.5" aria-hidden /> TOPSIS
+              </TabsTrigger>
+              <TabsTrigger value="tech-stack" className="gap-1.5 text-xs">
+                <Layers className="h-3.5 w-3.5" aria-hidden /> Tech stack
+              </TabsTrigger>
               <TabsTrigger value="erd" className="gap-1.5 text-xs">
                 <ImageIcon className="h-3.5 w-3.5" aria-hidden /> Sơ đồ ERD
               </TabsTrigger>
@@ -172,7 +189,7 @@ export function DocsViewer({
             </TabsList>
           </div>
 
-          {(['architecture', 'db', 'tech-stack'] as DocKey[]).map((key) => (
+          {(['architecture', 'db', 'topsis', 'tech-stack'] as DocKey[]).map((key) => (
             <TabsContent
               key={key}
               value={key}
@@ -203,8 +220,9 @@ export function DocsViewer({
           <TabsContent value="erd" className="mt-0 min-h-0 flex-1 overflow-auto p-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs text-muted-foreground">
-                Sơ đồ quan hệ 11 bảng — vẽ theo style dbdiagram; đường liền = FK
-                constraint, đường nét đứt = tham chiếu logic.
+                Sơ đồ 24 bảng / 6 schema theo thiết kế DB FINAL (core · gis ·
+                transportation · policy · trip · decision) — mỗi thẻ là một bảng,
+                gom theo schema sở hữu.
               </p>
               <Button asChild variant="outline" size="sm" className="gap-1.5">
                 <a href="/db-erd.png" target="_blank" rel="noreferrer">
@@ -214,7 +232,7 @@ export function DocsViewer({
             </div>
             <img
               src="/db-erd.png"
-              alt="Sơ đồ ERD cơ sở dữ liệu RideShift — 11 bảng PostgreSQL"
+              alt="Sơ đồ CSDL RideShift — 24 bảng trong 6 schema PostgreSQL (DB FINAL)"
               className="w-full rounded-lg border shadow-sm"
               loading="lazy"
             />

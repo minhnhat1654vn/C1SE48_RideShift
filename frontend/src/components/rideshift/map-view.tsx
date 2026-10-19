@@ -19,6 +19,12 @@
 // Esri World Imagery and classic OSM. All previous features are kept:
 // LEZ polygons, route polyline, origin/destination markers, transportation
 // locations, click-to-draw for new zones (US-31) and click-to-pick (US-01).
+//
+// Air-quality cloud layer (Task 41 — "lớp mây chất lượng không khí", US-08):
+//   REMOVED (Task 53-a — "phần AQI chỉ mới làm ở demo thôi, không làm thật"):
+//   the demo cloud/badges/legend visualization has been taken out entirely.
+//   The ward click-to-inspect panel still shows the REAL per-ward AQI from
+//   the backend /api/airquality (Open-Meteo, cache-first — US-19).
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
@@ -322,6 +328,10 @@ class WardExtruder {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Shared AQI tone + number formatting helpers (ward info panel)
+// ---------------------------------------------------------------------------
+
 function aqiTone(aqi: number): { label: string; className: string } {
   if (aqi <= 50) return { label: 'Tốt', className: 'text-emerald-600' }
   if (aqi <= 100) return { label: 'Trung bình', className: 'text-amber-600' }
@@ -373,6 +383,8 @@ export default function MapView({
   const [zoomLevel, setZoomLevel] = useState(12)
   const [wardsState, setWardsState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [panel, setPanel] = useState<WardPanel | null>(null)
+
+  // demo dispatch hook removed (Task 43 — US demo tour taken down)
 
   // ---- sync latest handlers into refs (after render commit) ----
   useEffect(() => {
@@ -970,3 +982,4 @@ function WardPanelCard({ panel, onClose }: { panel: WardPanel; onClose: () => vo
     </aside>
   )
 }
+

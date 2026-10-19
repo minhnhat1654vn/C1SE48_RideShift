@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844" font-family="Inter, 'Segoe UI', system-ui, sans-serif">
+  <defs>
+    <clipPath id="mobileMapClip"><rect x="0" y="88" width="390" height="472"/></clipPath>
+    <clipPath id="hanoiClipM">
+      <path d="M 20.0 320.0 C 33.3 283.3, 46.7 201.7, 80.0 160.0 C 113.3 118.3, 183.3 95.0, 220.0 70.0 C 256.7 45.0, 258.3 20.0, 300.0 10.0 C 341.7 -0.0, 421.7 -5.0, 470.0 10.0 C 518.3 25.0, 565.0 68.3, 590.0 100.0 C 615.0 131.7, 601.7 163.3, 620.0 200.0 C 638.3 236.7, 691.7 283.3, 700.0 320.0 C 708.3 356.7, 670.0 386.7, 670.0 420.0 C 670.0 453.3, 703.3 481.7, 700.0 520.0 C 696.7 558.3, 675.0 606.7, 650.0 650.0 C 625.0 693.3, 585.0 748.3, 550.0 780.0 C 515.0 811.7, 481.7 836.7, 440.0 840.0 C 398.3 843.3, 340.0 823.3, 300.0 800.0 C 260.0 776.7, 226.7 738.3, 200.0 700.0 C 173.3 661.7, 166.7 611.7, 140.0 570.0 C 113.3 528.3, 63.3 481.7, 40.0 450.0 C 16.7 418.3, 3.3 401.7, 0.0 380.0 C -3.3 358.3, 6.7 356.7, 20.0 320.0 Z"/>
+    </clipPath>
+    <filter id="aqiBlurM" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="55"/></filter>
+  </defs>
+
+  <rect id="page-bg" width="390" height="844" fill="#FFFFFF"/>
+
+  <!-- status bar -->
+  <text x="24" y="30" font-size="13" font-weight="600" fill="#061009">9:41</text>
+
+  <!-- header -->
+  <g id="app-header">
+    <rect x="0" y="44" width="390" height="44" fill="#FFFFFF"/><line x1="0" y1="88" x2="390" y2="88" stroke="#D7E1D9"/>
+    <rect x="12" y="50" width="32" height="32" rx="9" fill="#00884B"/>
+    <path d="M20 76 C20 68 25 63 33 62 C33 70 28 76 20 76 Z" fill="#F8FBF8"/>
+    <text x="52" y="72" font-size="14" font-weight="700" fill="#061009">Ride<tspan fill="#00884B">Shift</tspan></text>
+    <g id="menu-icon"><line x1="356" y1="60" x2="372" y2="60" stroke="#061009" stroke-width="2" stroke-linecap="round"/><line x1="356" y1="66" x2="372" y2="66" stroke="#061009" stroke-width="2" stroke-linecap="round"/><line x1="356" y1="72" x2="372" y2="72" stroke="#061009" stroke-width="2" stroke-linecap="round"/></g>
+  </g>
+
+  <!-- map -->
+  <g id="aqi-map-mobile" clip-path="url(#mobileMapClip)">
+    <rect x="0" y="88" width="390" height="472" fill="#EFF3EC"/>
+    <g id="map-base-m">
+      <path d="M0 220 L390 190" stroke="#E6EAE0" stroke-width="1.5" fill="none"/>
+      <path d="M0 320 L390 290" stroke="#E6EAE0" stroke-width="1.5" fill="none"/>
+      <path d="M0 420 L390 400" stroke="#E6EAE0" stroke-width="1.5" fill="none"/>
+      <path d="M110 88 L120 560" stroke="#E6EAE0" stroke-width="1.5" fill="none"/>
+      <path d="M250 88 L240 560" stroke="#E6EAE0" stroke-width="1.5" fill="none"/>
+      <path d="M60 140 C120 220 160 300 180 400 C195 470 200 520 205 560" stroke="#C9DDE6" stroke-width="7" fill="none" opacity="0.9"/>
+      <path d="M10 480 C90 450 190 445 290 470 C340 482 370 480 390 474" stroke="#E3E7DC" stroke-width="3" fill="none"/>
+      <path d="M10 480 C90 450 190 445 290 470 C340 482 370 480 390 474" stroke="#FFFFFF" stroke-width="1.8" fill="none"/>
+    </g>
+    <g id="aqi-weather-field-m" transform="translate(0,97) scale(0.52)">
+      <g clip-path="url(#hanoiClipM)">
+        <g filter="url(#aqiBlurM)" opacity="0.62">
+          <ellipse cx="150" cy="200" rx="260" ry="240" fill="#22C55E"/>
+          <ellipse cx="420" cy="150" rx="230" ry="210" fill="#57D96A"/>
+          <ellipse cx="420" cy="420" rx="240" ry="220" fill="#FACC15"/>
+          <ellipse cx="500" cy="580" rx="250" ry="210" fill="#F97316"/>
+          <ellipse cx="610" cy="430" rx="170" ry="160" fill="#EF4444"/>
+          <ellipse cx="640" cy="460" rx="90" ry="80" fill="#DC2626" opacity="0.9"/>
+        </g>
+      </g>
+      <path d="M 20.0 320.0 C 33.3 283.3, 46.7 201.7, 80.0 160.0 C 113.3 118.3, 183.3 95.0, 220.0 70.0 C 256.7 45.0, 258.3 20.0, 300.0 10.0 C 341.7 -0.0, 421.7 -5.0, 470.0 10.0 C 518.3 25.0, 565.0 68.3, 590.0 100.0 C 615.0 131.7, 601.7 163.3, 620.0 200.0 C 638.3 236.7, 691.7 283.3, 700.0 320.0 C 708.3 356.7, 670.0 386.7, 670.0 420.0 C 670.0 453.3, 703.3 481.7, 700.0 520.0 C 696.7 558.3, 675.0 606.7, 650.0 650.0 C 625.0 693.3, 585.0 748.3, 550.0 780.0 C 515.0 811.7, 481.7 836.7, 440.0 840.0 C 398.3 843.3, 340.0 823.3, 300.0 800.0 C 260.0 776.7, 226.7 738.3, 200.0 700.0 C 173.3 661.7, 166.7 611.7, 140.0 570.0 C 113.3 528.3, 63.3 481.7, 40.0 450.0 C 16.7 418.3, 3.3 401.7, 0.0 380.0 C -3.3 358.3, 6.7 356.7, 20.0 320.0 Z"
+        fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linejoin="round"/>
+      <path d="M 20.0 320.0 C 33.3 283.3, 46.7 201.7, 80.0 160.0 C 113.3 118.3, 183.3 95.0, 220.0 70.0 C 256.7 45.0, 258.3 20.0, 300.0 10.0 C 341.7 -0.0, 421.7 -5.0, 470.0 10.0 C 518.3 25.0, 565.0 68.3, 590.0 100.0 C 615.0 131.7, 601.7 163.3, 620.0 200.0 C 638.3 236.7, 691.7 283.3, 700.0 320.0 C 708.3 356.7, 670.0 386.7, 670.0 420.0 C 670.0 453.3, 703.3 481.7, 700.0 520.0 C 696.7 558.3, 675.0 606.7, 650.0 650.0 C 625.0 693.3, 585.0 748.3, 550.0 780.0 C 515.0 811.7, 481.7 836.7, 440.0 840.0 C 398.3 843.3, 340.0 823.3, 300.0 800.0 C 260.0 776.7, 226.7 738.3, 200.0 700.0 C 173.3 661.7, 166.7 611.7, 140.0 570.0 C 113.3 528.3, 63.3 481.7, 40.0 450.0 C 16.7 418.3, 3.3 401.7, 0.0 380.0 C -3.3 358.3, 6.7 356.7, 20.0 320.0 Z"
+        fill="none" stroke="#0F766E" stroke-width="2.4" stroke-linejoin="round"/>
+      <g id="stations-m">
+        <circle cx="360" cy="290" r="6" fill="#F97316" stroke="#FFFFFF" stroke-width="2.5"/>
+        <circle cx="500" cy="350" r="6" fill="#EF4444" stroke="#FFFFFF" stroke-width="2.5"/>
+        <circle cx="300" cy="520" r="6" fill="#FACC15" stroke="#FFFFFF" stroke-width="2.5"/>
+        <circle cx="560" cy="480" r="6" fill="#EF4444" stroke="#FFFFFF" stroke-width="2.5"/>
+        <circle cx="200" cy="200" r="6" fill="#22C55E" stroke="#FFFFFF" stroke-width="2.5"/>
+      </g>
+    </g>
+
+    <!-- hover interaction demo -->
+    <g id="hover-demo">
+      <circle cx="180" cy="300" r="15" fill="#F97316" fill-opacity="0.85" stroke="#FFFFFF" stroke-width="3"/>
+      <g id="hover-tooltip">
+        <rect x="118" y="256" width="124" height="26" rx="8" fill="#FFFFFF" stroke="#D7E1D9"/>
+        <path d="M174 282 L180 290 L186 282 Z" fill="#FFFFFF" stroke="#D7E1D9" stroke-linejoin="round"/>
+        <text x="180" y="274" font-size="11" font-weight="600" fill="#061009" text-anchor="middle">AQI 150 · Kém</text>
+      </g>
+    </g>
+
+    <!-- floating controls -->
+    <g id="map-controls-m">
+      <rect x="8" y="96" width="130" height="26" rx="13" fill="#FFFFFF" stroke="#D7E1D9" opacity="0.96"/>
+      <rect x="16" y="101" width="24" height="16" rx="8" fill="#00884B"/><circle cx="33" cy="109" r="6" fill="#FFFFFF"/>
+      <text x="48" y="113" font-size="10" font-weight="500" fill="#061009">Mô hình AQI</text>
+      <rect x="8" y="128" width="142" height="26" rx="13" fill="#FFFFFF" stroke="#D7E1D9" opacity="0.96"/>
+      <rect x="16" y="133" width="24" height="16" rx="8" fill="#00884B"/><circle cx="33" cy="141" r="6" fill="#FFFFFF"/>
+      <text x="48" y="145" font-size="10" font-weight="500" fill="#061009">Trạm quan trắc</text>
+      <rect x="8" y="160" width="176" height="22" rx="11" fill="#FFFFFF" stroke="#D7E1D9" opacity="0.92"/>
+      <text x="18" y="174" font-size="9" fill="#606D64">AQI cập nhật lúc 10:00 · 25/9/2026</text>
+    </g>
+    <g id="map-legend-m">
+      <rect x="252" y="446" width="130" height="106" rx="10" fill="#FFFFFF" stroke="#D7E1D9" opacity="0.96"/>
+      <text x="262" y="462" font-size="9" font-weight="600" fill="#061009">Chất lượng không khí</text>
+      <rect x="262" y="468" width="10" height="10" rx="2" fill="#22C55E"/><text x="277" y="477" font-size="9" fill="#061009">Tốt</text><text x="372" y="477" font-size="8" fill="#606D64" text-anchor="end">0–50</text>
+      <rect x="262" y="482" width="10" height="10" rx="2" fill="#FACC15"/><text x="277" y="491" font-size="9" fill="#061009">Trung bình</text><text x="372" y="491" font-size="8" fill="#606D64" text-anchor="end">51–100</text>
+      <rect x="262" y="496" width="10" height="10" rx="2" fill="#F97316"/><text x="277" y="505" font-size="9" fill="#061009">Kém</text><text x="372" y="505" font-size="8" fill="#606D64" text-anchor="end">101–150</text>
+      <rect x="262" y="510" width="10" height="10" rx="2" fill="#EF4444"/><text x="277" y="519" font-size="9" fill="#061009">Xấu</text><text x="372" y="519" font-size="8" fill="#606D64" text-anchor="end">151–200</text>
+      <rect x="262" y="524" width="10" height="10" rx="2" fill="#A855F7"/><text x="277" y="533" font-size="9" fill="#061009">Rất xấu</text><text x="372" y="533" font-size="8" fill="#606D64" text-anchor="end">201–300</text>
+      <rect x="262" y="538" width="10" height="10" rx="2" fill="#7F1D1D"/><text x="277" y="547" font-size="9" fill="#061009">Nguy hại</text><text x="372" y="547" font-size="8" fill="#606D64" text-anchor="end">trên 300</text>
+    </g>
+  </g>
+
+  <!-- bottom sheet: click detail popup -->
+  <g id="bottom-sheet-detail">
+    <rect x="0" y="560" width="390" height="284" rx="20" fill="#FFFFFF"/>
+    <rect x="177" y="572" width="36" height="4" rx="2" fill="#D7E1D9"/>
+    <text x="24" y="602" font-size="12" font-weight="600" fill="#061009">Chất lượng không khí — nơi bạn chạm</text>
+    <text x="24" y="644" font-size="26" font-weight="700" fill="#061009">AQI 150</text>
+    <rect x="126" y="626" width="52" height="24" rx="12" fill="#FFEDD5" stroke="#F97316"/><text x="152" y="642" font-size="11" font-weight="700" fill="#C2410C" text-anchor="middle">Kém</text>
+    <line x1="24" y1="662" x2="366" y2="662" stroke="#D7E1D9"/>
+    <text x="24" y="684" font-size="9" font-weight="600" fill="#606D64">PM2.5</text><text x="24" y="702" font-size="13" font-weight="600" fill="#061009">30,2 µg/m³</text>
+    <text x="210" y="684" font-size="9" font-weight="600" fill="#606D64">PM10</text><text x="210" y="702" font-size="13" font-weight="600" fill="#061009">37,3 µg/m³</text>
+    <text x="24" y="730" font-size="9" font-weight="600" fill="#606D64">CẬP NHẬT</text><text x="24" y="748" font-size="13" font-weight="600" fill="#061009">10:00 ngày 25/9/2026</text>
+    <text x="210" y="730" font-size="9" font-weight="600" fill="#606D64">NGUỒN</text><text x="210" y="748" font-size="13" font-weight="600" fill="#061009">Mô hình Open-Meteo</text>
+    <text x="24" y="784" font-size="10" fill="#606D64">Dữ liệu mô hình được làm mới mỗi ngày · Chạm vào bản đồ để xem điểm khác</text>
+    <rect x="127" y="820" width="136" height="5" rx="2.5" fill="#061009" opacity="0.2"/>
+  </g>
+</svg>

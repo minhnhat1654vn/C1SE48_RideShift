@@ -1,0 +1,689 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RideShift · Demo cải thiện UI trang lập kế hoạch</title>
+<style>
+  /* ============ base ============ */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #f4f7f3; color: #1c2b26; line-height: 1.5;
+  }
+  button { font: inherit; cursor: pointer; }
+
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* ============ demo header ============ */
+  .demo-head { background: #10312a; color: #e8f4ee; padding: 26px 0 0; }
+  .demo-head .wrap { padding-bottom: 0; }
+  .demo-title { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .logo-dot { width: 40px; height: 40px; border-radius: 12px; background: #10b981; display: grid; place-items: center; font-size: 20px; box-shadow: 0 4px 14px rgba(16,185,129,.4); }
+  .demo-title h1 { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }
+  .demo-title h1 b { color: #34d399; }
+  .demo-title p { font-size: 13px; color: #9fc4b5; }
+  .badge-demo { margin-left: auto; font-size: 11px; font-weight: 700; letter-spacing: .08em; color: #fde68a; border: 1px dashed rgba(253,230,138,.5); border-radius: 999px; padding: 5px 12px; }
+  .demo-sub { margin: 14px 0 0; font-size: 13.5px; color: #b8d6c9; max-width: 860px; padding-bottom: 18px; }
+  .demo-sub b { color: #fff; }
+
+  /* ============ tabs ============ */
+  .tabs { position: sticky; top: 0; z-index: 50; background: rgba(244,247,243,.92); backdrop-filter: blur(8px); border-bottom: 1px solid #e2e8e0; }
+  .tabs .wrap { display: flex; gap: 8px; overflow-x: auto; padding-top: 10px; padding-bottom: 10px; }
+  .tab-btn { border: 1px solid #d7e0d6; background: #fff; color: #46584f; border-radius: 999px; padding: 8px 16px; font-size: 13.5px; font-weight: 600; white-space: nowrap; transition: all .15s; }
+  .tab-btn:hover { border-color: #10b981; color: #067a5b; }
+  .tab-btn.on { background: #0e9f6e; border-color: #0e9f6e; color: #fff; box-shadow: 0 4px 12px rgba(14,159,110,.3); }
+  .tab-btn .k { opacity: .65; font-weight: 800; margin-right: 4px; font-size: 12px; }
+
+  section.panel { display: none; padding-top: 28px; }
+  section.panel.on { display: block; animation: fadein .25s ease; }
+  @keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  .opt-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+  .opt-head h2 { font-size: 21px; font-weight: 800; letter-spacing: -0.01em; }
+  .opt-tag { font-size: 12px; font-weight: 700; color: #067a5b; background: #d7f5e7; border-radius: 999px; padding: 3px 10px; }
+  .opt-desc { color: #5b6b62; font-size: 14px; max-width: 900px; margin-bottom: 16px; }
+
+  /* ============ fake browser frame ============ */
+  .frame-scroll { overflow-x: auto; padding-bottom: 8px; }
+  .frame { min-width: 980px; border-radius: 14px; overflow: hidden; border: 1px solid #dde5dc; box-shadow: 0 2px 6px rgba(16,40,32,.05), 0 18px 44px rgba(16,40,32,.09); background: #fff; }
+  .frame-bar { display: flex; align-items: center; gap: 8px; background: #eef2ec; border-bottom: 1px solid #e0e6de; padding: 9px 14px; }
+  .frame-bar i { width: 10px; height: 10px; border-radius: 50%; background: #d3dcd2; display: inline-block; }
+  .frame-bar i:nth-child(1){background:#f0a9a2}.frame-bar i:nth-child(2){background:#f4d488}.frame-bar i:nth-child(3){background:#a8dcb9}
+  .frame-url { margin-left: 10px; background: #fff; border: 1px solid #e0e6de; color: #7a8a80; font-size: 11.5px; border-radius: 7px; padding: 3px 12px; }
+
+  .mock { position: relative; height: 620px; background: #fff; overflow: hidden; }
+  .map-bg { position: absolute; inset: 0; }
+  .map-bg svg { width: 100%; height: 100%; display: block; }
+  .map-dim::after { content: ""; position: absolute; inset: 0; background: rgba(16,49,42,.55); }
+
+  /* ============ shared mock ui ============ */
+  .glass { background: rgba(255,255,255,.94); backdrop-filter: blur(10px); border: 1px solid rgba(28,43,38,.08); border-radius: 14px; box-shadow: 0 10px 30px rgba(16,40,32,.16); }
+  .pill-lead { position: absolute; top: 14px; left: 14px; display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 12.5px; font-weight: 700; color: #10312a; }
+  .pill-lead .dot { width: 22px; height: 22px; border-radius: 7px; background: #10b981; display: grid; place-items: center; font-size: 12px; }
+
+  .chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #dbe4db; background: #fff; color: #46584f; font-size: 11.5px; font-weight: 600; border-radius: 999px; padding: 4px 10px; }
+  .chip.on { background: #0e9f6e; border-color: #0e9f6e; color: #fff; }
+  .chip.soft { background: #f2f7f2; }
+
+  .btn-main { background: linear-gradient(180deg, #12b981, #0c9d6d); color: #fff; font-weight: 700; font-size: 13.5px; border: none; border-radius: 10px; padding: 10px 16px; box-shadow: 0 6px 16px rgba(16,185,129,.35); display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; }
+
+  .route-card { border: 1.5px solid #e3eae2; background: #fff; border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; transition: border-color .15s, box-shadow .15s; }
+  .route-card:hover { border-color: #10b981; }
+  .route-card.best { border-color: #0e9f6e; box-shadow: 0 0 0 3px rgba(16,185,129,.15); position: relative; }
+  .route-card .rc-top { display: flex; align-items: center; gap: 8px; }
+  .rc-badge { position: absolute; top: -9px; right: 10px; background: #0e9f6e; color: #fff; font-size: 9.5px; font-weight: 800; letter-spacing: .05em; border-radius: 999px; padding: 2px 8px; }
+  .rc-bad { position: absolute; top: -9px; right: 10px; background: #e0524d; color: #fff; font-size: 9.5px; font-weight: 800; letter-spacing: .05em; border-radius: 999px; padding: 2px 8px; }
+  .rc-name { font-size: 12.5px; font-weight: 700; color: #1c2b26; }
+  .rc-meta { display: flex; gap: 10px; font-size: 11px; color: #5b6b62; }
+  .rc-meta b { color: #1c2b26; }
+  .rc-co2 { font-size: 10.5px; font-weight: 700; color: #067a5b; background: #e4f7ee; border-radius: 6px; padding: 2px 7px; }
+  .rc-co2.bad { color: #b3362f; background: #fdeae9; }
+  .rc-steps { display: flex; align-items: center; gap: 0; margin-top: 2px; }
+  .rc-steps .s { display: flex; align-items: center; gap: 3px; font-size: 9.5px; color: #5b6b62; background: #f2f7f2; border-radius: 6px; padding: 2px 6px; font-weight: 600; }
+  .rc-steps .ln { width: 12px; height: 2px; background: #d7e0d6; }
+
+  .aqi-chip { position: absolute; display: inline-flex; align-items: center; gap: 7px; padding: 8px 12px; font-size: 11.5px; font-weight: 700; color: #1c2b26; }
+  .aqi-dot { width: 9px; height: 9px; border-radius: 50%; background: #f4c542; box-shadow: 0 0 0 3px rgba(244,197,66,.25); }
+
+  /* ============ callouts (ghi chú phê bình) ============ */
+  .callout { position: absolute; z-index: 20; width: 26px; height: 26px; border-radius: 50%; background: #e0524d; color: #fff; font-size: 13px; font-weight: 800; display: grid; place-items: center; box-shadow: 0 4px 10px rgba(224,82,77,.45); border: 2px solid #fff; }
+  .notes { margin: 14px 0 0; display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  .note { display: flex; gap: 10px; align-items: flex-start; background: #fff7f6; border: 1px solid #f6d5d3; border-radius: 10px; padding: 10px 12px; font-size: 13px; color: #7c3a35; }
+  .note .n { flex: none; width: 20px; height: 20px; border-radius: 50%; background: #e0524d; color: #fff; font-size: 11px; font-weight: 800; display: grid; place-items: center; margin-top: 1px; }
+  .note b { color: #5c221e; }
+  .note.good { background: #f2fbf6; border-color: #cdeeda; color: #22624c; }
+  .note.good .n { background: #0e9f6e; }
+  .note.good b { color: #0d5c43; }
+
+  /* ============ HIỆN TRẠNG ============ */
+  .cur-header { position: relative; z-index: 10; display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid #ecefec; background: #fff; font-size: 12px; }
+  .cur-logo { display: flex; align-items: center; gap: 7px; font-weight: 800; font-size: 13px; }
+  .cur-logo .dot { width: 24px; height: 24px; border-radius: 8px; background: #10b981; display: grid; place-items: center; color: #fff; font-size: 12px; }
+  .cur-tabs { margin-left: auto; display: flex; gap: 4px; border: 1px solid #e3eae2; border-radius: 999px; padding: 3px; background: #f6f8f6; }
+  .cur-tabs span { font-size: 10.5px; font-weight: 600; color: #7a8a80; padding: 3px 10px; border-radius: 999px; }
+  .cur-tabs span.on { background: #0e9f6e; color: #fff; }
+  .cur-hero { position: relative; z-index: 10; margin: 10px 16px 0; border-radius: 12px; border: 1px solid #e5efe8; background: linear-gradient(90deg, #e8f6ee, #f6fbf8 55%, #ecf7f3); padding: 12px 14px; }
+  .cur-hero h3 { font-size: 13.5px; font-weight: 800; color: #14532d; }
+  .cur-hero p { font-size: 10px; color: #7a8a80; max-width: 720px; margin-top: 4px; line-height: 1.45; }
+  .cur-grid { position: relative; z-index: 10; display: grid; grid-template-columns: 300px 1fr; gap: 10px; padding: 10px 16px; height: calc(100% - 118px); }
+  .cur-form { border: 1px solid #e3eae2; border-radius: 12px; background: #fff; padding: 12px; overflow: hidden; }
+  .cur-form h4 { font-size: 11.5px; font-weight: 800; display: flex; gap: 6px; align-items: center; }
+  .fld { margin-top: 8px; }
+  .fld label { font-size: 9.5px; font-weight: 700; color: #5b6b62; display: block; margin-bottom: 3px; }
+  .fld .inp { border: 1px solid #dbe4db; border-radius: 8px; padding: 6px 9px; font-size: 10.5px; color: #7a8a80; background: #fbfcfb; }
+  .cur-map { border: 1px solid #e3eae2; border-radius: 12px; position: relative; overflow: hidden; }
+  .cur-status { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(255,255,255,.92); border-top: 1px solid #e3eae2; font-size: 9.5px; color: #5b6b62; padding: 5px 10px; z-index: 5; }
+  .cur-results-hint { position: absolute; bottom: -34px; left: 0; right: 0; text-align: center; }
+  .scroll-hint { position: absolute; left: 50%; transform: translateX(-50%); bottom: 8px; z-index: 15; background: #10312a; color: #a7e3c8; font-size: 11px; font-weight: 700; border-radius: 999px; padding: 6px 14px; box-shadow: 0 8px 20px rgba(16,49,42,.4); }
+
+  /* ============ A: map-first ============ */
+  .a-search { position: absolute; top: 60px; left: 50%; transform: translateX(-50%); z-index: 10; width: 560px; padding: 12px 14px; }
+  .a-fields { display: flex; align-items: center; gap: 8px; }
+  .a-field { flex: 1; display: flex; align-items: center; gap: 8px; border: 1px solid #dbe4db; background: #fbfcfb; border-radius: 10px; padding: 9px 11px; font-size: 12px; }
+  .a-field .ic { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; flex: none; }
+  .a-field .ic.g { background: #e4f7ee; } .a-field .ic.r { background: #fdeae9; }
+  .a-field small { display: block; font-size: 9px; color: #8a9a90; font-weight: 600; }
+  .a-field b { font-size: 11.5px; font-weight: 600; color: #1c2b26; }
+  .a-swap { flex: none; width: 30px; height: 30px; border-radius: 50%; border: 1px solid #dbe4db; background: #fff; display: grid; place-items: center; font-size: 13px; color: #46584f; }
+  .a-chips { display: flex; gap: 6px; margin-top: 9px; flex-wrap: wrap; align-items: center; }
+  .a-go { margin-left: auto; width: auto; padding: 8px 18px; }
+  .a-panel { position: absolute; top: 200px; right: 16px; z-index: 10; width: 300px; padding: 14px; max-height: 380px; overflow: hidden; }
+  .a-panel h3 { font-size: 13px; font-weight: 800; display: flex; align-items: center; justify-content: space-between; }
+  .a-panel h3 span { font-size: 10px; color: #8a9a90; font-weight: 600; }
+  .a-panel .list { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+  .a-mapchips { position: absolute; right: 16px; top: 60px; z-index: 10; display: flex; flex-direction: column; gap: 6px; }
+
+  /* ============ B: sidebar ============ */
+  .b-layout { position: relative; z-index: 10; display: grid; grid-template-columns: 320px 1fr; height: 100%; }
+  .b-side { background: #fff; border-right: 1px solid #e3eae2; padding: 16px; display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
+  .b-steps { display: flex; align-items: center; gap: 4px; margin-bottom: 2px; }
+  .b-step { display: flex; align-items: center; gap: 5px; font-size: 9.5px; font-weight: 700; color: #8a9a90; }
+  .b-step .d { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 9px; background: #eef2ec; color: #7a8a80; border: 1.5px solid #dbe4db; }
+  .b-step.done .d { background: #0e9f6e; border-color: #0e9f6e; color: #fff; }
+  .b-step.done { color: #0d5c43; }
+  .b-step.act .d { border-color: #0e9f6e; color: #0d5c43; background: #e4f7ee; }
+  .b-step.act { color: #0d5c43; }
+  .b-ln { flex: 1; height: 1.5px; background: #dbe4db; }
+  .b-q { font-size: 15px; font-weight: 800; letter-spacing: -0.01em; }
+  .b-presets { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+  .b-pre { border: 1.5px solid #dbe4db; background: #fff; border-radius: 10px; padding: 8px 6px; text-align: center; font-size: 10.5px; font-weight: 700; color: #46584f; }
+  .b-pre span { display: block; font-size: 14px; margin-bottom: 2px; }
+  .b-pre.on { border-color: #0e9f6e; background: #f0fbf6; color: #0d5c43; box-shadow: 0 0 0 3px rgba(16,185,129,.12); }
+  .b-adv { font-size: 10.5px; color: #067a5b; font-weight: 700; text-align: center; padding: 5px; border-radius: 8px; background: #f2fbf6; }
+  .b-res-head { display: flex; align-items: center; justify-content: space-between; margin-top: 2px; }
+  .b-res-head h4 { font-size: 12px; font-weight: 800; }
+  .b-back { font-size: 10px; font-weight: 700; color: #067a5b; background: #f2fbf6; border-radius: 999px; padding: 3px 9px; }
+  .b-list { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; min-height: 0; flex: 1; }
+  .b-map { position: relative; overflow: hidden; }
+  .b-topbar { position: absolute; top: 12px; left: 12px; right: 12px; z-index: 6; display: flex; gap: 6px; }
+
+  /* ============ C: dashboard ============ */
+  .c-kpis { position: relative; z-index: 10; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 14px 16px 0; }
+  .kpi { border: 1px solid #e3eae2; background: #fff; border-radius: 12px; padding: 10px 12px; }
+  .kpi .t { font-size: 9.5px; font-weight: 700; color: #8a9a90; display: flex; justify-content: space-between; }
+  .kpi .v { font-size: 19px; font-weight: 800; letter-spacing: -0.02em; margin-top: 2px; }
+  .kpi .d { font-size: 9.5px; font-weight: 600; margin-top: 1px; }
+  .kpi .up { color: #0d5c43; } .kpi .warn { color: #9a7b16; } .kpi .down { color: #b3362f; }
+  .c-grid { position: relative; z-index: 10; display: grid; grid-template-columns: 1fr 300px; gap: 10px; padding: 10px 16px 16px; height: calc(100% - 96px); }
+  .c-map { border: 1px solid #e3eae2; border-radius: 12px; position: relative; overflow: hidden; }
+  .c-side { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+  .c-card { border: 1px solid #e3eae2; background: #fff; border-radius: 12px; padding: 12px; }
+  .c-card h4 { font-size: 11.5px; font-weight: 800; margin-bottom: 8px; }
+  .bar-row { display: flex; align-items: center; gap: 8px; font-size: 10px; margin-top: 6px; }
+  .bar-row .nm { width: 92px; flex: none; color: #46584f; font-weight: 600; }
+  .bar-row .tr { flex: 1; height: 8px; border-radius: 99px; background: #eef2ec; overflow: hidden; display: flex; }
+  .bar-row .tr i { height: 100%; border-radius: 99px; }
+  .bar-row .tt { width: 44px; text-align: right; font-weight: 700; color: #1c2b26; }
+  .c-mini { display: flex; flex-direction: column; gap: 8px; }
+
+  /* ============ D: wizard ============ */
+  .d-card { position: absolute; z-index: 10; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 430px; padding: 26px 26px 22px; text-align: left; }
+  .d-dots { display: flex; gap: 6px; margin-bottom: 14px; }
+  .d-dots i { height: 5px; flex: 1; border-radius: 99px; background: #e3eae2; }
+  .d-dots i.on { background: #0e9f6e; }
+  .d-step { font-size: 10.5px; font-weight: 800; letter-spacing: .1em; color: #067a5b; }
+  .d-q { font-size: 21px; font-weight: 800; letter-spacing: -0.02em; margin: 4px 0 14px; }
+  .d-inp { display: flex; align-items: center; gap: 10px; border: 1.5px solid #dbe4db; border-radius: 12px; padding: 12px 14px; font-size: 13px; color: #9aa8a0; background: #fbfcfb; }
+  .d-sug { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .d-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 18px; }
+  .d-foot .bBack { font-size: 12px; font-weight: 700; color: #7a8a80; }
+  .d-foot .btn-main { width: auto; padding: 10px 22px; }
+  .d-help { position: absolute; z-index: 10; left: 50%; bottom: 18px; transform: translateX(-50%); font-size: 11px; color: #eaf6f0; background: rgba(16,49,42,.75); border-radius: 999px; padding: 6px 14px; backdrop-filter: blur(6px); }
+
+  /* ============ bảng so sánh ============ */
+  table.cmp { width: 100%; border-collapse: separate; border-spacing: 0; background: #fff; border: 1px solid #e0e8e0; border-radius: 14px; overflow: hidden; font-size: 13.5px; }
+  .cmp th { background: #10312a; color: #d9efe4; text-align: left; font-size: 12px; letter-spacing: .04em; padding: 12px 14px; }
+  .cmp td { padding: 13px 14px; border-top: 1px solid #ecf1ea; vertical-align: top; }
+  .cmp td:first-child { font-weight: 800; white-space: nowrap; }
+  .cmp tr:hover td { background: #f8fbf8; }
+  .eff { display: inline-block; font-size: 11px; font-weight: 800; border-radius: 999px; padding: 3px 10px; }
+  .eff.low { background: #e4f7ee; color: #0d5c43; }
+  .eff.mid { background: #fdf3d7; color: #8a6d14; }
+  .eff.high { background: #fdeae9; color: #b3362f; }
+  .rec { margin-top: 22px; border-radius: 14px; border: 1.5px solid #b8e6cf; background: linear-gradient(135deg, #ecfbf3, #f4fdf8); padding: 18px 20px; }
+  .rec h3 { font-size: 16px; font-weight: 800; color: #0d5c43; display: flex; gap: 8px; align-items: center; }
+  .rec p { font-size: 13.5px; color: #33544a; margin-top: 6px; max-width: 980px; }
+
+  /* ============ micro improvements ============ */
+  .micro { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; margin-top: 14px; }
+  .mi { background: #fff; border: 1px solid #e3eae2; border-radius: 12px; padding: 14px; }
+  .mi .t { display: flex; gap: 9px; align-items: center; font-weight: 800; font-size: 13.5px; }
+  .mi .t span.ic { width: 30px; height: 30px; flex: none; border-radius: 9px; background: #e8f6ee; display: grid; place-items: center; font-size: 15px; }
+  .mi p { font-size: 12.5px; color: #5b6b62; margin-top: 6px; }
+
+  .foot-note { margin-top: 34px; text-align: center; font-size: 12px; color: #8a9a90; }
+  .foot-note b { color: #46584f; }
+
+  @media (max-width: 720px) {
+    .mock { height: 520px; }
+    .a-search { width: calc(100% - 90px); }
+    .a-panel { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= HEADER ================= -->
+<header class="demo-head">
+  <div class="wrap">
+    <div class="demo-title">
+      <div class="logo-dot">🌿</div>
+      <div>
+        <h1>Ride<b>Shift</b> — Đề xuất cải thiện UI trang lập kế hoạch</h1>
+        <p>Bản demo thiết kế (mockup tĩnh) · 4 phương án bố cục + các cải thiện chung</p>
+      </div>
+      <span class="badge-demo">MOCKUP — APP THẬT KHÔNG ĐỔI</span>
+    </div>
+    <p class="demo-sub">
+      Đây là file demo tĩnh để <b>xem thử và bàn thiết kế</b>, không đụng vào code của ứng dụng.
+      Mỗi phương án là một cách tổ chức lại trang <b>“Lập kế hoạch”</b> hiện tại. Bấm các tab bên dưới
+      để xem từng phương án, kèm <b>ưu / nhược / mức công sức</b> ở tab cuối.
+    </p>
+  </div>
+</header>
+
+<!-- ================= TABS ================= -->
+<nav class="tabs" aria-label="Chọn phương án">
+  <div class="wrap">
+    <button class="tab-btn on" data-tab="cur"><span class="k">0</span>Hiện trạng</button>
+    <button class="tab-btn" data-tab="a"><span class="k">A</span>Bản đồ tràn viền</button>
+    <button class="tab-btn" data-tab="b"><span class="k">B</span>Sidebar thông minh</button>
+    <button class="tab-btn" data-tab="c"><span class="k">C</span>Dashboard xanh</button>
+    <button class="tab-btn" data-tab="d"><span class="k">D</span>Trợ lý từng bước</button>
+    <button class="tab-btn" data-tab="cmp"><span class="k">✓</span>So sánh &amp; đề xuất</button>
+    <button class="tab-btn" data-tab="micro"><span class="k">✦</span>Cải thiện chung</button>
+  </div>
+</nav>
+
+<div class="wrap">
+
+  <!-- ================= TAB: HIỆN TRẠNG ================= -->
+  <section class="panel on" id="tab-cur">
+    <div class="opt-head"><h2>Hiện trạng — vì sao cần cải thiện?</h2><span class="opt-tag">Trạng thái hiện tại</span></div>
+    <p class="opt-desc">Trang hiện tại: hero giới thiệu dài → form cột trái 400px rất dài (nhiều ô nhập + 4 thanh trượt) → bản đồ cột phải → kết quả nằm <b>bên dưới, phải cuộn xuống</b>. Các điểm chưa thuận được đánh số đỏ trên mockup:</p>
+    <div class="frame-scroll">
+      <div class="frame">
+        <div class="frame-bar"><i></i><i></i><i></i><span class="frame-url">rideshift.vn — Lập kế hoạch (hiện trạng)</span></div>
+        <div class="mock">
+          <div class="cur-header">
+            <div class="cur-logo"><span class="dot">🌿</span>RideShift <small style="color:#8a9a90;font-weight:600">· Trợ lý chuyển đổi giao thông thông minh</small></div>
+            <div class="cur-tabs"><span class="on">Lập kế hoạch</span><span>Quản trị</span><span>Tài liệu</span></div>
+          </div>
+          <div class="cur-hero">
+            <h3>🌱 Lựa chọn thông minh vì một Hà Nội sạch hơn</h3>
+            <p>RideShift là nền tảng hỗ trợ ra quyết định giao thông dựa trên GIS: tính toán tuyến đường, kiểm tra tuân thủ Vùng phát thải thấp (LEZ) cho phương tiện của bạn, hiển thị chất lượng không khí theo thời gian thực và xếp hạng các phương án di chuyển bằng mô hình ra quyết định đa tiêu chí — để bạn quyết định đi lại thế nào, chứ không chỉ lái xe thế nào… (đoạn văn dài chiếm ~90px chiều cao màn hình)</p>
+          </div>
+          <div class="cur-grid">
+            <div class="cur-form">
+              <h4>🧭 Lập kế hoạch hành trình</h4>
+              <div class="fld"><label>ĐIỂM ĐI</label><div class="inp">📍 Chọn điểm đi…</div></div>
+              <div class="fld"><label>ĐIỂM ĐẾN</label><div class="inp">📍 Chọn điểm đến…</div></div>
+              <div class="fld"><label>XE CỦA BẠN</label><div class="inp">Xe máy xăng ▾</div></div>
+              <div class="fld"><label>THỜI ĐIỂM XUẤT PHÁT</label><div class="inp">2025-01-15 17:30 ▾</div></div>
+              <div class="fld"><label>MỤC ĐÍCH CHUYẾN ĐI</label><div class="inp">Đi làm ▾</div></div>
+              <div class="fld"><label>ƯU TIÊN: NHANH NHẤT</label><div class="inp" style="color:#0e9f6e">●——————○ 50%</div></div>
+              <div class="fld"><label>RẺ NHẤT</label><div class="inp" style="color:#0e9f6e">●——————○ 50%</div></div>
+              <div class="fld"><label>XANH NHẤT</label><div class="inp" style="color:#0e9f6e">●——————○ 50%</div></div>
+              <div class="fld"><label>THOẢI MÁI NHẤT</label><div class="inp" style="color:#0e9f6e">●——————○ 50%</div></div>
+              <div style="margin-top:10px"><button class="btn-main">✨ Phân tích hành trình</button></div>
+            </div>
+            <div class="cur-map">
+              <div class="map-bg" data-map></div>
+              <div class="cur-status">🏛️ Chế độ hành chính — rê chuột để nổi vùng · bấm để xem chỉ số · Zoom 11</div>
+              <div class="scroll-hint">⬇ Kết quả (5 thẻ) nằm ở đây — phải cuộn trang mới thấy</div>
+            </div>
+          </div>
+          <span class="callout" style="top:104px; left:44%">1</span>
+          <span class="callout" style="top:190px; left:16%">2</span>
+          <span class="callout" style="top:330px; left:6.5%">3</span>
+          <span class="callout" style="top:540px; left:60%">4</span>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <div class="note"><span class="n">1</span><div><b>Hero giới thiệu chiếm ~1/4 màn hình.</b> Người dùng muốn lập kế hoạch ngay, đoạn giới thiệu dài nên bản đồ bị đẩy xuống dưới nếp gấp (fold).</div></div>
+      <div class="note"><span class="n">2</span><div><b>Form dọc quá dài.</b> 2 ô nhập + 4 dropdown + 4 thanh trượt hiện cùng lúc → cảm giác “thủ tục”, phải cuộn trong cột hẹp.</div></div>
+      <div class="note"><span class="n">3</span><div><b>4 thanh trượt ưu tiên khó hiểu.</b> Người dùng thường không biết kéo “Rẻ nhất 50%” nghĩa là gì — cần lựa chọn đơn giản hơn.</div></div>
+      <div class="note"><span class="n">4</span><div><b>Kết quả tách khỏi bản đồ.</b> Xem tuyến phải cuộn xuống dưới, mất liên kết trực quan giữa thẻ kết quả và tuyến trên bản đồ.</div></div>
+    </div>
+  </section>
+
+  <!-- ================= TAB A ================= -->
+  <section class="panel" id="tab-a">
+    <div class="opt-head"><h2>Phương án A — Bản đồ tràn viền, thẻ nổi (map-first)</h2><span class="opt-tag">Kiểu Google Maps</span></div>
+    <p class="opt-desc">Bỏ hẳn hero và khung trang — <b>bản đồ chiếm toàn bộ màn hình</b>. Thanh tìm kiếm nổi giữa trên cùng, kết quả là thẻ kính (glass) nổi bên phải, AQI &amp; lớp bản đồ là chip nhỏ góc màn hình. Cảm giác “mở app bản đồ thật thụ”, không bao giờ phải cuộn trang.</p>
+    <div class="frame-scroll">
+      <div class="frame">
+        <div class="frame-bar"><i></i><i></i><i></i><span class="frame-url">rideshift.vn — Phương án A · map-first</span></div>
+        <div class="mock">
+          <div class="map-bg" data-map></div>
+
+          <div class="glass pill-lead"><span class="dot">🌿</span>RideShift</div>
+
+          <div class="glass a-search">
+            <div class="a-fields">
+              <div class="a-field"><span class="ic g">●</span><div><small>ĐIỂM ĐI</small><b>Đại học Bách Khoa Hà Nội</b></div></div>
+              <div class="a-swap">⇅</div>
+              <div class="a-field"><span class="ic r">✕</span><div><small>ĐIỂM ĐẾN</small><b>Big C Thăng Long</b></div></div>
+            </div>
+            <div class="a-chips">
+              <span class="chip on">⏱ Bây giờ · 17:32</span>
+              <span class="chip">🛵 Xe máy xăng</span>
+              <span class="chip soft">＋ Thêm</span>
+              <button class="btn-main a-go">🔍 Tìm tuyến</button>
+            </div>
+          </div>
+
+          <div class="a-mapchips">
+            <span class="chip">🗺 Lớp bản đồ ▾</span>
+            <span class="chip">🧭</span>
+          </div>
+
+          <div class="glass a-panel">
+            <h3>3 tuyến đề xuất <span>Chủ Nhật, 17:32</span></h3>
+            <div class="list">
+              <div class="route-card best">
+                <span class="rc-badge">TỐT NHẤT</span>
+                <div class="rc-top"><span>🚇</span><span class="rc-name">Metro 2A + đi bộ 400m</span></div>
+                <div class="rc-meta"><span><b>24 phút</b></span><span>12.000₫</span><span class="rc-co2">🌿 −1,8 kg CO₂</span></div>
+                <div class="rc-steps"><span class="s">🚶 4′</span><span class="ln"></span><span class="s">🚇 17′</span><span class="ln"></span><span class="s">🚶 3′</span></div>
+              </div>
+              <div class="route-card">
+                <div class="rc-top"><span>🚌</span><span class="rc-name">Xe buýt 09 + xe đạp công cộng</span></div>
+                <div class="rc-meta"><span><b>32 phút</b></span><span>9.000₫</span><span class="rc-co2">🌿 −1,4 kg CO₂</span></div>
+              </div>
+              <div class="route-card">
+                <span class="rc-bad">PHÍ LEZ</span>
+                <div class="rc-top"><span>🛵</span><span class="rc-name">Xe máy (xăng) — đi thẳng</span></div>
+                <div class="rc-meta"><span><b>18 phút</b></span><span>15.000₫ + phí</span><span class="rc-co2 bad">⚠ cắt qua LEZ</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="glass aqi-chip" style="left:16px; bottom:16px"><span class="aqi-dot"></span>AQI 76 · Trung bình</div>
+          <div class="glass aqi-chip" style="left:16px; bottom:58px">⚠ LEZ: 2 vùng hoạt động</div>
+
+          <span class="callout" style="top:70px; left:8%">a</span>
+          <span class="callout" style="top:230px; right:8px">b</span>
+          <span class="callout" style="top:560px; left:10%">c</span>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <div class="note good"><span class="n">a</span><div><b>Thanh tìm kiếm nổi 1 hàng.</b> Điểm đi/đến nằm cạnh nhau, kèm chip thời gian &amp; phương tiện — gọn bằng 1/4 form hiện tại.</div></div>
+      <div class="note good"><span class="n">b</span><div><b>Kết quả nổi bên phải bản đồ.</b> Thẻ nào được chọn, tuyến trên bản đồ sáng lên ngay — không cuộn trang, không mất ngữ cảnh.</div></div>
+      <div class="note good"><span class="n">c</span><div><b>AQI / LEZ thành chip nhỏ góc màn hình</b> thay vì thẻ lớn — luôn thấy mà không chiếm chỗ.</div></div>
+      <div class="note"><span class="n">!</span><div><b>Đổi này:</b> cần dựng lại khung trang (bỏ max-width container), người dùng lần đầu có thể không thấy đoạn giới thiệu dự án — có thể để tooltip “?”.</div></div>
+    </div>
+  </section>
+
+  <!-- ================= TAB B ================= -->
+  <section class="panel" id="tab-b">
+    <div class="opt-head"><h2>Phương án B — Sidebar thông minh, gập theo bước</h2><span class="opt-tag">Ít rủi ro nhất · giữ khung hiện tại</span></div>
+    <p class="opt-desc">Giữ nguyên bố cục 2 cột nhưng <b>tái cấu trúc form</b>: 4 thanh trượt → 3 nút chọn nhanh (Nhanh / Rẻ / Xanh + “Nâng cao” gập lại), form chia 3 bước có chỉ báo, và <b>kết quả hiện ngay trong sidebar</b> (thay form bằng danh sách tuyến + nút quay lại). Bỏ hero dài thành 1 dòng mô tả.</p>
+    <div class="frame-scroll">
+      <div class="frame">
+        <div class="frame-bar"><i></i><i></i><i></i><span class="frame-url">rideshift.vn — Phương án B · sidebar thông minh</span></div>
+        <div class="mock">
+          <div class="b-layout">
+            <div class="b-side">
+              <div style="display:flex;align-items:center;gap:7px;font-weight:800;font-size:13px"><span class="dot" style="width:22px;height:22px;border-radius:7px;background:#10b981;display:grid;place-items:center;font-size:11px">🌿</span>RideShift</div>
+              <div class="b-steps">
+                <div class="b-step done"><span class="d">✓</span>Điểm đi</div><span class="b-ln"></span>
+                <div class="b-step done"><span class="d">✓</span>Điểm đến</div><span class="b-ln"></span>
+                <div class="b-step act"><span class="d">3</span>Ưu tiên</div>
+              </div>
+              <div class="b-q">Bạn ưu tiên điều gì?</div>
+              <div class="b-presets">
+                <div class="b-pre"><span>⚡</span>Nhanh nhất</div>
+                <div class="b-pre"><span>💰</span>Rẻ nhất</div>
+                <div class="b-pre on"><span>🌿</span>Xanh nhất</div>
+              </div>
+              <div class="b-adv">⚙ Nâng cao — thanh trượt chi tiết, mục đích chuyến đi… ▾</div>
+              <button class="btn-main">✨ Tìm tuyến đi</button>
+              <div class="b-res-head"><h4>Kết quả · 3 tuyến</h4><span class="b-back">← Sửa thông tin</span></div>
+              <div class="b-list">
+                <div class="route-card best">
+                  <span class="rc-badge">TỐT NHẤT</span>
+                  <div class="rc-top"><span>🚇</span><span class="rc-name">Metro 2A + đi bộ</span></div>
+                  <div class="rc-meta"><span><b>24 phút</b></span><span>12.000₫</span><span class="rc-co2">🌿 −1,8 kg</span></div>
+                </div>
+                <div class="route-card">
+                  <div class="rc-top"><span>🚌</span><span class="rc-name">Buýt 09 + xe đạp</span></div>
+                  <div class="rc-meta"><span><b>32 phút</b></span><span>9.000₫</span><span class="rc-co2">🌿 −1,4 kg</span></div>
+                </div>
+                <div class="route-card">
+                  <span class="rc-bad">PHÍ LEZ</span>
+                  <div class="rc-top"><span>🛵</span><span class="rc-name">Xe máy xăng</span></div>
+                  <div class="rc-meta"><span><b>18 phút</b></span><span>15.000₫＋</span><span class="rc-co2 bad">⚠ qua LEZ</span></div>
+                </div>
+                <div style="font-size:10px;color:#8a9a90;text-align:center;padding:2px">🌿 Chọn tuyến xanh tiết kiệm 1,8 kg CO₂ ≈ 9 phút chạy điều hòa</div>
+              </div>
+            </div>
+            <div class="b-map">
+              <div class="map-bg" data-map></div>
+              <div class="b-topbar">
+                <span class="chip">🏛 Phường/xã</span>
+                <span class="chip">🌱 LEZ</span>
+                <span class="chip on">🚉 Điểm giao thông</span>
+                <span class="chip soft" style="margin-left:auto">AQI 76 · Trung bình</span>
+              </div>
+              <div class="glass aqi-chip" style="left:12px; bottom:12px">📍 Chế độ chọn điểm: đang chọn <b>&nbsp;điểm đến</b></div>
+            </div>
+          </div>
+          <span class="callout" style="top:40px; left:16%">a</span>
+          <span class="callout" style="top:200px; left:3%">b</span>
+          <span class="callout" style="top:420px; left:20%">c</span>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <div class="note good"><span class="n">a</span><div><b>Form thành 3 bước có chỉ báo ✓</b> — người dùng biết mình đang ở đâu, không bị “dội” 10 ô nhập cùng lúc.</div></div>
+      <div class="note good"><span class="n">b</span><div><b>4 thanh trượt → 3 nút chọn nhanh.</b> “Nhanh / Rẻ / Xanh” ai cũng hiểu; thanh trượt chi tiết chuyển vào “Nâng cao” gập lại.</div></div>
+      <div class="note good"><span class="n">c</span><div><b>Kết quả hiện ngay trong sidebar</b> (thay form), kèm nút “← Sửa thông tin” — không cuộn trang, vẫn giữ khung grid hiện tại nên <b>công sức sửa nhỏ nhất</b>.</div></div>
+    </div>
+  </section>
+
+  <!-- ================= TAB C ================= -->
+  <section class="panel" id="tab-c">
+    <div class="opt-head"><h2>Phương án C — Dashboard xanh (nhiều dữ liệu)</h2><span class="opt-tag">Kiểu bảng điều khiển</span></div>
+    <p class="opt-desc">Bố cục “console môi trường”: dải <b>KPI trên cùng</b> (AQI, CO₂ tiết kiệm, LEZ, số tuyến), bản đồ to ở giữa, cột phải là lập kế hoạch + biểu đồ so sánh. Phù hợp nếu muốn trang trông “dữ liệu, chuyên nghiệp” — đẹp khi demo/graphic cho báo cáo đồ án.</p>
+    <div class="frame-scroll">
+      <div class="frame">
+        <div class="frame-bar"><i></i><i></i><i></i><span class="frame-url">rideshift.vn — Phương án C · eco dashboard</span></div>
+        <div class="mock">
+          <div class="c-kpis">
+            <div class="kpi"><div class="t">CHẤT LƯỢNG KHÔNG KHÍ <span>🏭</span></div><div class="v">76 <small style="font-size:11px;color:#9a7b16">Trung bình</small></div><div class="d warn">PM2.5 cao điểm 17–19h</div></div>
+            <div class="kpi"><div class="t">CO₂ TIẾT KIỆM HÔM NAY <span>🌿</span></div><div class="v">1,8 kg</div><div class="d up">▲ +0,4 kg so với hôm qua</div></div>
+            <div class="kpi"><div class="t">TRẠNG THÁI LEZ <span>🛡</span></div><div class="v" style="color:#0d5c43">Tuân thủ</div><div class="d up">Xe của bạn không vào vùng phí</div></div>
+            <div class="kpi"><div class="t">TUYỀN KHẢ THI <span>🚉</span></div><div class="v">3</div><div class="d">1 tuyến metro · 1 buýt · 1 xe máy</div></div>
+          </div>
+          <div class="c-grid">
+            <div class="c-map">
+              <div class="map-bg" data-map></div>
+              <div class="glass aqi-chip" style="left:12px; top:12px">📍 Đang xem: tuyến Metro 2A</div>
+            </div>
+            <div class="c-side">
+              <div class="c-card">
+                <h4>🧭 Lập kế hoạch nhanh</h4>
+                <div class="c-mini">
+                  <div class="a-field"><span class="ic g">●</span><div><small>ĐIỂM ĐI</small><b>Bách Khoa</b></div></div>
+                  <div class="a-field"><span class="ic r">✕</span><div><small>ĐIỂM ĐẾN</small><b>Big C Thăng Long</b></div></div>
+                  <button class="btn-main">🔍 Tìm tuyến</button>
+                </div>
+              </div>
+              <div class="c-card" style="flex:1; overflow:hidden">
+                <h4>⚖ So sánh phương án</h4>
+                <div class="bar-row"><span class="nm">🚇 Metro+đi bộ</span><div class="tr"><i style="width:52%;background:#0e9f6e"></i></div><span class="tt">24′</span></div>
+                <div class="bar-row"><span class="nm">🚌 Buýt+xe đạp</span><div class="tr"><i style="width:70%;background:#e8b93c"></i></div><span class="tt">32′</span></div>
+                <div class="bar-row"><span class="nm">🛵 Xe máy xăng</span><div class="tr"><i style="width:40%;background:#e0524d"></i></div><span class="tt">18′</span></div>
+                <div style="border-top:1px dashed #e3eae2; margin-top:10px; padding-top:8px">
+                  <div class="bar-row"><span class="nm">CO₂ thải ra</span><div class="tr"><i style="width:14%;background:#0e9f6e"></i></div><span class="tt">0,3</span></div>
+                  <div class="bar-row"><span class="nm">(kg · ít hơn tốt hơn)</span><div class="tr"><i style="width:88%;background:#e0524d"></i></div><span class="tt">2,1</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <span class="callout" style="top:30px; right:16%">a</span>
+          <span class="callout" style="top:300px; right:8px">b</span>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <div class="note good"><span class="n">a</span><div><b>Dải KPI giúp “kể chuyện xanh”</b> ngay nhìn đầu trang — rất hợp khi trình bày cho hội đồng / đối tác.</div></div>
+      <div class="note good"><span class="n">b</span><div><b>Biểu đồ thanh so sánh</b> thời gian &amp; CO₂ trực quan hơn bảng số liệu thô.</div></div>
+      <div class="note"><span class="n">!</span><div><b>Đổi này:</b> nhiều thành phần cùng lúc, hơi “hệ thống” với người dùng thường; bản đồ bị thu nhỏ lại một phần.</div></div>
+    </div>
+  </section>
+
+  <!-- ================= TAB D ================= -->
+  <section class="panel" id="tab-d">
+    <div class="opt-head"><h2>Phương án D — Trợ lý từng bước (wizard)</h2><span class="opt-tag">Thân thiện nhất · mobile-first</span></div>
+    <p class="opt-desc">Mỗi lần chỉ hỏi <b>một câu, một màn hình</b>: Đi từ đâu? → Đi đến đâu? → Ưu tiên gì? → Chọn tuyến. Chữ to, nút to, gợi ý nhanh. Phù hợp người lớn tuổi / người dùng lần đầu / màn hình điện thoại; bản đồ làm nền mờ phía sau.</p>
+    <div class="frame-scroll">
+      <div class="frame">
+        <div class="frame-bar"><i></i><i></i><i></i><span class="frame-url">rideshift.vn — Phương án D · wizard từng bước</span></div>
+        <div class="mock">
+          <div class="map-bg map-dim" data-map></div>
+          <div class="glass d-card">
+            <div class="d-dots"><i class="on"></i><i></i><i></i><i></i></div>
+            <div class="d-step">BƯỚC 1 / 4</div>
+            <div class="d-q">Bạn muốn đi từ đâu? 👋</div>
+            <div class="d-inp">🔍&nbsp; Nhập địa chỉ, hoặc bấm lên bản đồ…</div>
+            <div class="d-sug">
+              <span class="chip on">🏠 Nhà tôi</span>
+              <span class="chip">🎓 ĐH Bách Khoa</span>
+              <span class="chip">🚉 Ga Cầu Giấy</span>
+              <span class="chip">📍 Chọn trên bản đồ</span>
+            </div>
+            <div class="d-foot">
+              <span class="bBack">← Bỏ qua, tự lập kế hoạch</span>
+              <button class="btn-main">Tiếp tục →</button>
+            </div>
+          </div>
+          <div class="d-help">🌿 RideShift giúp bạn đi lại nhanh hơn, rẻ hơn và xanh hơn — chỉ 4 bước</div>
+          <span class="callout" style="top:120px; left:22%">a</span>
+          <span class="callout" style="top:470px; right:26%">b</span>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <div class="note good"><span class="n">a</span><div><b>Một câu hỏi mỗi màn hình</b> — không bao giờ choáng; gợi ý nhanh (“Nhà tôi”, địa điểm hay đi) giúp 1 chạm là xong.</div></div>
+      <div class="note good"><span class="n">b</span><div><b>Luôn có lối thoát</b> “Bỏ qua, tự lập kế hoạch” cho người dùng quen — không bị nhốt trong wizard.</div></div>
+      <div class="note"><span class="n">!</span><div><b>Đổi này:</b> người dùng quen việc sẽ thấy hơi lâu (4 lần bấm); cần làm tốt cả chế độ “skip” — công sức làm lớn hơn A/B/C.</div></div>
+    </div>
+  </section>
+
+  <!-- ================= TAB: SO SÁNH ================= -->
+  <section class="panel" id="tab-cmp">
+    <div class="opt-head"><h2>So sánh &amp; đề xuất của tôi</h2></div>
+    <table class="cmp">
+      <thead><tr><th>Phương án</th><th>Ý tưởng chính</th><th>Ưu điểm</th><th>Nhược điểm</th><th>Công sức</th><th>Phù hợp với</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>A · Bản đồ tràn viền</td>
+          <td>Bỏ hero + khung trang; bản đồ full-screen, form &amp; kết quả nổi trên bản đồ</td>
+          <td>Ngầu, “app thật”; không bao giờ cuộn trang; kết quả dán sát bản đồ</td>
+          <td>Phải dựng lại khung layout; ẩn phần giới thiệu dự án</td>
+          <td><span class="eff mid">Trung bình</span></td>
+          <td>Người dùng trẻ, demo trực quan</td>
+        </tr>
+        <tr>
+          <td>B · Sidebar thông minh</td>
+          <td>Giữ khung 2 cột; form gập theo bước, trượt → nút chọn nhanh, kết quả trong sidebar</td>
+          <td>Khắc phục đủ 4 điểm yếu hiện tại, rủi ro thấp, giữ mọi tính năng</td>
+          <td>Ít “wow” hơn A; vẫn còn viền khung truyền thống</td>
+          <td><span class="eff low">Nhỏ</span></td>
+          <td>Làm ngay, ổn định cho đồ án</td>
+        </tr>
+        <tr>
+          <td>C · Dashboard xanh</td>
+          <td>Dải KPI + bản đồ giữa + cột lập kế hoạch/biểu đồ phải</td>
+          <td>Rất “dữ liệu”, kể chuyện môi trường tốt, đẹp khi báo cáo</td>
+          <td>Hơi nặng mặt với người dùng thường; bản đồ thu nhỏ</td>
+          <td><span class="eff mid">Trung bình</span></td>
+          <td>Trình bày hội đồng, đối tác</td>
+        </tr>
+        <tr>
+          <td>D · Trợ lý từng bước</td>
+          <td>4 bước hỏi–đáp toàn màn hình, chữ/nút to, bản đồ nền mờ</td>
+          <td>Thân thiện nhất với người mới &amp; mobile; không bao giờ choáng</td>
+          <td>Nhiều lần bấm; người quen việc thấy chậm; công sức lớn</td>
+          <td><span class="eff high">Lớn</span></td>
+          <td>Kiosk, người lớn tuổi, mobile</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="rec">
+      <h3>💡 Đề xuất của tôi: B + A (làm B trước, A sau)</h3>
+      <p><b>Bước 1 — làm ngay phương án B</b> (công sức nhỏ, khắc phục đủ 4 điểm yếu: bỏ hero dài, form gập theo bước, 3 nút ưu tiên thay 4 thanh trượt, kết quả vào sidebar). <b>Bước 2 — nâng lên A</b>: cho sidebar nổi (floating) trên bản đồ full-screen thay vì khung grid, dùng lại 90% component của B. Kết quả: được trải nghiệm kiểu Google Maps mà không phải viết lại từ đầu. Phương án C/D có thể lấy ý tưởng nhỏ để trộn thêm (ví dụ: dải KPI mini của C, gợi ý “Nhà tôi” của D).</p>
+      <p style="margin-top:8px">Bạn cứ chọn 1 phương án (hoặc nói “B + ý tưởng D”), tôi sẽ bắt tay sửa app thật — toàn bộ tính năng hiện tại (bản đồ phường 3D, LEZ, AQI, phân tích tuyến…) giữ nguyên.</p>
+    </div>
+  </section>
+
+  <!-- ================= TAB: MICRO ================= -->
+  <section class="panel" id="tab-micro">
+    <div class="opt-head"><h2>Cải thiện chung — áp dụng cho mọi phương án</h2><span class="opt-tag">Chi tiết nhỏ, hiệu quả lớn</span></div>
+    <p class="opt-desc">Bất kể chọn bố cục nào, những tinh chỉnh dưới đây sẽ khiến trang <b>dễ nhìn và thân thiện hơn rõ rệt</b>:</p>
+    <div class="micro">
+      <div class="mi"><div class="t"><span class="ic">🚦</span>Badge LEZ 3 mức màu</div><p>Xanh “Được đi free” · Vàng “Vào vùng phí” · Đỏ “Không được vào” — thay cho chữ dài, nhìn 1 giây là hiểu, giống biển báo thật.</p></div>
+      <div class="mi"><div class="t"><span class="ic">⏱</span>Thẻ tuyến dạng timeline</div><p>Mỗi tuyến hiển thị chuỗi chặng: 🚶4′ → 🚇17′ → 🚶3′ với màu theo phương tiện, kéo dài theo thời gian thực tế — nhìn là hình dung được hành trình.</p></div>
+      <div class="mi"><div class="t"><span class="ic">🌿</span>3 số liệu nổi bật trên thẻ</div><p>Chỉ 3 con số to: <b>thời gian · giá tiền · CO₂</b> (badge xanh khi tiết kiệm, đỏ khi tệ). Thông tin phụ thu vào phần mở rộng.</p></div>
+      <div class="mi"><div class="t"><span class="ic">📊</span>Thanh so sánh trực quan</div><p>Các tuyến xếp cạnh nhau kèm thanh độ dài so sánh thời gian/giá/CO₂ — mắt thường chọn được ngay mà không cần đọc bảng.</p></div>
+      <div class="mi"><div class="t"><span class="ic">💬</span>Microcopy thân thiện</div><p>“Phân tích hành trình” → “Tìm tuyến đi”. Kết quả: “Tiết kiệm 1,8 kg CO₂ ≈ 9 phút điều hòa” — nói bằng ngôn ngữ đời thường.</p></div>
+      <div class="mi"><div class="t"><span class="ic">⏳</span>Trạng thái chờ đẹp</div><p>Đang tính tuyến: skeleton nhấp nháy + hiệu ứng “đang vẽ tuyến” trên bản đồ; lỗi: thông báo lịch sự kèm nút “Thử lại”.</p></div>
+      <div class="mi"><div class="t"><span class="ic">📱</span>Mobile = bottom sheet</div><p>Trên điện thoại, form/kết quả thu thành tấm trượt từ đáy lên (kéo được), bản đồ luôn chiếm nửa trên màn hình.</p></div>
+      <div class="mi"><div class="t"><span class="ic">🌙</span>Dark mode + chữ lớn</div><p>Giao diện tối cho đi đêm, nút tăng cỡ chữ cho người lớn tuổi — đúng tinh thần “giao thông cho mọi người”.</p></div>
+      <div class="mi"><div class="t"><span class="ic">🏠</span>Gợi ý “địa điểm của tôi”</div><p>Nhớ 3 địa điểm hay đi (Nhà, Công ty, Trường) — 1 chạm thay vì gõ lại địa chỉ mỗi lần lập kế hoạch.</p></div>
+      <div class="mi"><div class="t"><span class="ic">✨</span>Vi mô khác</div><p>Nút đổi chiều điểm đi/đến to hơn · Enter để tìm · giữ bộ lọc khi quay lại · toast xác nhận “Đã chọn tuyến xanh 🌿”.</p></div>
+    </div>
+  </section>
+
+  <p class="foot-note"><b>File demo tĩnh</b> (public/demo.html) — không ảnh hưởng ứng dụng thật. Chốt phương án xong tôi sẽ xóa file này và bắt tay sửa giao diện thật. · RideShift C1SE.48</p>
+</div>
+
+<script>
+  // ---------- tabs ----------
+  const tabs = document.querySelectorAll('.tab-btn');
+  tabs.forEach(btn => btn.addEventListener('click', () => {
+    tabs.forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    document.querySelectorAll('section.panel').forEach(p => p.classList.remove('on'));
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('on');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }));
+
+  // ---------- fake map svg ----------
+  function mapSVG() {
+    return `
+<svg viewBox="0 0 800 520" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="520" fill="#edf1e8"/>
+  <!-- ward boundaries -->
+  <g stroke="#dde4d6" stroke-width="1" fill="none" opacity="0.9">
+    <path d="M0 120 L180 90 L340 140 L520 100 L800 150"/>
+    <path d="M120 0 L150 210 L90 380 L140 520"/>
+    <path d="M340 140 L360 300 L300 520"/>
+    <path d="M520 100 L560 260 L640 400"/>
+    <path d="M0 300 L150 330 L360 300 L560 260 L800 320"/>
+    <path d="M640 0 L620 160 L800 220"/>
+  </g>
+  <!-- parks -->
+  <ellipse cx="640" cy="120" rx="90" ry="60" fill="#d3e8c8"/>
+  <ellipse cx="130" cy="430" rx="80" ry="46" fill="#d3e8c8"/>
+  <ellipse cx="420" cy="440" rx="60" ry="36" fill="#dcead0"/>
+  <!-- lakes -->
+  <path d="M60 60 q40 -28 90 -10 q30 12 18 44 q-14 34 -60 30 q-52 -6 -48 -64z" fill="#c2dcec"/>
+  <path d="M470 170 q20 -26 48 -14 q22 10 12 36 q-10 26 -38 20 q-28 -8 -22 -42z" fill="#c2dcec"/>
+  <!-- minor roads -->
+  <g stroke="#ffffff" stroke-width="3" fill="none" opacity="0.85">
+    <path d="M0 200 L800 180"/><path d="M0 260 L800 250"/><path d="M0 380 L800 400"/>
+    <path d="M220 0 L240 520"/><path d="M420 0 L430 520"/><path d="M600 0 L590 520"/><path d="M700 0 L720 520"/>
+  </g>
+  <!-- arterial roads -->
+  <g stroke="#f7ecc3" stroke-width="7" fill="none">
+    <path d="M0 320 L800 290"/>
+    <path d="M320 0 L340 520"/>
+  </g>
+  <g stroke="#ffffff" stroke-width="5" fill="none">
+    <path d="M0 90 L800 70"/><path d="M100 0 L110 520"/><path d="M700 0 L690 520"/>
+  </g>
+  <!-- LEZ zone -->
+  <path d="M300 180 q90 -40 190 0 q60 26 40 100 q-20 70 -130 66 q-110 -4 -130 -76 q-14 -56 30 -90z"
+        fill="rgba(224,82,77,0.06)" stroke="#e0524d" stroke-width="3" stroke-dasharray="9 6"/>
+  <rect x="392" y="140" width="46" height="18" rx="9" fill="#e0524d"/>
+  <text x="415" y="153" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">LEZ</text>
+  <!-- labels -->
+  <g font-size="11" fill="#5b6b62" font-weight="600">
+    <text x="88" y="112">Hồ Tây</text>
+    <text x="487" y="205">Hồ Gươm</text>
+    <text x="628" y="128">Công viên</text>
+    <text x="150" y="352">Đống Đa</text>
+    <text x="620" y="452">Thanh Xuân</text>
+    <text x="60" y="470" font-size="10">Công viên nước</text>
+  </g>
+  <!-- transport points -->
+  <g>
+    <rect x="336" y="296" width="10" height="10" rx="2" fill="#3b82f6"/>
+    <rect x="338" y="212" width="10" height="10" rx="2" fill="#3b82f6"/>
+    <circle cx="504" cy="292" r="5" fill="#7c5cd6"/>
+    <circle cx="230" cy="392" r="5" fill="#7c5cd6"/>
+  </g>
+  <!-- route: walk + metro + walk -->
+  <g fill="none" stroke-linecap="round">
+    <path d="M130 400 L230 360" stroke="#64748b" stroke-width="4" stroke-dasharray="2 8"/>
+    <path d="M230 360 L340 300 L420 250 L500 230" stroke="#0c9d77" stroke-width="7"/>
+    <path d="M500 230 L580 190" stroke="#64748b" stroke-width="4" stroke-dasharray="2 8"/>
+  </g>
+  <circle cx="130" cy="400" r="9" fill="#0c9d77" stroke="#fff" stroke-width="3"/>
+  <circle cx="580" cy="190" r="9" fill="#1c2b26" stroke="#fff" stroke-width="3"/>
+  <text x="108" y="425" font-size="11" font-weight="800" fill="#0c9d77">A</text>
+  <text x="590" y="180" font-size="11" font-weight="800" fill="#1c2b26">B</text>
+</svg>`;
+  }
+  document.querySelectorAll('[data-map]').forEach(el => { el.innerHTML = mapSVG(); });
+</script>
+</body>
+</html>

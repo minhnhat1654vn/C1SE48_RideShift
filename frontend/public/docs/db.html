@@ -31,7 +31,8 @@
 (PostgreSQL + PostGIS), Objective 3 (spatial qua PostgreSQL/PostGIS),
 NFR-02 (PostGIS indexes), Deliverable #10 (PostgreSQL + PostGIS Database),
 Deliverable #11 (Processed Survey Dataset), Deliverable #12 (Database design + ERD).
-Sơ đồ quan hệ: <strong><code>docs/db-erd.png</code></strong> (vẽ đúng style dbdiagram, 11 bảng + 7 liên kết).</p>
+Sơ đồ CSDL: <strong><code>docs/db-erd.png</code></strong> (24 bảng · 6 schema, theo thiết kế DB FINAL
++ ERD nhóm trên dbdiagram).</p>
 </blockquote>
 <hr>
 <h2 id="1-ket-luan-audit-database-vs-proposal">1. Kết luận audit database vs proposal</h2>
@@ -46,39 +47,44 @@ Sơ đồ quan hệ: <strong><code>docs/db-erd.png</code></strong> (vẽ đúng 
 <tbody>
 <tr>
 <td>§10: Database = <strong>PostgreSQL</strong></td>
-<td>PostgreSQL 18.4 user-space (sandbox) / PostgreSQL 16 (Docker compose); DB <code>rideshift</code>; schema do FastAPI sở hữu</td>
+<td>PostgreSQL 18.4 user-space (sandbox) / PostgreSQL 16 (Docker compose); DB <code>rideshift</code>; schema do FastAPI sở hữu duy nhất</td>
 <td>✅</td>
 </tr>
 <tr>
 <td>§10 + Deliverable #10: <strong>PostGIS</strong> spatial database</td>
-<td><code>postgis/postgis:16-3.4</code> trong docker-compose; <code>app/db.py</code> tự <code>CREATE EXTENSION postgis</code> + cột <code>lez_zone.geom geometry(Polygon,4326)</code> + backfill từ JSON mỗi boot</td>
-<td>✅ deploy / ⚠️ sandbox fallback Shapely (không có root để cài extension — hạn chế môi trường)</td>
+<td><code>postgis/postgis:16-3.4</code> trong docker-compose; <code>schema.sql</code> định nghĩa trực tiếp <strong>10 cột <code>GEOMETRY(...)</code> thật</strong> (MULTIPOLYGON/LINESTRING/POINT, SRID 4326) + 10 GIST index; PostGIS là yêu cầu bắt buộc khi boot</td>
+<td>✅ DB đúng DB FINAL (volume TEXT cũ được upgrade in-place)</td>
 </tr>
 <tr>
 <td>NFR-02: <strong>PostGIS indexes</strong> cho spatial query</td>
-<td><code>CREATE INDEX lez_zone_geom_gist ON lez_zone USING gist (geom)</code> tự tạo khi PostGIS bật</td>
-<td>✅ deploy / ⚠️ sandbox</td>
+<td>10 GIST index khai báo ngay trong <code>schema.sql</code> cho đủ 10 cột GEOMETRY (fresh install lẫn upgrade đều có)</td>
+<td>✅</td>
 </tr>
 <tr>
 <td>Objective 3: outside / partial / within bằng PostgreSQL/PostGIS</td>
-<td>Dual-mode: PostGIS path (geom sync + DB-level) hoặc Shapely trong <code>services/geo.py</code> — cùng kết quả 3 trạng thái</td>
+<td>Spatial data nằm trong PostGIS GEOMETRY; phân tích 3 trạng thái chạy Shapely trên GeoJSON đọc từ DB (<code>db.geom_read</code>) — PostGIS sẵn sàng cho truy vấn DB-level (ST_Intersects…)</td>
 <td>✅</td>
 </tr>
 <tr>
 <td>Deliverable #10: DB chứa structured + spatial data</td>
-<td>9 bảng nghiệp vụ + 2 bảng dataset; spatial = zone polygons (JSON + geom) + tọa độ trips/locations</td>
+<td><strong>24 bảng / 6 schema</strong> theo DB FINAL; spatial = 10 cột GEOMETRY (zones/regions/study areas MULTIPOLYGON, routes/roads LINESTRING, POI/locations/trip endpoints/AQ points)</td>
 <td>✅</td>
 </tr>
 <tr>
 <td>Deliverable #11: processed survey dataset</td>
-<td>Bảng <code>dataset_trend</code> + <code>dataset_run</code> + 3 CSV trong <code>data/processed/</code></td>
-<td>✅ cơ chế / ⚠️ nguồn đang là scaffold 2.400 dòng (xem §7)</td>
+<td>Bảng <code>decision.vehicle_survey_responses</code> (25.586 dòng thật đã làm sạch) + <code>decision.dataset_trends</code> (42 dòng) + <code>core.dataset_runs</code> + 3 CSV trong <code>data/processed/</code></td>
+<td>✅ chạy trên bộ dữ liệu thật Kaggle "Vehicle at Ha Noi Dataset" (xem §7)</td>
+</tr>
+<tr>
+<td>Deliverable #12: Database design + ERD</td>
+<td>24 bảng đặt đúng 6 schema DB FINAL, tên bảng số nhiều + PK <code>BIGSERIAL</code> khớp ERD nhóm</td>
+<td>✅</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Điểm mạnh kiến trúc DB</strong>: schema 100% portable (prisma sqlite→postgresql chỉ đổi
-1 dòng provider, 0 dòng app code); ownership rõ — FastAPI tạo/migrate schema
-(<code>schema.sql</code>, idempotent <code>CREATE TABLE IF NOT EXISTS</code>), Prisma chỉ là tư liệu.</p>
+<p><strong>Điểm mạnh kiến trúc DB</strong>: một chủ sở hữu duy nhất — FastAPI tạo/migrate schema
+(<code>schema.sql</code>, idempotent), frontend là API consumer thuần (không ORM);
+migration layout cũ tự động (<code>seed.py::migrate_legacy</code>).</p>
 <hr>
 <h2 id="2-thong-tin-ket-noi-van-hanh">2. Thông tin kết nối &amp; vận hành</h2>
 <pre><code>Sandbox  : postgresql://postgres@127.0.0.1:5432/rideshift   (trust auth, socket /tmp)
@@ -107,7 +113,7 @@ Runtime  : psycopg 3 (dict_row), connection-per-request; transactional context `
 </tr>
 <tr>
 <td>Backend boot (tự động)</td>
-<td><code>main.py</code> lifespan: schema.sql → seed (idempotent) → chạy pipeline dataset nếu <code>dataset_trend</code> trống</td>
+<td><code>main.py</code> lifespan: schema.sql → migrate legacy → seed (idempotent) → chạy pipeline dataset nếu <code>dataset_trends</code> trống</td>
 </tr>
 </tbody>
 </table>
@@ -116,91 +122,173 @@ Runtime  : psycopg 3 (dict_row), connection-per-request; transactional context `
 tự fallback về DSN PostgreSQL ở trên khi URL không bắt đầu bằng <code>postgres</code>.</p>
 </blockquote>
 <hr>
-<h2 id="3-so-o-erd">3. Sơ đồ ERD</h2>
-<p>Xem <strong><code>docs/db-erd.png</code></strong> (nguồn chỉnh sửa: <code>docs/db-erd.html</code>, render lại bằng
-<code>docs/shot_erd.py</code>). 11 bảng, 7 liên kết:</p>
+<h2 id="3-so-o-erd-24-bang-6-schema">3. Sơ đồ ERD — 24 bảng · 6 schema</h2>
+<p>Xem <strong><code>docs/db-erd.png</code></strong>. Thiết kế theo <strong>DB FINAL.pdf + ERD nhóm (dbdiagram)</strong>
+với các điều chỉnh đã chốt của Capstone:</p>
 <ul>
-<li>FK cứng (<code>ON DELETE CASCADE</code>): <code>admin_session.user_id → admin_user.id</code>,
-  <code>policy_rule.zone_id → lez_zone.id</code>, <code>policy_rule.mode_id → transport_mode.id</code></li>
-<li>Tham chiếu logic (text id): <code>trip_record.{vehicle_id, top_mode_id, chosen_mode_id} → transport_mode.id</code>,
-  <code>dataset_trend.mode_id → transport_mode.id</code></li>
+<li><strong>Bỏ <code>core.users</code> / <code>core.vehicles</code></strong> — hệ thống chỉ có 2 role (guest/admin),
+  không đăng ký/lưu tài khoản người dùng thường và không khai báo xe cá nhân.
+  Dữ liệu xác thực đặt trong <code>core.admins</code> + <code>core.admin_sessions</code> (thay users).</li>
+<li><strong>Giữ 2 bảng pipeline dữ liệu khảo sát</strong> (không có trong DB FINAL):
+  <code>core.dataset_runs</code> (audit mỗi lần chạy) + <code>decision.dataset_trends</code>
+  (mode-share theo tháng) — phục vụ chức năng 34–35 (phân bố lựa chọn, xu
+  hướng) và tiêu chí <code>trend</code> của TOPSIS.</li>
+<li><strong>Thêm <code>decision.vehicle_survey_responses</code></strong> (theo ERD): dòng thô đã làm sạch
+  của bộ khảo sát — raw layer cho phân tích.</li>
+<li>PK toàn hệ thống là <code>BIGSERIAL</code> (khớp ERD); FK <code>bigint</code>. Chuỗi FK chính:</li>
+</ul>
+<pre><code>core.study_areas ──▶ gis.administrative_regions / transportation.transportation_locations
+                     / policy.lez_zones / trip.trips
+transportation.transportation_modes ──▶ policy.vehicle_types ──▶ policy.vehicle_restrictions
+policy.lez_zones ──▶ policy.lez_rules ──▶ policy.vehicle_restrictions
+trip.trips ──▶ trip.trip_routes ──▶ trip.trip_lez_analyses (──▶ lez_zones, lez_rules)
+trip.trips ──▶ decision.recommendation_runs ──▶ decision.recommendation_scores
+trip.trips ──▶ decision.impact_assessments
+core.admins ──▶ core.admin_sessions / core.system_logs
+</code></pre>
+<hr>
+<h2 id="4-bang-du-lieu-24-bang-6-schema-snake_case-so-nhieu">4. Bảng dữ liệu (24 bảng, 6 schema, snake_case số nhiều)</h2>
+<h3 id="core-5">core (5)</h3>
+<ul>
+<li><strong><code>study_areas</code></strong> — khu vực nghiên cứu (Hà Nội, <code>code='HN'</code>): <code>code</code> UNIQUE,
+  <code>area_type</code>, <code>country_code</code>, <code>geometry</code> (GeoJSON MultiPolygon), <code>status</code>.</li>
+<li><strong><code>admins</code></strong> — <code>username</code> UNIQUE, <code>password_hash</code> (sha256+salt), <code>full_name</code>,
+  <code>role</code>, <code>status</code>, <code>last_login_at</code>.</li>
+<li><strong><code>admin_sessions</code></strong> — <code>token</code> UNIQUE, <code>admin_id</code> FK CASCADE, <code>expires_at</code>
+  (8h); cookie httpOnly <code>rs_admin_session</code>.</li>
+<li><strong><code>system_logs</code></strong> — audit: <code>level</code>, <code>action</code> (LOGIN/ZONE_CREATE/…),
+  <code>entity_type</code>, <code>entity_id</code>, <code>description</code>, <code>ip_address</code>.</li>
+<li><strong><code>dataset_runs</code></strong> — audit pipeline: <code>ran_at</code>, <code>source_file</code>, <code>rows_in</code>,
+  <code>rows_clean</code>, <code>notes</code>.</li>
+</ul>
+<h3 id="gis-3">gis (3)</h3>
+<ul>
+<li><strong><code>administrative_regions</code></strong> — 14 quận Hà Nội seeded (<code>region_type='DISTRICT'</code>,
+  UNIQUE(study_area, name)); trips tham chiếu qua <code>origin_region_id</code>.</li>
+<li><strong><code>road_segments</code></strong> / <strong><code>points_of_interest</code></strong> — <strong>trống theo thiết kế</strong>:
+  import từ OpenStreetMap/QGIS theo 15 bước DB FINAL, app không tự vẽ.</li>
+</ul>
+<h3 id="transportation-2">transportation (2)</h3>
+<ul>
+<li><strong><code>transportation_modes</code></strong> — 7 phương thức: <code>code</code> UNIQUE
+  (<code>gasoline_motorbike</code>…), <code>category</code>, <code>routing_profile</code> (osrm), <code>avg_speed_kmh</code>,
+  <code>base_fare</code>, <code>cost_per_km</code>, <code>co2_per_km_g</code>, <code>avg_wait_min</code>,
+  <code>accessibility_score</code>, <code>convenience_score</code>, <code>is_active</code>, <code>sort_order</code>
+  (4 cột cuối là mở rộng app cho MCDM/UI — ghi nhận deviation).</li>
+<li><strong><code>transportation_locations</code></strong> — bến xe/metro/BRT: <code>location_type</code>, <code>lat/lng</code> (số thực tiện tra cứu),
+  <code>geometry</code> GEOMETRY(POINT,4326) — DB FINAL, <code>source</code>, <code>status</code>; FK mode (bus_stop → bus).</li>
+</ul>
+<h3 id="policy-4">policy (4)</h3>
+<ul>
+<li><strong><code>lez_zones</code></strong> — <code>study_area_id</code> FK, <code>geometry</code>
+  GEOMETRY(MULTIPOLYGON,4326) <strong>nguồn chuẩn theo DB FINAL</strong> (+ GIST index),
+  <code>effective_from/to</code>, <code>status</code> (<code>active</code>/<code>inactive</code>). API vẫn trả <code>coordinates</code>
+  <code>[[lat,lng]…]</code> — backend suy ra từ geometry qua <code>ST_AsGeoJSON</code> (xem §5).</li>
+<li><strong><code>lez_rules</code></strong> — quy định theo vùng: <code>rule_name</code>, <code>description</code>,
+  <code>start_time</code>/<code>end_time</code> (TIME), <code>days_of_week</code> (<code>Mon,Tue,…</code>), <code>effective_from/to</code>,
+  <code>status</code>.</li>
+<li><strong><code>vehicle_types</code></strong> — taxonomy phương tiện: <code>code</code> UNIQUE, <code>fuel_type</code>,
+  <code>emission_standard</code>, <code>emission_level</code> (0 = zero-emission, 1..6 = Euro),
+  <code>transportation_mode_id</code> FK, <code>is_default</code>.</li>
+<li><strong><code>vehicle_restrictions</code></strong> — phán quyết theo rule × loại xe:
+  <code>restriction_type</code> (<code>banned</code> | <code>conditional</code>), <code>min_emission_level</code>,
+  <code>restriction_reason</code>.</li>
+</ul>
+<h3 id="trip-3">trip (3)</h3>
+<ul>
+<li><strong><code>trips</code></strong> — mỗi lần phân tích + lựa chọn (nguồn liệu analytics):
+  <code>origin_name/destination_name</code> + <code>origin</code>/<code>destination</code> GEOMETRY(POINT,4326)
+  <code>origin_region_id/destination_region_id</code> FK, <code>origin_district</code>,
+  <code>vehicle_type_id</code> FK (xe người dùng chọn), <code>chosen_vehicle_type_id</code> FK +
+  <code>switched</code> (quyết định thực tế), <code>top_mode_id</code> FK + <code>top_score</code> (đề xuất
+  hàng đầu — mở rộng app cho pandas), <code>travel_time</code>, <code>departure_hour</code>,
+  <code>trip_purpose</code>, <code>preferences</code> JSONB, <code>distance_km</code>, <code>duration_min</code>,
+  <code>lez_affected</code>, <code>avg_cost_vnd</code>, <code>avg_time_min</code>. Index: <code>created_at</code>,
+  <code>trip_purpose</code>, <code>origin_district</code>.</li>
+<li><strong><code>trip_routes</code></strong> — tuyến OSRM đã lưu: <code>routing_profile</code>, <code>route_index</code>,
+  <code>provider</code> (osrm/estimate), <code>distance_m</code>, <code>duration_sec</code>, <code>geometry</code>
+  (GeoJSON LineString).</li>
+<li><strong><code>trip_lez_analyses</code></strong> — phân tích tuyến × vùng: <code>intersects</code>,
+  <code>intersection_length_m</code>, <code>intersection_percentage</code>, <code>route_lez_status</code>
+  (outside/partial/within), <code>applicable_lez_rule_id</code>, <code>compliance_status</code>,
+  <code>compliance_reason</code>, <code>analyzed_at</code>.</li>
+</ul>
+<h3 id="decision-7">decision (7)</h3>
+<ul>
+<li><strong><code>recommendation_criteria</code></strong> — 7 tiêu chí TOPSIS (admin sửa được, tổng = 100):
+  <code>code</code> UNIQUE ∈ {<code>travelTime</code>, <code>cost</code>, <code>lezCompliance</code>, <code>accessibility</code>,
+  <code>convenience</code>, <code>environment</code>, <code>trend</code>}, <code>criteria_type</code> (<code>COST</code>/<code>BENEFIT</code>),
+  <code>default_weight</code> (seed: 25/20/20/10/10/10/5).</li>
+<li><strong><code>recommendation_runs</code></strong> — mỗi lần chạy TOPSIS: <code>algorithm</code> (TOPSIS),
+  <code>status</code>, <code>duration_ms</code>, <code>completed_at</code>.</li>
+<li><strong><code>recommendation_scores</code></strong> — ma trận điểm mode × tiêu chí: <code>raw_value</code>,
+  <code>normalized_value</code>, <code>weight</code>, <code>weighted_score</code>, <code>final_score</code>, <code>rank_position</code>;
+  UNIQUE(run, mode, criteria). 49 dòng mỗi lần phân tích (7×7).</li>
+<li><strong><code>impact_assessments</code></strong> — so sánh phương tiện hiện tại ↔ phương án thay thế:
+  time/cost/compliance/score của cả hai + 3 cột chênh lệch.</li>
+<li><strong><code>air_quality_observations</code></strong> — cache AQI: <code>cache_key</code> UNIQUE =
+  <code>'{lat}:{lng}'</code> (2 số thập phân), cột <code>aqi/pm25/pm10</code> (promoted) +
+  <code>raw_data</code> JSONB (payload đầy đủ), <code>observed_at</code>; TTL 30'.</li>
+<li><strong><code>vehicle_survey_responses</code></strong> — 25.586 dòng khảo sát thật (Kaggle "Vehicle at
+  Ha Noi Dataset", 25.590 dòng gốc): <code>source_row</code> (rowid), <code>region_id</code> (30/31
+  quận huyện — 100% dòng được map), <code>area_label</code>, <code>trip_purpose</code>,
+  <code>current_mode_id</code>, <code>trip_distance_km</code>, <code>trip_time_min</code>, <code>raw_data</code> JSONB
+  (đủ 58 cột gốc của dòng CSV).</li>
+<li><strong><code>dataset_trends</code></strong> — aggregate feed tiêu chí <code>trend</code> của TOPSIS + dashboard:
+  UNIQUE(mode, month), <code>share</code> (0..1), <code>trend_index</code> (0..1), <code>sample_count</code>.</li>
 </ul>
 <hr>
-<h2 id="4-bang-du-lieu-11-bang-snake_case">4. Bảng dữ liệu (11 bảng, snake_case)</h2>
-<h3 id="41-nghiep-vu-loi">4.1 Nghiệp vụ lõi</h3>
-<p><strong><code>transport_mode</code></strong> — 7 phương tiện + tham số MCDM
-<code>id</code> PK (<code>gasoline_motorbike</code>, <code>electric_motorbike</code>, <code>private_car</code>, <code>bus</code>, <code>bicycle</code>, <code>walking</code>, <code>taxi</code>),
-<code>name</code>, <code>description</code>, <code>icon</code>, <code>avg_speed_kmh</code>, <code>base_cost_vnd</code>, <code>cost_per_km_vnd</code>,
-<code>co2_per_km_g</code>, <code>base_accessibility</code>, <code>base_convenience</code>, <code>wait_minutes</code>, <code>enabled</code>, <code>sort_order</code>.</p>
-<p><strong><code>lez_zone</code></strong> — vùng phát thải thấp
-<code>id</code> PK, <code>name</code>, <code>description</code>, <code>coordinates</code> TEXT (JSON <code>[[lat,lng]…]</code> — <strong>nguồn chuẩn, portable</strong>),
-<code>active</code>, <code>created_at</code>, <code>updated_at</code>.
-<em>(Khi PostGIS bật: thêm <code>geom geometry(Polygon,4326)</code> + GIST — xem §5.)</em></p>
-<p><strong><code>policy_rule</code></strong> — ràng buộc LEZ theo zone × mode
-<code>id</code> PK, <code>zone_id</code> FK CASCADE, <code>mode_id</code> FK CASCADE,
-<code>restriction_type</code> (<code>banned</code> | <code>conditional</code>), <code>condition</code> (vd "Euro 4+"),
-<code>start_time</code>/<code>end_time</code> (<code>06:00</code>–<code>22:00</code>), <code>days</code> (<code>Mon,Tue,…</code>), <code>active</code>, <code>created_at</code>.</p>
-<p><strong><code>criteria_weight</code></strong> — trọng số TOPSIS (admin sửa được, tổng = 100)
-<code>criterion</code> UNIQUE ∈ {<code>travelTime</code>, <code>cost</code>, <code>lezCompliance</code>, <code>accessibility</code>, <code>convenience</code>, <code>environment</code>, <code>trend</code>},
-<code>weight</code> (seed: 25/20/20/10/10/10/5), <code>label</code>.</p>
-<p><strong><code>transportation_location</code></strong> — marker bản đồ
-<code>id</code> PK, <code>name</code>, <code>type</code> (<code>bus_stop</code> | <code>metro</code> | <code>brt</code>), <code>lat</code>, <code>lng</code>, <code>active</code>.</p>
-<h3 id="42-giao-dich-phien">4.2 Giao dịch &amp; phiên</h3>
-<p><strong><code>trip_record</code></strong> — mỗi lần phân tích + lựa chọn của user (nguồn liệu analytics)
-<code>id</code> PK, <code>origin_name</code>, <code>dest_name</code>, <code>origin_district</code>,
-<code>origin_lat/lng</code>, <code>dest_lat/lng</code>, <code>distance_km</code>, <code>duration_min</code>,
-<code>vehicle_id</code> (mode hiện tại của user), <code>purpose</code> (<code>work|school|shopping|leisure|other</code>),
-<code>departure_hour</code>, <code>lez_affected</code>, <code>top_mode_id</code>, <code>top_score</code>,
-<code>avg_cost_vnd</code>, <code>avg_time_min</code>, <code>chosen_mode_id</code> (quyết định thực tế), <code>switched</code>,
-<code>created_at</code>. Index: <code>created_at</code>, <code>purpose</code>.</p>
-<p><strong><code>admin_user</code></strong> — <code>username</code> UNIQUE, <code>password_hash</code> (sha256+salt), <code>full_name</code>.
-<strong><code>admin_session</code></strong> — <code>token</code> UNIQUE, <code>user_id</code> FK CASCADE, <code>expires_at</code> (8h);
-cookie httpOnly <code>rs_admin_session</code>.</p>
-<h3 id="43-cache-dataset-pipeline">4.3 Cache &amp; dataset pipeline</h3>
-<p><strong><code>air_quality_cache</code></strong> — <code>cache_key</code> UNIQUE = <code>'{lat}:{lng}'</code> (2 số thập phân),
-<code>payload</code> JSON (AirQualityInfo), <code>fetched_at</code>; TTL 30'.</p>
-<p><strong><code>dataset_trend</code></strong> — đầu ra pipeline pandas, feed tiêu chí <code>trend</code> của TOPSIS
-<code>mode_id</code>, <code>month</code>, <code>share</code> (0..1), <code>trend_index</code> (0..1), <code>sample_count</code>. Index <code>mode_id</code>.</p>
-<p><strong><code>dataset_run</code></strong> — audit log pipeline: <code>ran_at</code>, <code>source_file</code>, <code>rows_in</code>, <code>rows_clean</code>, <code>notes</code>.</p>
-<hr>
-<h2 id="5-postgis-dual-mode-nfr-02">5. PostGIS dual-mode (NFR-02)</h2>
+<h2 id="5-postgis-geometry-nfr-02">5. PostGIS geometry (NFR-02)</h2>
 <pre><code>app/db.py
-├── enable_postgis_if_available()
-│     CREATE EXTENSION IF NOT EXISTS postgis          ← thất bại → return False (sandbox)
-│     ALTER TABLE lez_zone ADD COLUMN geom geometry(Polygon,4326)
-│     CREATE INDEX lez_zone_geom_gist USING gist(geom)   ← NFR-02
-│     backfill: coordinates JSON → ST_GeomFromGeoJSON
-├── sync_zone_geom()  ← giữ geom đồng bộ khi admin CRUD zone
-└── postgis_available() ← routers/services rẽ nhánh Shapely khi False
+├── geom_write(multi)  ← INSERT/UPDATE: GeoJSON → ST_SetSRID(ST_GeomFromGeoJSON(…),4326)
+├── geom_read(col)     ← SELECT: ST_AsGeoJSON(col) (GeoJSON trên wire, không hex EWKB)
+└── postgis_available() ← /health hiển thị trạng thái PostGIS
 </code></pre>
 <ul>
-<li><strong>Docker/deploy</strong>: PostGIS bật → spatial query chạy trong DB (đúng chữ "PostGIS
-  Spatial Query" của proposal §12) với GIST index.</li>
-<li><strong>Sandbox</strong>: PG user-space không kèm extension → <code>services/geo.py</code> dùng Shapely
-  trong app layer; outside/partial/within cho kết quả like-for-like.
-  Đây là rẽ nhánh tự động, không cần cấu hình tay.</li>
+<li><strong>10 cột hình học là GEOMETRY thật (PostGIS bắt buộc)</strong> — schema.sql định nghĩa
+  trực tiếp <code>GEOMETRY(MULTIPOLYGON/LINESTRING/POINT,4326)</code> + 10 GIST index
+  (đúng DB FINAL workflow "Import into PostGIS → Create spatial indexes").</li>
+<li><strong>Volume cũ layout TEXT được upgrade in-place</strong> bởi khối cuối schema.sql:
+  <code>lez_zones.coordinates</code> JSON → <code>geometry</code> (SET NOT NULL khi đủ ring, DROP
+  <code>coordinates</code>), 9 cột TEXT còn lại ALTER TYPE với <code>ST_GeomFromGeoJSON</code> —
+  exception-guarded từng cột, không mất dữ liệu, không cần re-seed.</li>
+<li>Chạy trên PostgreSQL thường (không PostGIS) → schema.sql từ chối boot với
+  thông báo rõ ràng; phân tích outside/partial/within vẫn chạy Shapely trong
+  <code>services/geo.py</code> (đọc GeoJSON từ DB, kết quả like-for-like).</li>
 </ul>
 <h2 id="6-seed-data-idempotent-appseedpy">6. Seed data (idempotent, <code>app/seed.py</code>)</h2>
-<p>1 admin (<code>admin</code>/<code>admin123</code>) · 7 modes · 2 LEZ zones (Hoàn Kiếm core + Ring Road 1) ·
-7 policy rules · 7 weights (25/20/20/10/10/10/5) · 12 transportation locations ·
-140 demo trips (RNG seed 48, phân bổ purpose/hour/quận thực tế).</p>
-<h2 id="7-dataset-pipeline-deliverable-11">7. Dataset pipeline → Deliverable #11</h2>
-<pre><code>data/vehicle_at_hanoi.csv ──(app/services/trend.py — pandas)──► data/processed/
-                                                                 ├── processed_trips.csv  (cleaned)
-                                                                 ├── mode_trend.csv       (analysis)
-                                                                 └── mode_stats.csv       (features)
-                                                          + bảng dataset_trend / dataset_run
+<p>1 study area (Hà Nội) · 1 admin (<code>admin</code>/<code>admin123</code>) · 7 modes · 7 vehicle
+types · 1 LEZ zone (Vành đai 1, hiệu lực 01/07/2026 theo Chỉ thị 20/CT-TTg) ·
+2 rules + 2 vehicle restrictions · 7 weights · 12 transportation locations ·
+31 administrative regions (30 quận/huyện khớp cột <code>oridist</code> của khảo sát +
+"Central Hanoi") · 140 demo trips (RNG seed 48).</p>
+<h2 id="7-dataset-pipeline-deliverable-11-a-ong-kin">7. Dataset pipeline → Deliverable #11 (đÃ ĐÓNG KÍN)</h2>
+<pre><code>data/dataHN.csv ──(app/services/trend.py — pandas, nhánh cohort)──► data/processed/
+              │        ├── processed_trips.csv  (25.586 dòng cleaned)
+              │        ├── mode_trend.csv       (6 nhóm tuổi × 7 mode)
+              │        └── mode_stats.csv       (features theo mode)
+              ├──► decision.vehicle_survey_responses (25.586 dòng thật, raw_data JSONB 58 cột)
+              ├──► decision.dataset_trends  (42 dòng = 6 nhóm tuổi × 7 mode)
+              └──► core.dataset_runs (audit, notes ghi periodKind=cohort)
+
+fallback: data/vehicle_at_hanoi.csv (scaffold 2.400 dòng theo tháng) hoặc
+scaffold do tools/make_dataset.py sinh — dùng khi dataHN.csv không có mặt.
 </code></pre>
-<p>⚠️ <strong>Trạng thái hiện tại (sau reset sandbox):</strong> CSV nguồn là scaffold 2.400 dòng
-của <code>tools/make_dataset.py</code>; bản tích hợp Kaggle thật (25.590 dòng × 58 cột,
-cohort-based trend) đã mất cùng lần reset. Cần tải lại CSV Kaggle về
-<code>data/vehicle_at_hanoi.csv</code> và port lại phần đọc/feature cohort trong <code>trend.py</code>.
-Schema DB và cơ chế pipeline <strong>không thay đổi</strong> khi thay nguồn.</p>
+<p>✅ <strong>Đã dùng dữ liệu thật.</strong> Kaggle "Vehicle at Ha Noi Dataset" 25.590 dòng ×
+58 cột nằm tại <code>backend/data/dataHN.csv</code> (9,1MB, commit trực tiếp trong repo).
+Bộ khảo sát không có cột ngày → trục xu hướng là <strong>6 nhóm tuổi</strong>
+(<code>0-17 · 18-25 · 26-35 · 36-55 · 56-75 · 75+</code>); growth = −polyfit (mode được
+người trẻ dùng nhiều = hướng tương lai), trend_index = 0.6×adoption +
+0.4×growth. Thị phần thực đo: xe máy xăng 57,4% · ô tô 26,9% · xe máy điện
+5,7% · xe đạp 5,0% · đi bộ 2,1% · buýt 1,6% · taxi 1,3%.
+Dashboard admin tự nhận biết <code>periodKind=cohort</code> và hiển thị thị phần toàn mẫu.
+GET <code>/api/dataset/summary</code> là read-only (aggregate từ DB, không chạy lại pipeline).</p>
 <h2 id="8-legacy">8. Legacy</h2>
 <ul>
-<li><code>prisma/schema.prisma</code> (9 model camelCase) — <strong>không còn runtime</strong>; giữ lại chỉ
-  làm tư liệu so sánh thiết kế. Toàn bộ quyền sở hữu schema thuộc
-  <code>mini-services/fastapi-backend/app/schema.sql</code>.</li>
+<li>Họ bảng camelCase Prisma (<code>AdminUser</code>, <code>TripRecord</code>, …) — <strong>đã xoá hoàn toàn</strong>
+  khỏi DB (schema.sql tự DROP) và khỏi code; frontend không giữ ORM nào.</li>
+<li>Các layout cũ (<code>public.admin_user</code>, <code>trip.trip_record</code>, tên số ít…) — tự
+  migrate sang 24 bảng mới bởi <code>seed.py::migrate_legacy()</code> rồi bị DROP.</li>
 <li><code>db/custom.db</code> (SQLite) — backup thời kỳ đầu, không còn được đọc.</li>
 </ul>
 <h2 id="9-oi-chieu-tai-lieu-chinh-thuc-v10-task-23-mapping-us-bang">9. Đối chiếu tài liệu chính thức v1.0 (Task 23) &amp; mapping US → bảng</h2>
@@ -208,7 +296,7 @@ Schema DB và cơ chế pipeline <strong>không thay đổi</strong> khi thay ng
 <p>Đối chiếu với bộ tài liệu chính thức: <strong>Proposal v1.0</strong>, <strong>Project Plan v1.0</strong>,
 <strong>Product Backlog v1.0</strong> (35 PBI), <strong>User Story v1.0</strong> (35 US + acceptance criteria).
 Kết luận: <strong>schema khớp 100%</strong> với mọi data source ghi trong Product Backlog
-(cột Notes của từng PBI) — không cần thay đổi cấu trúc, chỉ bổ sung tài liệu.</p>
+(cột Notes của từng PBI).</p>
 </blockquote>
 <table>
 <thead>
@@ -222,69 +310,82 @@ Kết luận: <strong>schema khớp 100%</strong> với mọi data source ghi tr
 <tr>
 <td>US-01, US-14, US-15</td>
 <td>— (frontend)</td>
-<td>trip_record.origin_<em>/dest_</em> (persist)</td>
+<td>trips.origin_<em>/destination_</em> + trip_routes (persist)</td>
 </tr>
 <tr>
 <td>US-02, US-03</td>
 <td>— (OSRM + frontend)</td>
-<td>trip_record.distance_km, duration_min</td>
+<td>trips.distance_km, duration_min + trip_routes.distance_m, duration_sec</td>
 </tr>
 <tr>
 <td>US-04, US-22, US-31</td>
 <td>LezZone (admin-managed)</td>
-<td><code>lez_zone</code> (coordinates JSON + geom PostGIS, active)</td>
+<td><code>lez_zones</code> (geometry MULTIPOLYGON PostGIS + GIST, status)</td>
 </tr>
 <tr>
 <td>US-05, US-17</td>
 <td>PolicyRule</td>
-<td><code>policy_rule</code> (zone_id, start_time, end_time, days)</td>
+<td><code>lez_rules</code> (start_time, end_time, days_of_week)</td>
 </tr>
 <tr>
 <td>US-06, US-24</td>
 <td>PolicyRule/vehicle-restriction</td>
-<td><code>policy_rule</code> (mode_id, restriction_type, condition)</td>
+<td><code>vehicle_restrictions</code> + <code>vehicle_types</code> (restriction_type, min_emission_level)</td>
 </tr>
 <tr>
 <td>US-08, US-19</td>
 <td>AirQualityCache</td>
-<td><code>air_quality_cache</code> (payload JSON, fetched_at)</td>
+<td><code>air_quality_observations</code> (aqi/pm25/pm10 + raw_data JSONB, observed_at)</td>
 </tr>
 <tr>
 <td>US-10, US-34</td>
 <td>CriteriaWeight</td>
-<td><code>criteria_weight</code> (7 tiêu chí, tổng 100%)</td>
+<td><code>recommendation_criteria</code> (7 tiêu chí, tổng 100%)</td>
 </tr>
 <tr>
 <td>US-13</td>
 <td>TransportationLocation</td>
-<td><code>transportation_location</code> (bus_stop/metro/brt, active)</td>
+<td><code>transportation_locations</code> (bus_stop/metro/brt, status)</td>
 </tr>
 <tr>
 <td>US-16, US-33</td>
 <td>TransportMode</td>
-<td><code>transport_mode</code> (enabled, thông số vận hành)</td>
+<td><code>transportation_modes</code> (is_active, thông số vận hành)</td>
 </tr>
 <tr>
 <td>US-25–US-29, US-35</td>
 <td>TripRecord (originDistrict, purpose, switched, createdAt)</td>
-<td><code>trip_record</code></td>
+<td><code>trips</code></td>
 </tr>
 <tr>
 <td>US-25 (survey source)</td>
 <td>processed dataset (Deliverable #11)</td>
-<td><code>dataset_trend</code>, <code>dataset_run</code></td>
+<td><code>vehicle_survey_responses</code>, <code>dataset_trends</code>, <code>dataset_runs</code></td>
 </tr>
 <tr>
 <td>US-21, US-30</td>
 <td>AdminUser / AdminSession</td>
-<td><code>admin_user</code>, <code>admin_session</code> (token, expires_at 8h)</td>
+<td><code>admins</code>, <code>admin_sessions</code> (token, expires_at 8h)</td>
+</tr>
+<tr>
+<td>US-27, US-28, US-29 (MCDM persist)</td>
+<td>RecommendationRun/Score/Impact</td>
+<td><code>recommendation_runs</code>, <code>recommendation_scores</code>, <code>impact_assessments</code></td>
+</tr>
+<tr>
+<td>US-36 (địa lý)</td>
+<td>AdministrativeRegion</td>
+<td><code>administrative_regions</code> (origin_region_id)</td>
+</tr>
+<tr>
+<td>US (audit)</td>
+<td>SystemLog</td>
+<td><code>system_logs</code> (LOGIN, ZONE_<em>, RULE_</em>, DATASET_REPROCESS…)</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Các thay đổi hành vi sau đối chiếu (không đổi schema):</strong> US-08 gắn nhãn ngữ
-cảnh địa lý cho dữ liệu AQ; US-19 trạng thái <code>unavailable</code> thay cho số liệu ước
-lượng khi không có cache; US-25 dashboard bổ sung thẻ "Survey dataset"
-(dataset_run + dataset_trend) và nút Reprocess; US-22 thêm validate phạm vi
-lat/lng; US-29/35 bỏ LIMIT 500 khi tổng hợp.</p>
-<p><strong>Export DDL:</strong> <code>docs/db-schema.sql</code> (bản export chuẩn của
-<code>app/schema.sql</code>, chú thích mapping US → bảng + block PostGIS tuỳ chọn).</p></article></body></html>
+<p><strong>Các thay đổi hành vi sau đối chiếu:</strong> US-08 gắn nhãn ngữ cảnh địa lý cho dữ
+liệu AQ; US-19 trạng thái <code>unavailable</code> thay cho số liệu ước lượng khi không có
+cache; US-25 dashboard bổ sung thẻ "Survey dataset" và nút Reprocess; US-22
+thêm validate phạm vi lat/lng; US-29/35 bỏ LIMIT 500 khi tổng hợp.</p>
+<p><strong>Export DDL:</strong> <code>docs/db-schema.sql</code> (bản export chuẩn của <code>app/schema.sql</code>).</p></article></body></html>

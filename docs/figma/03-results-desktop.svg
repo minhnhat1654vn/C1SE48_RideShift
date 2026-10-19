@@ -1,0 +1,162 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1180" viewBox="0 0 1440 1180" font-family="Inter, 'Segoe UI', system-ui, sans-serif">
+  <rect id="page-bg" width="1440" height="1180" fill="#F8FBF8"/>
+
+  <g id="results-header">
+    <text x="24" y="50" font-size="20" font-weight="700" fill="#061009">Kết quả phân tích hành trình</text>
+    <text x="24" y="72" font-size="12" fill="#606D64">Cầu Long Biên → Nghĩa Đô · 9,4 km · Thứ Sáu 17:30 · Xe của bạn: Xe máy xăng</text>
+  </g>
+
+  <!-- ============ CARD 1: TRIP OVERVIEW ============ -->
+  <g id="card-trip-overview">
+    <rect x="24" y="96" width="700" height="200" rx="16" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="44" y="128" font-size="14" font-weight="600" fill="#061009">Tổng quan hành trình</text>
+    <circle cx="50" cy="180" r="10" fill="#00884B" stroke="#FFFFFF" stroke-width="2"/><text x="50" y="184" font-size="10" font-weight="700" fill="#FFFFFF" text-anchor="middle">A</text>
+    <line x1="62" y1="180" x2="250" y2="180" stroke="#00884B" stroke-width="3"/>
+    <circle cx="262" cy="180" r="10" fill="#E7000B" stroke="#FFFFFF" stroke-width="2"/><text x="262" y="184" font-size="10" font-weight="700" fill="#FFFFFF" text-anchor="middle">B</text>
+    <text x="300" y="182" font-size="24" font-weight="700" fill="#061009">9,4 km</text>
+    <text x="300" y="206" font-size="13" fill="#606D64">khoảng 24 phút</text>
+    <g id="overview-badges">
+      <rect x="44" y="232" width="196" height="26" rx="13" fill="#FFFBEB" stroke="#FE9A00"/><text x="142" y="249" font-size="11" font-weight="600" fill="#92400E" text-anchor="middle">Một phần trong vùng LEZ</text>
+      <rect x="252" y="232" width="200" height="26" rx="13" fill="#EBF3EC"/><text x="352" y="249" font-size="11" font-weight="600" fill="#606D64" text-anchor="middle">Nguồn định tuyến: OSRM</text>
+    </g>
+    <text x="44" y="286" font-size="11" fill="#061009">Vùng LEZ vành đai 1 — <tspan font-weight="600">38%</tspan> chiều dài tuyến nằm trong vùng</text>
+    <rect x="44" y="294" width="620" height="6" rx="3" fill="#EBF3EC"/><rect x="44" y="294" width="236" height="6" rx="3" fill="#FE9A00"/>
+  </g>
+
+  <!-- ============ CARD 2: COMPLIANCE ============ -->
+  <g id="card-compliance">
+    <rect x="24" y="312" width="700" height="240" rx="16" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="44" y="344" font-size="14" font-weight="600" fill="#061009">Tuân thủ chính sách</text>
+    <g id="compliance-alert">
+      <rect x="44" y="360" width="660" height="64" rx="10" fill="#FFFBEB" stroke="#FE9A00"/>
+      <path d="M66 400 L78 380 L90 400 Z" fill="none" stroke="#FE9A00" stroke-width="2" stroke-linejoin="round"/><line x1="78" y1="388" x2="78" y2="394" stroke="#FE9A00" stroke-width="2" stroke-linecap="round"/><circle cx="78" cy="397.5" r="1.2" fill="#FE9A00"/>
+      <text x="106" y="386" font-size="12" font-weight="600" fill="#92400E">Xe máy xăng bị hạn chế có điều kiện trong vùng LEZ</text>
+      <text x="106" y="406" font-size="11" fill="#92400E">Phải đạt chuẩn khí thải Euro 3 trở lên (đăng ký từ 2015). Xe đăng ký trước 2015 không được phép.</text>
+    </g>
+    <g id="compliance-rules">
+      <rect x="44" y="440" width="660" height="40" rx="8" fill="#FFFFFF" stroke="#D7E1D9"/>
+      <rect x="56" y="449" width="96" height="22" rx="11" fill="#FFFBEB" stroke="#FE9A00"/><text x="104" y="464" font-size="10" font-weight="600" fill="#92400E" text-anchor="middle">Có điều kiện</text>
+      <text x="164" y="465" font-size="11" fill="#061009">Vùng LEZ vành đai 1 · 06:00–22:00 · Th 2 – Th 7</text>
+      <rect x="44" y="492" width="660" height="40" rx="8" fill="#FFFFFF" stroke="#D7E1D9"/>
+      <rect x="56" y="501" width="96" height="22" rx="11" fill="#FFFBEB" stroke="#FE9A00"/><text x="104" y="516" font-size="10" font-weight="600" fill="#92400E" text-anchor="middle">Có điều kiện</text>
+      <text x="164" y="517" font-size="11" fill="#061009">Vùng LEZ vành đai 1 · Chỉ xe đạt chuẩn khí thải được vào vùng · Th 2 – Th 7</text>
+    </g>
+  </g>
+
+  <!-- ============ CARD 3: AIR QUALITY ============ -->
+  <g id="card-air-quality">
+    <rect x="24" y="568" width="700" height="168" rx="16" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="44" y="600" font-size="14" font-weight="600" fill="#061009">Chất lượng không khí trên tuyến</text>
+    <text x="44" y="648" font-size="26" font-weight="700" fill="#061009">AQI 148</text>
+    <rect x="160" y="628" width="60" height="26" rx="13" fill="#FFEDD5" stroke="#F97316"/><text x="190" y="645" font-size="11" font-weight="700" fill="#C2410C" text-anchor="middle">Kém</text>
+    <g id="aqi-chips">
+      <rect x="44" y="668" width="152" height="24" rx="12" fill="#EBF3EC"/><text x="120" y="684" font-size="10.5" fill="#061009" text-anchor="middle">PM2.5: 30,2 µg/m³</text>
+      <rect x="208" y="668" width="152" height="24" rx="12" fill="#EBF3EC"/><text x="284" y="684" font-size="10.5" fill="#061009" text-anchor="middle">PM10: 37,3 µg/m³</text>
+      <rect x="372" y="668" width="160" height="24" rx="12" fill="#EBF3EC"/><text x="452" y="684" font-size="10.5" fill="#061009" text-anchor="middle">Nguồn: mô hình Open-Meteo</text>
+    </g>
+    <text x="44" y="718" font-size="11" fill="#606D64">Cập nhật: 10:00 ngày 25/9/2026 (Asia/Ho_Chi_Minh) · dữ liệu được làm mới mỗi ngày</text>
+  </g>
+
+  <!-- ============ CARD 4: IMPACT ESTIMATOR ============ -->
+  <g id="card-impact">
+    <rect x="24" y="752" width="700" height="240" rx="16" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="44" y="784" font-size="14" font-weight="600" fill="#061009">Tác động nếu chuyển đổi</text>
+    <text x="44" y="806" font-size="12" font-weight="600" fill="#00884B">Xe máy xăng → Xe buýt công cộng</text>
+    <g id="impact-cards">
+      <rect x="44" y="824" width="320" height="76" rx="12" fill="#EBF3EC" opacity="0.6"/>
+      <text x="60" y="848" font-size="10" font-weight="600" fill="#606D64">THỜI GIAN</text><text x="60" y="872" font-size="18" font-weight="600" fill="#061009">+18,5 phút</text><text x="60" y="890" font-size="10" fill="#606D64">23,5 phút → 42 phút</text>
+      <rect x="380" y="824" width="320" height="76" rx="12" fill="#EBF3EC" opacity="0.6"/>
+      <text x="396" y="848" font-size="10" font-weight="600" fill="#606D64">CHI PHÍ</text><text x="396" y="872" font-size="18" font-weight="600" fill="#061009">+3.992 ₫</text><text x="396" y="890" font-size="10" fill="#606D64">3.008 ₫ → 7.000 ₫</text>
+      <rect x="44" y="916" width="320" height="76" rx="12" fill="#E7F4E9"/>
+      <text x="60" y="940" font-size="10" font-weight="600" fill="#606D64">PHÁT THẢI CO₂</text><text x="60" y="964" font-size="18" font-weight="600" fill="#00884B">−6,6 kg/chuyến</text><text x="60" y="982" font-size="10" fill="#606D64">10,6 kg → 4,0 kg (−62%)</text>
+      <rect x="380" y="916" width="320" height="76" rx="12" fill="#E7F4E9"/>
+      <text x="396" y="940" font-size="10" font-weight="600" fill="#606D64">TUÂN THỦ LEZ</text><text x="396" y="964" font-size="16" font-weight="600" fill="#00884B">Được phép vào vùng</text><text x="396" y="982" font-size="10" fill="#606D64">Trước đây: bị hạn chế có điều kiện</text>
+    </g>
+  </g>
+
+  <!-- ============ CARD 5: RECOMMENDATIONS ============ -->
+  <g id="card-recommendations">
+    <rect x="748" y="96" width="668" height="620" rx="16" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="768" y="128" font-size="14" font-weight="600" fill="#061009">Xếp hạng phương án di chuyển</text>
+    <text x="768" y="148" font-size="11" fill="#606D64">Theo mô hình TOPSIS với trọng số hiện tại</text>
+
+    <g id="recommendation-1">
+      <rect x="768" y="164" width="628" height="366" rx="12" fill="#FFFFFF" stroke="#D7E1D9"/>
+      <circle cx="792" cy="196" r="14" fill="#00884B"/><text x="792" y="201" font-size="12" font-weight="700" fill="#FFFFFF" text-anchor="middle">1</text>
+      <circle cx="826" cy="196" r="16" fill="#D7F4DC"/>
+      <rect x="818" y="189" width="16" height="10" rx="2" fill="none" stroke="#00884B" stroke-width="1.6"/><circle cx="821" cy="202" r="1.8" fill="#00884B"/><circle cx="830" cy="202" r="1.8" fill="#00884B"/>
+      <text x="852" y="201" font-size="14" font-weight="600" fill="#061009">Xe buýt công cộng</text>
+      <text x="1372" y="202" font-size="16" font-weight="700" fill="#00884B" text-anchor="end">0,742</text>
+      <rect x="792" y="216" width="560" height="6" rx="3" fill="#EBF3EC"/><rect x="792" y="216" width="416" height="6" rx="3" fill="#00884B"/>
+      <rect x="792" y="238" width="84" height="24" rx="12" fill="#EBF3EC"/><text x="834" y="254" font-size="10.5" fill="#061009" text-anchor="middle">42 phút</text>
+      <rect x="884" y="238" width="84" height="24" rx="12" fill="#EBF3EC"/><text x="926" y="254" font-size="10.5" fill="#061009" text-anchor="middle">7.000 ₫</text>
+      <rect x="976" y="238" width="100" height="24" rx="12" fill="#EBF3EC"/><text x="1026" y="254" font-size="10.5" fill="#061009" text-anchor="middle">4,0 kg CO₂</text>
+      <rect x="1084" y="238" width="106" height="24" rx="12" fill="#E7F4E9"/><text x="1137" y="254" font-size="10.5" font-weight="600" fill="#00884B" text-anchor="middle">Tuân thủ LEZ</text>
+      <rect x="792" y="272" width="180" height="34" rx="8" fill="#00884B"/><text x="882" y="294" font-size="12" font-weight="600" fill="#F8FBF8" text-anchor="middle">Tôi sẽ dùng xe này</text>
+      <g id="criteria-breakdown">
+        <text x="792" y="334" font-size="9.5" font-weight="600" fill="#606D64">TIÊU CHÍ</text>
+        <text x="982" y="334" font-size="9.5" font-weight="600" fill="#606D64">GIÁ TRỊ</text>
+        <text x="1132" y="334" font-size="9.5" font-weight="600" fill="#606D64">TRỌNG SỐ</text>
+        <text x="1222" y="334" font-size="9.5" font-weight="600" fill="#606D64">ĐÓNG GÓP TOPSIS</text>
+        <text x="792" y="356" font-size="11" fill="#061009">Thời gian di chuyển</text><text x="982" y="356" font-size="11" fill="#061009">42 phút</text><text x="1132" y="356" font-size="11" fill="#606D64">25%</text><rect x="1222" y="349" width="120" height="5" rx="2.5" fill="#EBF3EC"/><rect x="1222" y="349" width="54" height="5" rx="2.5" fill="#00884B"/>
+        <text x="792" y="380" font-size="11" fill="#061009">Chi phí ước tính</text><text x="982" y="380" font-size="11" fill="#061009">7.000 ₫</text><text x="1132" y="380" font-size="11" fill="#606D64">20%</text><rect x="1222" y="373" width="120" height="5" rx="2.5" fill="#EBF3EC"/><rect x="1222" y="373" width="93" height="5" rx="2.5" fill="#00884B"/>
+        <text x="792" y="404" font-size="11" fill="#061009">Tuân thủ LEZ</text><text x="982" y="404" font-size="11" fill="#061009">Tuân thủ đầy đủ</text><text x="1132" y="404" font-size="11" fill="#606D64">20%</text><rect x="1222" y="397" width="120" height="5" rx="2.5" fill="#EBF3EC"/><rect x="1222" y="397" width="60" height="5" rx="2.5" fill="#00884B"/>
+        <text x="792" y="428" font-size="11" fill="#061009">Khả năng tiếp cận</text><text x="982" y="428" font-size="11" fill="#061009">68%</text><text x="1132" y="428" font-size="11" fill="#606D64">10%</text><rect x="1222" y="421" width="120" height="5" rx="2.5" fill="#EBF3EC"/><rect x="1222" y="421" width="18" height="5" rx="2.5" fill="#00884B"/>
+        <text x="792" y="452" font-size="11" fill="#061009">Sự tiện lợi</text><text x="982" y="452" font-size="11" fill="#061009">45%</text><text x="1132" y="452" font-size="11" fill="#606D64">10%</text><rect x="1222" y="445" width="120" height="5" rx="2.5" fill="#EBF3EC"/><rect x="1222" y="445" width="15" height="5" rx="2.5" fill="#00884B"/>
+        <text x="792" y="476" font-size="11" fill="#061009">Tác động môi trường</text><text x="982" y="476" font-size="11" fill="#061009">42 g CO₂/km</text><text x="1132" y="476" font-size="11" fill="#606D64">10%</text><rect x="1222" y="469" width="120" height="5" rx="2.5" fill="#EBF3EC"/><rect x="1222" y="469" width="27" height="5" rx="2.5" fill="#00884B"/>
+        <text x="792" y="500" font-size="11" fill="#061009">Xu hướng khảo sát</text><text x="982" y="500" font-size="11" fill="#061009">24%</text><text x="1132" y="500" font-size="11" fill="#606D64">5%</text><rect x="1222" y="493" width="120" height="5" rx="2.5" fill="#EBF3EC"/><rect x="1222" y="493" width="6" height="5" rx="2.5" fill="#00884B"/>
+      </g>
+    </g>
+
+    <g id="recommendation-2">
+      <rect x="768" y="546" width="628" height="64" rx="12" fill="#FFFFFF" stroke="#D7E1D9"/>
+      <circle cx="792" cy="578" r="14" fill="#E7F4E9"/><text x="792" y="583" font-size="12" font-weight="700" fill="#00884B" text-anchor="middle">2</text>
+      <circle cx="826" cy="578" r="16" fill="#D7F4DC"/><path d="M830 568 L822 580 H828 L825 590 L834 577 H828 Z" fill="#00884B"/>
+      <text x="852" y="574" font-size="14" font-weight="600" fill="#061009">Xe máy điện</text>
+      <text x="852" y="594" font-size="11" fill="#606D64">24,5 phút · 1.128 ₫ · 1,7 kg CO₂ · Tuân thủ LEZ</text>
+      <text x="1372" y="583" font-size="15" font-weight="700" fill="#061009" text-anchor="end">0,703</text>
+      <path d="M1362 596 L1368 590 M1368 590 L1374 596" stroke="#606D64" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+    </g>
+
+    <g id="recommendation-3">
+      <rect x="768" y="626" width="628" height="64" rx="12" fill="#FFFFFF" stroke="#D7E1D9"/>
+      <circle cx="792" cy="658" r="14" fill="#E7F4E9"/><text x="792" y="663" font-size="12" font-weight="700" fill="#00884B" text-anchor="middle">3</text>
+      <circle cx="826" cy="658" r="16" fill="#D7F4DC"/>
+      <path d="M814 662 L818 655 H832 L836 662 V666 H814 Z" fill="none" stroke="#00884B" stroke-width="1.5"/><circle cx="819" cy="668" r="1.8" fill="#00884B"/><circle cx="830" cy="668" r="1.8" fill="#00884B"/>
+      <text x="852" y="654" font-size="14" font-weight="600" fill="#061009">Ô tô cá nhân</text>
+      <text x="852" y="674" font-size="11" fill="#606D64">25,6 phút · 31.400 ₫ · 15,8 kg CO₂ · Có điều kiện</text>
+      <text x="1372" y="663" font-size="15" font-weight="700" fill="#061009" text-anchor="end">0,658</text>
+      <path d="M1362 676 L1368 670 M1368 670 L1374 676" stroke="#606D64" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+    </g>
+  </g>
+
+  <!-- ============ CARD 6: COMPARISON TABLE ============ -->
+  <g id="card-comparison">
+    <rect x="748" y="732" width="668" height="300" rx="16" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="768" y="764" font-size="14" font-weight="600" fill="#061009">So sánh các phương án hàng đầu</text>
+    <rect x="768" y="780" width="628" height="30" rx="8" fill="#EBF3EC"/>
+    <text x="784" y="800" font-size="10" font-weight="600" fill="#606D64">PHƯƠNG ÁN</text>
+    <text x="1000" y="800" font-size="10" font-weight="600" fill="#606D64">THỜI GIAN</text>
+    <text x="1096" y="800" font-size="10" font-weight="600" fill="#606D64">CHI PHÍ</text>
+    <text x="1210" y="800" font-size="10" font-weight="600" fill="#606D64">CO₂</text>
+    <text x="1290" y="800" font-size="10" font-weight="600" fill="#606D64">VÙNG LEZ</text>
+    <g id="comparison-rows">
+      <text x="784" y="838" font-size="12" font-weight="500" fill="#061009">Xe buýt công cộng</text><text x="1000" y="838" font-size="12" fill="#061009">42 phút</text><text x="1096" y="838" font-size="12" fill="#061009">7.000 ₫</text><text x="1210" y="838" font-size="12" fill="#061009">4,0 kg</text><text x="1290" y="838" font-size="12" font-weight="600" fill="#00884B">Tuân thủ</text>
+      <line x1="768" y1="852" x2="1396" y2="852" stroke="#D7E1D9" stroke-width="1"/>
+      <rect x="768" y="852" width="628" height="36" fill="#F8FBF8"/>
+      <text x="784" y="876" font-size="12" font-weight="500" fill="#061009">Xe máy điện</text><text x="1000" y="876" font-size="12" fill="#061009">24,5 phút</text><text x="1096" y="876" font-size="12" fill="#061009">1.128 ₫</text><text x="1210" y="876" font-size="12" fill="#061009">1,7 kg</text><text x="1290" y="876" font-size="12" font-weight="600" fill="#92400E">Có điều kiện</text>
+      <line x1="768" y1="888" x2="1396" y2="888" stroke="#D7E1D9" stroke-width="1"/>
+      <text x="784" y="912" font-size="12" font-weight="500" fill="#061009">Ô tô cá nhân</text><text x="1000" y="912" font-size="12" fill="#061009">25,6 phút</text><text x="1096" y="912" font-size="12" fill="#061009">31.400 ₫</text><text x="1210" y="912" font-size="12" fill="#061009">15,8 kg</text><text x="1290" y="912" font-size="12" font-weight="600" fill="#92400E">Có điều kiện</text>
+      <line x1="768" y1="924" x2="1396" y2="924" stroke="#D7E1D9" stroke-width="1"/>
+      <text x="784" y="948" font-size="12" font-weight="500" fill="#061009">Xe máy xăng (xe của bạn)</text><text x="1000" y="948" font-size="12" fill="#061009">23,5 phút</text><text x="1096" y="948" font-size="12" fill="#061009">3.008 ₫</text><text x="1210" y="948" font-size="12" fill="#061009">10,6 kg</text><text x="1290" y="948" font-size="12" font-weight="600" fill="#B91C1C">Bị hạn chế</text>
+      <line x1="768" y1="960" x2="1396" y2="960" stroke="#D7E1D9" stroke-width="1"/>
+    </g>
+  </g>
+
+  <!-- ============ CARD 7: NOTE ============ -->
+  <g id="card-note">
+    <rect x="748" y="1048" width="668" height="76" rx="16" fill="#EBF3EC"/>
+    <text x="768" y="1080" font-size="11" fill="#606D64">Ghi chú: điểm số TOPSIS càng cao càng phù hợp với ưu tiên của bạn. Kéo các thanh "Ưu tiên của bạn"</text>
+    <text x="768" y="1098" font-size="11" fill="#606D64">ở khung lập kế hoạch để xếp hạng lại theo ý muốn — kết quả cập nhật ngay khi phân tích lại.</text>
+  </g>
+</svg>

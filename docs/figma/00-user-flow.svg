@@ -1,0 +1,432 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1680" height="2060" viewBox="0 0 1680 2060" font-family="Inter, 'Segoe UI', system-ui, sans-serif">
+  <defs>
+    <marker id="mG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#00884B"/></marker>
+    <marker id="mT" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#0D9488"/></marker>
+    <marker id="mGray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#8CA092"/></marker>
+    <marker id="mRed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#DC2626"/></marker>
+    <marker id="mAmber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#D97706"/></marker>
+    <filter id="softBlur" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    <clipPath id="mapClip"><rect x="368" y="462" width="206" height="330" rx="10"/></clipPath>
+  </defs>
+
+  <rect id="page-bg" width="1680" height="2060" fill="#F8FBF8"/>
+
+  <!-- ================= TITLE ================= -->
+  <g id="title">
+    <text x="64" y="52" font-size="26" font-weight="700" fill="#061009">RideShift — Sơ đồ luồng giao diện (Interface Flow)</text>
+    <text x="64" y="78" font-size="13" fill="#606D64">Bấm nút nào → mở màn nào · khớp 1:1 với ứng dụng thật (đã đủ: Planner, Kết quả, bản đồ AQI, Đăng nhập quản trị, Dashboard, Header/Footer, dialog)</text>
+  </g>
+
+  <!-- ================= START ================= -->
+  <g id="start-node">
+    <rect x="610" y="96" width="460" height="56" rx="28" fill="#061009"/>
+    <text x="840" y="120" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="middle">Người dùng mở RideShift — URL /</text>
+    <text x="840" y="138" font-size="9" fill="#B8C4BB" text-anchor="middle">SPA một trang · khách dùng ngay · quản trị viên đăng nhập</text>
+    <line x1="840" y1="152" x2="840" y2="176" stroke="#00884B" stroke-width="1.8" marker-end="url(#mG)"/>
+  </g>
+
+  <!-- ================= HEADER ================= -->
+  <g id="header-strip">
+    <text x="64" y="172" font-size="10" font-weight="700" fill="#606D64" letter-spacing="1">HEADER + FOOTER — HIỂN THỊ CỐ ĐỊNH Ở MỌI MÀN HÌNH (chi tiết component: file 06)</text>
+    <rect x="40" y="180" width="1600" height="64" rx="12" fill="#FFFFFF" stroke="#D7E1D9" stroke-width="1.5"/>
+    <rect x="56" y="192" width="40" height="40" rx="12" fill="#00884B"/>
+    <path d="M66 222 C66 212 73 205 83 204 C83 215 76 222 66 222 Z" fill="#F8FBF8"/>
+    <text x="108" y="214" font-size="16" font-weight="700" fill="#061009">Ride<tspan fill="#00884B">Shift</tspan></text>
+    <text x="108" y="231" font-size="9" fill="#606D64">Cố vấn chuyển đổi giao thông thông minh</text>
+    <text x="650" y="217" font-size="9" font-style="italic" fill="#8CA092" text-anchor="middle">sticky top · luôn hiển thị</text>
+    <rect x="1150" y="196" width="270" height="36" rx="18" fill="#F0F5F1" stroke="#D7E1D9"/>
+    <rect x="1158" y="202" width="128" height="24" rx="12" fill="#00884B"/>
+    <text x="1222" y="218" font-size="11" font-weight="600" fill="#FFFFFF" text-anchor="middle">Lập kế hoạch</text>
+    <rect x="1294" y="202" width="118" height="24" rx="12" fill="none"/>
+    <text x="1353" y="218" font-size="11" font-weight="500" fill="#606D64" text-anchor="middle">Quản trị</text>
+  </g>
+
+  <!-- entry arrows from header nav -->
+  <path d="M 1222 244 L 1222 264 L 330 264 L 330 346" fill="none" stroke="#00884B" stroke-width="1.8" marker-end="url(#mG)"/>
+  <text x="616" y="268" font-size="9.5" fill="#061009">① mở mặc định → Màn 1 · Lập kế hoạch</text>
+  <path d="M 1353 244 L 1353 330 L 1250 330 L 1250 356" fill="none" stroke="#0D9488" stroke-width="1.8" marker-end="url(#mT)"/>
+  <text x="1370" y="316" font-size="9.5" fill="#061009">⑨ bấm tab [Quản trị]</text>
+
+  <!-- ================= LANES ================= -->
+  <rect x="40" y="290" width="780" height="1410" rx="18" fill="#FFFFFF" stroke="#B9DFC6" stroke-width="1.5"/>
+  <text x="60" y="318" font-size="13" font-weight="700" fill="#00884B">LUỒNG NGƯỜI DÙNG (Khách — không cần đăng nhập)</text>
+  <rect x="860" y="290" width="780" height="1410" rx="18" fill="#FFFFFF" stroke="#99D6CE" stroke-width="1.5"/>
+  <text x="880" y="318" font-size="13" font-weight="700" fill="#0D9488">LUỒNG QUẢN TRỊ VIÊN (Admin)</text>
+
+  <!-- ================= SCREEN 1 : PLANNER ================= -->
+  <g id="screen-planner">
+    <rect x="70" y="350" width="520" height="560" rx="14" fill="#FFFFFF" stroke="#D7E1D9" stroke-width="1.5"/>
+    <circle cx="95" cy="378" r="13" fill="#00884B"/>
+    <text x="95" y="383" font-size="11" font-weight="700" fill="#FFFFFF" text-anchor="middle">1</text>
+    <text x="117" y="383" font-size="13" font-weight="700" fill="#061009">Màn 1 · Lập kế hoạch (Planner)</text>
+    <line x1="70" y1="400" x2="590" y2="400" stroke="#E7EEE9"/>
+
+    <rect x="86" y="412" width="488" height="36" rx="8" fill="#E8F7EC"/>
+    <text x="330" y="435" font-size="11" font-weight="600" fill="#09311B" text-anchor="middle">Lựa chọn thông minh vì một Hà Nội trong lành hơn</text>
+
+    <!-- form card -->
+    <rect x="86" y="462" width="270" height="330" rx="10" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="102" y="482" font-size="8.5" font-weight="600" fill="#606D64">ĐIỂM ĐI</text>
+    <rect x="102" y="488" width="238" height="28" rx="8" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="112" y="506" font-size="10" fill="#061009">Nhà hát Lớn, Hà Nội</text>
+    <rect x="102" y="518" width="238" height="58" rx="8" fill="#FFFFFF" stroke="#00884B" stroke-dasharray="4 3"/>
+    <line x1="102" y1="540" x2="340" y2="540" stroke="#E7EEE9"/>
+    <text x="112" y="534" font-size="9.5" fill="#061009">Phố Tràng Tiền, Hoàn Kiếm</text>
+    <text x="112" y="552" font-size="9.5" fill="#061009">25 Hàng Bài, Hoàn Kiếm</text>
+    <text x="112" y="570" font-size="8" font-style="italic" fill="#00884B">② gợi ý địa điểm khi gõ ≥ 2 ký tự</text>
+    <text x="102" y="598" font-size="8.5" font-weight="600" fill="#606D64">ĐIỂM ĐẾN</text>
+    <rect x="102" y="604" width="238" height="28" rx="8" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="112" y="622" font-size="10" fill="#061009">Vincom Nguyễn Chí Thanh</text>
+    <text x="102" y="652" font-size="8.5" font-weight="600" fill="#606D64">PHƯƠNG TIỆN HIỆN TẠI</text>
+    <rect x="102" y="658" width="238" height="26" rx="8" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="112" y="675" font-size="9.5" fill="#061009">Xe máy xăng ▾</text>
+    <rect x="102" y="696" width="114" height="26" rx="8" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="110" y="713" font-size="9" fill="#061009">Mục đích: Đi làm ▾</text>
+    <rect x="226" y="696" width="114" height="26" rx="8" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="236" y="713" font-size="9" fill="#061009">Giờ: 07:30 ▾</text>
+    <rect x="102" y="734" width="238" height="24" rx="12" fill="#F0F5F1"/>
+    <text x="112" y="750" font-size="9" fill="#606D64">Tiêu chí ưu tiên: Cân bằng ▾</text>
+
+    <!-- map card -->
+    <rect x="368" y="462" width="206" height="330" rx="10" fill="#EAF4EC" stroke="#D7E1D9"/>
+    <g clip-path="url(#mapClip)">
+      <path d="M400 520 C420 490 480 480 520 500 C560 520 570 580 552 640 C570 690 545 750 500 770 C450 790 410 760 400 710 C385 660 385 560 400 520 Z" fill="#FFFFFF" opacity="0.65" stroke="#00884B" stroke-width="1.2"/>
+      <ellipse cx="440" cy="570" rx="55" ry="42" fill="#22C55E" opacity="0.75" filter="url(#softBlur)"/>
+      <ellipse cx="520" cy="640" rx="46" ry="40" fill="#FACC15" opacity="0.75" filter="url(#softBlur)"/>
+      <ellipse cx="465" cy="720" rx="44" ry="36" fill="#F97316" opacity="0.75" filter="url(#softBlur)"/>
+      <ellipse cx="535" cy="745" rx="26" ry="22" fill="#EF4444" opacity="0.8" filter="url(#softBlur)"/>
+    </g>
+    <text x="378" y="478" font-size="8" font-weight="600" fill="#09311B">Bản đồ AQI Hà Nội — mượt kiểu bản đồ thời tiết</text>
+    <circle cx="384" cy="772" r="4" fill="#22C55E"/><text x="392" y="775" font-size="7.5" fill="#606D64">Tốt</text>
+    <circle cx="424" cy="772" r="4" fill="#FACC15"/><text x="432" y="775" font-size="7.5" fill="#606D64">Trung bình</text>
+    <circle cx="492" cy="772" r="4" fill="#F97316"/><text x="500" y="775" font-size="7.5" fill="#606D64">Kém</text>
+
+    <rect x="120" y="820" width="420" height="44" rx="10" fill="#00884B"/>
+    <text x="330" y="847" font-size="12.5" font-weight="700" fill="#FFFFFF" text-anchor="middle">Phân tích chuyến đi</text>
+  </g>
+
+  <!-- 3 : tooltip annotation -->
+  <g id="anno-tooltip">
+    <rect x="615" y="430" width="195" height="120" rx="12" fill="#FBFDFB" stroke="#B9CFC0" stroke-dasharray="5 3"/>
+    <text x="625" y="450" font-size="9.5" font-weight="700" fill="#09311B">③ TOOLTIP KHI HOVER</text>
+    <rect x="627" y="462" width="171" height="44" rx="8" fill="#061009"/>
+    <text x="637" y="480" font-size="10.5" font-weight="600" fill="#FFFFFF">AQI 132 · Kém</text>
+    <text x="637" y="496" font-size="8.5" fill="#B8C4BB">PM2.5 48 · PM10 76 µg/m³</text>
+    <path d="M660 506 L672 520 L684 506 Z" fill="#061009"/>
+    <text x="625" y="540" font-size="8.5" fill="#606D64">nổi lên khi rê chuột, biến mất khi rời</text>
+  </g>
+
+  <!-- 4 : AQI dialog annotation -->
+  <g id="anno-aqi-dialog">
+    <rect x="615" y="580" width="195" height="250" rx="12" fill="#FBFDFB" stroke="#B9CFC0" stroke-dasharray="5 3"/>
+    <text x="625" y="600" font-size="9.5" font-weight="700" fill="#09311B">④ DIALOG KHI CLICK VÙNG</text>
+    <rect x="627" y="610" width="171" height="190" rx="10" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="637" y="628" font-size="9.5" font-weight="700" fill="#061009">Chất lượng không khí</text>
+    <text x="788" y="628" font-size="10" fill="#606D64" text-anchor="end">×</text>
+    <line x1="627" y1="636" x2="798" y2="636" stroke="#E7EEE9"/>
+    <circle cx="643" cy="652" r="4" fill="#F97316"/><text x="653" y="656" font-size="8.5" fill="#061009">AQI 132 — Kém</text>
+    <text x="637" y="674" font-size="8.5" fill="#061009">PM2.5: 48 µg/m³</text>
+    <text x="637" y="690" font-size="8.5" fill="#061009">PM10: 76 µg/m³</text>
+    <line x1="637" y1="700" x2="788" y2="700" stroke="#E7EEE9"/>
+    <text x="637" y="716" font-size="8.5" font-weight="700" fill="#061009">Khuyến nghị</text>
+    <text x="637" y="730" font-size="8" fill="#606D64">Hạn chế hoạt động ngoài trời,</text>
+    <text x="637" y="742" font-size="8" fill="#606D64">ưu tiên phương tiện xanh.</text>
+    <rect x="682" y="768" width="60" height="22" rx="6" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="712" y="783" font-size="8.5" fill="#061009" text-anchor="middle">Đóng</text>
+  </g>
+
+  <!-- arrows planner -> tooltip/dialog -->
+  <line x1="574" y1="505" x2="611" y2="495" stroke="#8CA092" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#mGray)"/>
+  <line x1="574" y1="655" x2="611" y2="655" stroke="#00884B" stroke-width="1.4" marker-end="url(#mG)"/>
+  <line x1="615" y1="782" x2="578" y2="782" stroke="#8CA092" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#mGray)"/>
+  <text x="580" y="776" font-size="8" fill="#606D64">[Đóng]</text>
+
+  <!-- 5 : analyze arrow -->
+  <path d="M 330 864 L 330 996" fill="none" stroke="#00884B" stroke-width="1.8" marker-end="url(#mG)"/>
+  <text x="345" y="924" font-size="10" font-weight="700" fill="#061009">⑤ bấm [Phân tích chuyến đi]</text>
+  <text x="345" y="940" font-size="8.5" fill="#606D64">POST /api/trip/analyze → MCDM (TOPSIS)</text>
+
+  <!-- 8 : back arrow -->
+  <path d="M 70 1280 L 48 1280 L 48 900 L 66 900" fill="none" stroke="#8CA092" stroke-width="1.5" marker-end="url(#mGray)"/>
+  <text x="42" y="1090" font-size="9.5" fill="#606D64" transform="rotate(-90 42 1090)" text-anchor="middle">⑧ [Phân tích lại]</text>
+
+  <!-- ================= SCREEN 2 : RESULTS ================= -->
+  <g id="screen-results">
+    <rect x="70" y="1000" width="520" height="560" rx="14" fill="#FFFFFF" stroke="#D7E1D9" stroke-width="1.5"/>
+    <circle cx="95" cy="1028" r="13" fill="#00884B"/>
+    <text x="95" y="1033" font-size="11" font-weight="700" fill="#FFFFFF" text-anchor="middle">2</text>
+    <text x="117" y="1033" font-size="13" font-weight="700" fill="#061009">Màn 2 · Kết quả phân tích (Results)</text>
+    <line x1="70" y1="1048" x2="590" y2="1048" stroke="#E7EEE9"/>
+
+    <rect x="86" y="1058" width="110" height="24" rx="12" fill="#F0F5F1"/><text x="141" y="1074" font-size="9" fill="#061009" text-anchor="middle">9,4 km</text>
+    <rect x="204" y="1058" width="110" height="24" rx="12" fill="#F0F5F1"/><text x="259" y="1074" font-size="9" fill="#061009" text-anchor="middle">38 phút</text>
+    <rect x="322" y="1058" width="120" height="24" rx="12" fill="#FDECEC"/><text x="382" y="1074" font-size="9" fill="#B91C1C" text-anchor="middle">Chạm vùng LEZ ⚠</text>
+    <rect x="450" y="1058" width="124" height="24" rx="12" fill="#FFF4E5"/><text x="512" y="1074" font-size="9" fill="#B45309" text-anchor="middle">AQI 132 · Kém</text>
+
+    <rect x="86" y="1094" width="488" height="108" rx="10" fill="#F2FBF4" stroke="#00884B" stroke-width="1.2"/>
+    <circle cx="110" cy="1122" r="11" fill="#00884B"/>
+    <text x="110" y="1126" font-size="10" font-weight="700" fill="#FFFFFF" text-anchor="middle">1</text>
+    <text x="130" y="1118" font-size="11.5" font-weight="700" fill="#061009">Xe buýt — 25 phút · 7.000 ₫</text>
+    <text x="130" y="1134" font-size="9" fill="#606D64">Điểm TOPSIS 0.82 · Phù hợp nhất với ưu tiên của bạn</text>
+    <rect x="130" y="1146" width="250" height="8" rx="4" fill="#E3EFE6"/>
+    <rect x="130" y="1146" width="205" height="8" rx="4" fill="#00884B"/>
+    <text x="390" y="1154" font-size="9" font-weight="600" fill="#00884B">0.82</text>
+    <rect x="420" y="1112" width="140" height="30" rx="8" fill="#00884B"/>
+    <text x="490" y="1131" font-size="9.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">Chọn phương án này ⑦</text>
+
+    <rect x="86" y="1210" width="488" height="42" rx="10" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <circle cx="110" cy="1231" r="10" fill="#F0F5F1" stroke="#D7E1D9"/>
+    <text x="110" y="1235" font-size="9" font-weight="700" fill="#606D64" text-anchor="middle">2</text>
+    <text x="130" y="1236" font-size="10" fill="#061009">Taxi — 22 phút · 96.000 ₫ · điểm 0.74</text>
+    <text x="560" y="1236" font-size="9" font-weight="600" fill="#0D9488" text-anchor="end">Chi tiết ⑥</text>
+    <rect x="86" y="1260" width="488" height="42" rx="10" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <circle cx="110" cy="1281" r="10" fill="#F0F5F1" stroke="#D7E1D9"/>
+    <text x="110" y="1285" font-size="9" font-weight="700" fill="#606D64" text-anchor="middle">3</text>
+    <text x="130" y="1286" font-size="10" fill="#061009">Xe máy điện — 27 phút · 2.400 ₫ · điểm 0.69</text>
+    <text x="560" y="1286" font-size="9" font-weight="600" fill="#0D9488" text-anchor="end">Chi tiết ⑥</text>
+
+    <rect x="86" y="1312" width="488" height="118" rx="10" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <rect x="86" y="1312" width="488" height="24" rx="10" fill="#F0F5F1"/>
+    <text x="96" y="1328" font-size="8.5" font-weight="700" fill="#606D64">Phương án</text>
+    <text x="250" y="1328" font-size="8.5" font-weight="700" fill="#606D64">Thời gian</text>
+    <text x="330" y="1328" font-size="8.5" font-weight="700" fill="#606D64">Chi phí</text>
+    <text x="420" y="1328" font-size="8.5" font-weight="700" fill="#606D64">CO₂</text>
+    <text x="500" y="1328" font-size="8.5" font-weight="700" fill="#606D64">LEZ</text>
+    <text x="96" y="1356" font-size="9" fill="#061009">Xe buýt</text><text x="250" y="1356" font-size="9" fill="#061009">25′</text><text x="330" y="1356" font-size="9" fill="#061009">7.000 ₫</text><text x="420" y="1356" font-size="9" fill="#061009">42 g</text><text x="500" y="1356" font-size="9" fill="#16A34A">✓</text>
+    <line x1="86" y1="1366" x2="574" y2="1366" stroke="#EFF4F0"/>
+    <text x="96" y="1382" font-size="9" fill="#061009">Taxi</text><text x="250" y="1382" font-size="9" fill="#061009">22′</text><text x="330" y="1382" font-size="9" fill="#061009">96.000 ₫</text><text x="420" y="1382" font-size="9" fill="#061009">150 g</text><text x="500" y="1382" font-size="9" fill="#16A34A">✓</text>
+    <line x1="86" y1="1392" x2="574" y2="1392" stroke="#EFF4F0"/>
+    <text x="96" y="1408" font-size="9" fill="#061009">Xe máy xăng (hiện tại)</text><text x="250" y="1408" font-size="9" fill="#061009">24′</text><text x="330" y="1408" font-size="9" fill="#061009">3.008 ₫</text><text x="420" y="1408" font-size="9" fill="#061009">1.062 g</text><text x="500" y="1408" font-size="9" fill="#DC2626">⚠ điều kiện</text>
+
+    <rect x="86" y="1444" width="488" height="52" rx="10" fill="#E8F7EC"/>
+    <text x="98" y="1464" font-size="9" font-weight="700" fill="#09311B">Tác động nếu chuyển sang buýt:</text>
+    <text x="98" y="1480" font-size="9" fill="#09311B">−86% CO₂ (~410 g/chuyến) · tiết kiệm ~89.000 ₫/tháng so với xe máy xăng</text>
+
+    <rect x="120" y="1512" width="420" height="34" rx="10" fill="#FFFFFF" stroke="#00884B"/>
+    <text x="330" y="1533" font-size="10.5" font-weight="600" fill="#00884B" text-anchor="middle">Phân tích lại với tham số khác ⑧</text>
+  </g>
+
+  <!-- 6 / 7 annotations -->
+  <g id="anno-mode-dialog">
+    <rect x="615" y="1150" width="195" height="230" rx="12" fill="#FBFDFB" stroke="#B9CFC0" stroke-dasharray="5 3"/>
+    <text x="625" y="1170" font-size="9.5" font-weight="700" fill="#09311B">⑥ DIALOG CHI TIẾT PHƯƠNG ÁN</text>
+    <rect x="627" y="1180" width="171" height="184" rx="10" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="637" y="1198" font-size="9.5" font-weight="700" fill="#061009">Xe buýt — chi tiết</text>
+    <text x="788" y="1198" font-size="10" fill="#606D64" text-anchor="end">×</text>
+    <line x1="627" y1="1206" x2="798" y2="1206" stroke="#E7EEE9"/>
+    <text x="637" y="1222" font-size="8.5" fill="#061009">Thời gian: 25′ (gồm chờ 10′)</text>
+    <text x="637" y="1238" font-size="8.5" fill="#061009">Chi phí: 7.000 ₫</text>
+    <text x="637" y="1254" font-size="8.5" fill="#061009">CO₂: 42 g/km</text>
+    <text x="637" y="1270" font-size="8.5" fill="#16A34A">LEZ: Được phép ✓</text>
+    <text x="637" y="1290" font-size="8.5" font-weight="700" fill="#061009">Ưu điểm</text>
+    <text x="637" y="1304" font-size="8" fill="#606D64">Rẻ · phát thải thấp</text>
+    <text x="637" y="1320" font-size="8.5" font-weight="700" fill="#061009">Lưu ý</text>
+    <text x="637" y="1334" font-size="8" fill="#606D64">Có thời gian chờ xe</text>
+    <rect x="682" y="1344" width="60" height="20" rx="6" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="712" y="1358" font-size="8.5" fill="#061009" text-anchor="middle">Đóng</text>
+  </g>
+
+  <g id="anno-choice-toast">
+    <rect x="615" y="1420" width="195" height="90" rx="12" fill="#FBFDFB" stroke="#B9CFC0" stroke-dasharray="5 3"/>
+    <text x="625" y="1440" font-size="9.5" font-weight="700" fill="#09311B">⑦ TOAST XÁC NHẬN</text>
+    <rect x="627" y="1448" width="171" height="50" rx="10" fill="#061009"/>
+    <text x="639" y="1468" font-size="9.5" font-weight="600" fill="#FFFFFF">✓ Đã ghi nhận lựa chọn</text>
+    <text x="639" y="1484" font-size="8.5" fill="#B8C4BB">Cảm ơn bạn đã chọn đi xanh!</text>
+  </g>
+
+  <g id="anno-db">
+    <rect x="615" y="1530" width="195" height="70" rx="12" fill="#F0F5F1" stroke="#D7E1D9"/>
+    <ellipse cx="641" cy="1552" rx="10" ry="4" fill="none" stroke="#606D64" stroke-width="1.2"/>
+    <path d="M631 1552 L631 1566 A10 4 0 0 0 651 1566 L651 1552" fill="none" stroke="#606D64" stroke-width="1.2"/>
+    <text x="660" y="1558" font-size="9.5" font-weight="700" fill="#061009">SQLite · TripRecord</text>
+    <text x="660" y="1574" font-size="8.5" fill="#606D64">chosenModeId · switched</text>
+    <text x="625" y="1592" font-size="8" font-style="italic" fill="#606D64">→ KPI % ý định chuyển đổi</text>
+  </g>
+
+  <line x1="574" y1="1258" x2="611" y2="1258" stroke="#00884B" stroke-width="1.4" marker-end="url(#mG)"/>
+  <text x="578" y="1252" font-size="8" fill="#606D64">Chi tiết</text>
+  <path d="M 574 1195 L 594 1195 L 594 1465 L 611 1465" fill="none" stroke="#00884B" stroke-width="1.4" marker-end="url(#mG)"/>
+  <text x="588" y="1360" font-size="9" fill="#061009" transform="rotate(-90 588 1360)" text-anchor="middle">bấm [Chọn phương án này] ⑦</text>
+  <line x1="712" y1="1510" x2="712" y2="1526" stroke="#8CA092" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#mGray)"/>
+
+  <!-- ================= LANE B : ADMIN ================= -->
+  <!-- decision diamond -->
+  <g id="decision-session">
+    <polygon points="1250,360 1400,420 1250,480 1100,420" fill="#FFFFFF" stroke="#0D9488" stroke-width="1.5"/>
+    <text x="1250" y="416" font-size="10" font-weight="600" fill="#061009" text-anchor="middle">Đã có phiên đăng nhập</text>
+    <text x="1250" y="431" font-size="10" font-weight="600" fill="#061009" text-anchor="middle">hợp lệ? (cookie 8 giờ)</text>
+  </g>
+
+  <!-- no -> login -->
+  <path d="M 1100 420 L 1000 420 L 1000 556" fill="none" stroke="#D97706" stroke-width="1.8" stroke-dasharray="6 3" marker-end="url(#mAmber)"/>
+  <text x="1005" y="408" font-size="9" font-weight="600" fill="#B45309">Chưa có phiên / hết hạn</text>
+
+  <!-- yes -> dashboard -->
+  <path d="M 1400 420 L 1420 420 L 1420 936" fill="none" stroke="#0D9488" stroke-width="1.8" marker-end="url(#mT)"/>
+  <text x="1436" y="560" font-size="9" font-weight="600" fill="#0D9488" transform="rotate(-90 1436 560)" text-anchor="middle">Có — vào thẳng Dashboard</text>
+
+  <!-- ================= SCREEN 3 : LOGIN ================= -->
+  <g id="screen-login">
+    <rect x="890" y="560" width="360" height="300" rx="14" fill="#FFFFFF" stroke="#D7E1D9" stroke-width="1.5"/>
+    <circle cx="915" cy="588" r="13" fill="#0D9488"/>
+    <text x="915" y="593" font-size="11" font-weight="700" fill="#FFFFFF" text-anchor="middle">3</text>
+    <text x="937" y="593" font-size="13" font-weight="700" fill="#061009">Màn 3 · Đăng nhập quản trị</text>
+    <line x1="890" y1="610" x2="1250" y2="610" stroke="#E7EEE9"/>
+
+    <rect x="1010" y="624" width="220" height="180" rx="12" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <circle cx="1120" cy="648" r="14" fill="#D7F4DC"/>
+    <rect x="1114" y="646" width="12" height="9" rx="2" fill="none" stroke="#00884B" stroke-width="1.4"/>
+    <path d="M1116 646 L1116 642 A4 4 0 0 1 1124 642 L1124 646" fill="none" stroke="#00884B" stroke-width="1.4"/>
+    <text x="1120" y="680" font-size="10.5" font-weight="700" fill="#061009" text-anchor="middle">Đăng nhập quản trị</text>
+    <text x="1030" y="698" font-size="8" font-weight="600" fill="#606D64">Tên đăng nhập</text>
+    <rect x="1030" y="704" width="180" height="22" rx="6" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="1040" y="719" font-size="9" fill="#061009">admin</text>
+    <text x="1030" y="738" font-size="8" font-weight="600" fill="#606D64">Mật khẩu</text>
+    <rect x="1030" y="744" width="180" height="22" rx="6" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="1040" y="759" font-size="9" fill="#061009">••••••••</text>
+    <rect x="1030" y="772" width="180" height="24" rx="8" fill="#00884B"/>
+    <text x="1120" y="788" font-size="9.5" font-weight="700" fill="#FFFFFF" text-anchor="middle">Đăng nhập</text>
+
+    <rect x="990" y="816" width="260" height="32" rx="8" fill="#FDECEC" stroke="#F5C2C0"/>
+    <text x="1002" y="836" font-size="8.5" fill="#B91C1C">✕ Thông tin đăng nhập quản trị không đúng.</text>
+  </g>
+
+  <!-- error self loop -->
+  <path d="M 890 700 L 872 700 L 872 620 L 886 620" fill="none" stroke="#DC2626" stroke-width="1.5" marker-end="url(#mRed)"/>
+  <text x="862" y="660" font-size="9" fill="#DC2626" transform="rotate(-90 862 660)" text-anchor="middle">sai → Alert đỏ</text>
+
+  <!-- success -> dashboard -->
+  <path d="M 1250 710 L 1300 710 L 1300 936" fill="none" stroke="#0D9488" stroke-width="1.8" marker-end="url(#mT)"/>
+  <text x="1310" y="760" font-size="9.5" font-weight="700" fill="#0D9488">⑩ Đăng nhập thành công</text>
+  <text x="1310" y="775" font-size="7.5" fill="#606D64">POST /api/admin/login · cookie 8h</text>
+
+  <!-- logout arrow -->
+  <path d="M 930 940 L 930 864" fill="none" stroke="#DC2626" stroke-width="1.5" marker-end="url(#mRed)"/>
+  <text x="940" y="905" font-size="9" font-weight="600" fill="#DC2626">⑭ [Đăng xuất] / API 401 → về đăng nhập</text>
+
+  <!-- ================= SCREEN 4 : DASHBOARD ================= -->
+  <g id="screen-dashboard">
+    <rect x="890" y="940" width="560" height="640" rx="14" fill="#FFFFFF" stroke="#D7E1D9" stroke-width="1.5"/>
+    <circle cx="915" cy="968" r="13" fill="#0D9488"/>
+    <text x="915" y="973" font-size="11" font-weight="700" fill="#FFFFFF" text-anchor="middle">4</text>
+    <text x="937" y="973" font-size="13" font-weight="700" fill="#061009">Màn 4 · Bảng điều khiển quản trị (Dashboard)</text>
+    <line x1="890" y1="988" x2="1450" y2="988" stroke="#E7EEE9"/>
+
+    <rect x="910" y="996" width="380" height="24" rx="12" fill="#D7F4DC"/>
+    <text x="922" y="1012" font-size="9.5" fill="#09311B">Đăng nhập với tư cách: Quản trị viên RideShift (@admin)</text>
+    <text x="1438" y="1012" font-size="10.5" font-weight="700" fill="#DC2626" text-anchor="end">Đăng xuất</text>
+
+    <rect x="910" y="1028" width="100" height="26" rx="13" fill="#0D9488"/>
+    <text x="960" y="1045" font-size="9.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">Tổng quan</text>
+    <rect x="1018" y="1028" width="86" height="26" rx="13" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="1061" y="1045" font-size="9.5" fill="#606D64" text-anchor="middle">Vùng LEZ</text>
+    <rect x="1112" y="1028" width="84" height="26" rx="13" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="1154" y="1045" font-size="9.5" fill="#606D64" text-anchor="middle">Quy định</text>
+    <rect x="1204" y="1028" width="150" height="26" rx="13" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="1279" y="1045" font-size="9.5" fill="#606D64" text-anchor="middle">P.tiện &amp; Trọng số</text>
+
+    <!-- T1 overview -->
+    <rect x="910" y="1070" width="255" height="230" rx="10" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="922" y="1090" font-size="10.5" font-weight="700" fill="#061009">Tổng quan ⑪</text>
+    <rect x="922" y="1098" width="66" height="20" rx="10" fill="#F0F5F1"/><text x="955" y="1112" font-size="7.5" fill="#606D64" text-anchor="middle">6 KPI</text>
+    <rect x="994" y="1098" width="72" height="20" rx="10" fill="#F0F5F1"/><text x="1030" y="1112" font-size="7.5" fill="#606D64" text-anchor="middle">4 biểu đồ</text>
+    <rect x="1072" y="1098" width="80" height="20" rx="10" fill="#F0F5F1"/><text x="1112" y="1112" font-size="7.5" fill="#606D64" text-anchor="middle">Bảng chuyến</text>
+    <text x="922" y="1142" font-size="8.5" fill="#061009">• Bộ lọc Từ ngày / Đến ngày</text>
+    <text x="922" y="1157" font-size="8.5" fill="#061009">   + nút [Áp dụng] · [Làm mới]</text>
+    <text x="922" y="1172" font-size="8.5" fill="#061009">• KPI: tổng chuyến, % chạm LEZ,</text>
+    <text x="922" y="1187" font-size="8.5" fill="#061009">   % ý định chuyển đổi, chi phí TB…</text>
+    <text x="922" y="1202" font-size="8.5" fill="#061009">• Biểu đồ: phương án đề xuất,</text>
+    <text x="922" y="1217" font-size="8.5" fill="#061009">   mục đích, quận, xu hướng</text>
+    <text x="922" y="1232" font-size="8.5" fill="#061009">• Bảng chuyến đi gần đây</text>
+
+    <!-- T2 zones -->
+    <rect x="1185" y="1070" width="255" height="230" rx="10" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="1197" y="1090" font-size="10.5" font-weight="700" fill="#061009">Vùng LEZ ⑫</text>
+    <rect x="1197" y="1098" width="231" height="26" rx="8" fill="#F2FBF4" stroke="#B9DFC6"/>
+    <text x="1207" y="1115" font-size="8.5" fill="#061009">Vùng LEZ vành đai 1</text>
+    <rect x="1398" y="1105" width="22" height="12" rx="6" fill="#00884B"/><circle cx="1414" cy="1111" r="4.5" fill="#FFFFFF"/>
+    <rect x="1197" y="1130" width="231" height="26" rx="8" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="1207" y="1147" font-size="8.5" fill="#606D64">Phố Cổ (tạm tắt)</text>
+    <rect x="1398" y="1137" width="22" height="12" rx="6" fill="#CBD5D1"/><circle cx="1404" cy="1143" r="4.5" fill="#FFFFFF"/>
+    <text x="1197" y="1182" font-size="8.5" fill="#061009">• Thêm / Sửa vùng (dialog đa giác)</text>
+    <text x="1197" y="1197" font-size="8.5" fill="#061009">• Bật / tắt active trong danh sách</text>
+    <text x="1197" y="1212" font-size="8.5" fill="#061009">• Xóa → hộp xác nhận (AlertDialog)</text>
+    <text x="1197" y="1227" font-size="8.5" fill="#061009">• Xóa vùng → xóa cascade quy định</text>
+    <text x="1197" y="1242" font-size="8.5" fill="#0D9488">• Thay đổi → Planner refresh (↻)</text>
+
+    <!-- T3 rules -->
+    <rect x="910" y="1315" width="255" height="230" rx="10" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="922" y="1335" font-size="10.5" font-weight="700" fill="#061009">Quy định chính sách ⑫</text>
+    <rect x="922" y="1343" width="231" height="24" rx="8" fill="#FFF4E5" stroke="#F5D9AE"/>
+    <text x="932" y="1359" font-size="8" fill="#92400E">Xe máy xăng · Euro 3+ · 06:00–22:00</text>
+    <text x="922" y="1392" font-size="8.5" fill="#061009">• Gắn với một vùng LEZ cụ thể</text>
+    <text x="922" y="1407" font-size="8.5" fill="#061009">• Loại: Cấm / Có điều kiện</text>
+    <text x="922" y="1422" font-size="8.5" fill="#061009">• Khung giờ (HH:mm) + ngày áp dụng</text>
+    <text x="922" y="1437" font-size="8.5" fill="#061009">• Thêm/Sửa qua dialog · Xóa xác nhận</text>
+
+    <!-- T4 modes & weights -->
+    <rect x="1185" y="1315" width="255" height="230" rx="10" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="1197" y="1335" font-size="10.5" font-weight="700" fill="#061009">Phương tiện &amp; Trọng số ⑬</text>
+    <text x="1197" y="1356" font-size="8" fill="#606D64">Thời gian 25%</text>
+    <rect x="1197" y="1362" width="150" height="8" rx="4" fill="#E3EFE6"/><rect x="1197" y="1362" width="38" height="8" rx="4" fill="#0D9488"/>
+    <text x="1197" y="1382" font-size="8" fill="#606D64">Chi phí 20%</text>
+    <rect x="1197" y="1388" width="150" height="8" rx="4" fill="#E3EFE6"/><rect x="1197" y="1388" width="30" height="8" rx="4" fill="#0D9488"/>
+    <text x="1197" y="1418" font-size="8.5" fill="#061009">• Bật/tắt phương tiện; sửa tốc độ,</text>
+    <text x="1197" y="1433" font-size="8.5" fill="#061009">   giá, CO₂, thời gian chờ…</text>
+    <text x="1197" y="1448" font-size="8.5" fill="#061009">• 7 trọng số — tổng phải = 100</text>
+    <text x="1197" y="1463" font-size="8.5" fill="#061009">• [Lưu] → áp dụng MCDM ngay</text>
+
+    <text x="910" y="1568" font-size="8.5" font-style="italic" fill="#606D64">Mọi API quản trị đều kiểm tra cookie phiên — hết hạn → 401 → về màn Đăng nhập (⑭).</text>
+  </g>
+
+  <!-- cross-effect arrow -->
+  <path d="M 890 1160 L 840 1160 L 840 336 L 330 336 L 330 346" fill="none" stroke="#0D9488" stroke-width="1.6" stroke-dasharray="6 4" marker-end="url(#mT)"/>
+  <text x="828" y="800" font-size="9" fill="#0D9488" transform="rotate(-90 828 800)" text-anchor="middle">↻ Admin cập nhật vùng/quy định → Planner &amp; bản đồ refresh tức thì</text>
+
+  <!-- ================= LEGEND ================= -->
+  <g id="legend">
+    <rect x="40" y="1740" width="1600" height="230" rx="14" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="64" y="1768" font-size="12" font-weight="700" fill="#061009">CHÚ GIẢI</text>
+
+    <rect x="64" y="1786" width="46" height="28" rx="8" fill="#F2FBF4" stroke="#D7E1D9"/>
+    <text x="122" y="1804" font-size="9.5" fill="#061009">Giao diện / màn hình</text>
+    <rect x="64" y="1828" width="46" height="20" rx="10" fill="#00884B"/>
+    <text x="122" y="1842" font-size="9.5" fill="#061009">Nút / hành động người dùng bấm</text>
+    <polygon points="87,1868 110,1879 87,1890 64,1879" fill="#FFFFFF" stroke="#0D9488" stroke-width="1.2"/>
+    <text x="122" y="1883" font-size="9.5" fill="#061009">Điểm rẽ nhánh (điều kiện)</text>
+    <circle cx="76" cy="1922" r="11" fill="#00884B"/>
+    <text x="76" y="1926" font-size="9" font-weight="700" fill="#FFFFFF" text-anchor="middle">1</text>
+    <text x="122" y="1926" font-size="9.5" fill="#061009">Thứ tự bước (①…⑭)</text>
+
+    <line x1="430" y1="1796" x2="490" y2="1796" stroke="#00884B" stroke-width="1.8" marker-end="url(#mG)"/>
+    <text x="502" y="1800" font-size="9.5" fill="#061009">Điều hướng khi bấm nút</text>
+    <line x1="430" y1="1826" x2="490" y2="1826" stroke="#8CA092" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#mGray)"/>
+    <text x="502" y="1830" font-size="9.5" fill="#061009">Hành động hệ thống (API / lưu DB / ẩn–hiện)</text>
+    <line x1="430" y1="1856" x2="490" y2="1856" stroke="#0D9488" stroke-width="1.6" stroke-dasharray="6 4" marker-end="url(#mT)"/>
+    <text x="502" y="1860" font-size="9.5" fill="#061009">Tác động chéo luồng (refresh dữ liệu)</text>
+    <line x1="430" y1="1886" x2="490" y2="1886" stroke="#DC2626" stroke-width="1.5" marker-end="url(#mRed)"/>
+    <text x="502" y="1890" font-size="9.5" fill="#061009">Luồng lỗi / đăng xuất</text>
+    <line x1="430" y1="1916" x2="490" y2="1916" stroke="#D97706" stroke-width="1.5" stroke-dasharray="6 3" marker-end="url(#mAmber)"/>
+    <text x="502" y="1920" font-size="9.5" fill="#061009">Nhánh điều kiện «chưa có phiên»</text>
+
+    <text x="830" y="1768" font-size="11" font-weight="700" fill="#061009">TRÌNH TỰ SỬ DỤNG (14 bước)</text>
+    <text x="830" y="1792" font-size="8.5" fill="#061009">① Mở app → Header + Planner</text>
+    <text x="830" y="1814" font-size="8.5" fill="#061009">② Gõ địa điểm → gợi ý</text>
+    <text x="830" y="1836" font-size="8.5" fill="#061009">③ Hover bản đồ → tooltip</text>
+    <text x="830" y="1858" font-size="8.5" fill="#061009">④ Click vùng → dialog AQI</text>
+    <text x="830" y="1880" font-size="8.5" fill="#061009">⑤ [Phân tích] → Kết quả</text>
+    <text x="830" y="1902" font-size="8.5" fill="#061009">⑥ [Chi tiết] → dialog phương án</text>
+    <text x="1090" y="1792" font-size="8.5" fill="#061009">⑦ [Chọn phương án] → toast + lưu DB</text>
+    <text x="1090" y="1814" font-size="8.5" fill="#061009">⑧ [Phân tích lại] → về form</text>
+    <text x="1090" y="1836" font-size="8.5" fill="#061009">⑨ Tab [Quản trị] → rẽ nhánh phiên</text>
+    <text x="1090" y="1858" font-size="8.5" fill="#061009">⑩ Sai → alert · Đúng → Dashboard</text>
+    <text x="1090" y="1880" font-size="8.5" fill="#061009">⑪ Dùng 4 tab quản trị</text>
+    <text x="1090" y="1902" font-size="8.5" fill="#061009">⑫ Thêm/Sửa/Xóa vùng &amp; quy định</text>
+    <text x="1350" y="1792" font-size="8.5" fill="#061009">⑬ Lưu phương tiện &amp; trọng số (=100)</text>
+    <text x="1350" y="1814" font-size="8.5" fill="#061009">⑭ Đăng xuất / hết hạn 8h → đăng nhập</text>
+    <text x="1350" y="1836" font-size="8.5" fill="#061009">↻ Vùng/quy định đổi → Planner refresh</text>
+    <text x="1350" y="1858" font-size="8.5" fill="#061009">↻ AQI grid cập nhật mỗi ngày (cache 24h)</text>
+  </g>
+
+  <text x="840" y="2010" font-size="10" fill="#8CA092" text-anchor="middle">Sơ đồ khớp 1:1 với mã nguồn: src/app/page.tsx · components/rideshift/{planner, results, map-view, admin-dashboard}.tsx · lib/auth.ts (phiên 8 giờ)</text>
+</svg>

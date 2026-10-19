@@ -111,7 +111,7 @@ import { Textarea } from '@/components/ui/textarea'
 // Small JSON fetch helper with consistent error extraction (server returns { error }).
 async function apiJson<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await apiFetch(url, {
-    credentials: 'same-origin',
+    credentials: 'include', // cross-origin: localhost:3000 → localhost:8000 cần gửi/nhận cookie phiên
     ...init,
     headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
   })
@@ -673,7 +673,7 @@ export default function ZonesTab({ zones, onZonesChanged }: ZonesTabProps) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {pageZones.map((zone) => (
+                    {pageZones.map((zone, zi) => (
                       <TableRow key={zone.id}>
                         <TableCell className="max-w-[220px]">
                           <p className="truncate font-medium leading-tight" title={zone.name}>

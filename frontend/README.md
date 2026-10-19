@@ -65,6 +65,9 @@ public/
 
 ## Ghi chú
 
-- `prisma/` chỉ còn là **tham chiếu mô hình dữ liệu giai đoạn đầu** — schema thật do backend FastAPI quản (`backend/app/schema.sql`).
-- `scripts/` chứa công cụ DB/dữ liệu dùng trong môi trường phát triển (quản lý PostgreSQL nhúng, xử lý dữ liệu Vành đai 1, dịch dữ liệu seed…).
+- Frontend **không sở hữu bảng nào** trong PostgreSQL — là API consumer thuần của backend
+  FastAPI (toàn bộ CRUD đi qua `src/lib/api.ts` với `credentials: 'include'` để cookie phiên
+  hoạt động cả khi gọi cross-origin `localhost:3000 → localhost:8000` trong Docker). Sơ đồ
+  schema xem `postgres/README.md` ở repo tổng.
+- `scripts/` chứa công cụ dữ liệu dùng trong môi trường phát triển (quản lý PostgreSQL nhúng, xử lý dữ liệu Vành đai 1, dịch dữ liệu seed…).
 - Giao diện **toàn bộ tiếng Việt**, hệ màu xanh lá (emerald) theo chủ đề "xanh hoá".

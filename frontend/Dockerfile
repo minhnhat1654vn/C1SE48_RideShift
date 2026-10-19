@@ -1,4 +1,8 @@
 # RideShift front-end (proposal: Frontend = ReactJS; implemented with Next.js)
+#
+# The frontend owns NO database: it is a pure API consumer of the FastAPI
+# backend (which owns the whole PostgreSQL schema). There is deliberately no
+# Prisma / DATABASE_URL here — see postgres/README.md in the repo root.
 FROM oven/bun:1 AS builder
 WORKDIR /app
 
@@ -6,6 +10,7 @@ COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 
 COPY . .
+
 ENV NEXT_TELEMETRY_DISABLED=1
 # Browser calls the FastAPI backend directly (see docker-compose.yml)
 ARG NEXT_PUBLIC_API_BASE=http://localhost:8000

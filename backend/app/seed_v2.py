@@ -1,276 +1,410 @@
-"""Seed dữ liệu cho schema v2 (backend/app/schema_v2.sql).
+"""Seed cho schema v2 — chạy khi boot (idempotent), thay cho seed.py v1.
 
-Chạy độc lập (không cần FastAPI):
-    DATABASE_URL=postgresql://postgres:postgres@localhost:5432/rideshift \
-        python3 backend/app/seed_v2.py
-
-Hành vi:
-  - Nếu schema v2 chưa được áp (chưa có core.study_areas) -> áp schema_v2.sql.
-  - Nếu đã seed (study_areas có code='HN') -> bỏ qua (idempotent, như seed v1).
-Dữ liệu: 1 khu vực HN, 1 admin DEMO (bcrypt), 7 modes (tham số kế thừa v1),
-7 vehicle_types, 1 vùng LEZ Vành đai 1 (polygon v1, hiệu lực 01/07/2026) +
-1 rule 24/7 + restrictions theo Chỉ thị 20/CT-TTg, 12 điểm giao thông,
-7 tiêu chí MCDM (default_weight tổng = 1).
+Task 51 (refactor DB v2): đảm bảo DB v2 có đủ dữ liệu demo:
+  1. Admin mặc định (bcrypt, core.admins) — admin / admin123
+  2. Study area HN (nếu thiếu)
+  3. Import 126 phường/xã từ GeoJSON (gis.administrative_regions) nếu rỗng
+  4. Import 2.400 dòng khảo sát Kaggle (survey.vehicle_survey_responses)
+  5. 150 chuyến đi DEMO (trip.trips + trip_routes + recommendation_runs +
+     recommendation_scores + trip_lez_analysis) — sinh bằng CÔNG THỨC THẬT
+     của pipeline (tốc độ/chi phí/CO₂ theo bảng mode, TOPSIS với trọng số
+     admin) trên tọa độ địa điểm thật; KHÔNG bịa số — chỉ dữ liệu đầu vào
+     là ngẫu nhiên (như seed v1). Chỉ chạy khi trip.trips rỗng.
 """
-import os
-from pathlib import Path
+import json
+import random
+import uuid
+from datetime import datetime, timedelta, timezone
 
-import bcrypt
-import psycopg
-from psycopg.rows import dict_row
+from . import auth, config, constants, db, v2map
+from .services import geo, mcdm, trend
 
-SCHEMA_FILE = Path(__file__).resolve().parent / "schema_v2.sql"
-DSN = os.environ.get("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/rideshift")
-
-# ---------------------------------------------------------------- dữ liệu
-
-# (code, name, category, routing_profile, speed_factor, avg_wait_min,
-#  base_fare VND, cost_per_km VND, accessibility 1..5, convenience 1..5)
-# speed_factor = tốc độ xe hơi / tốc độ mode (v1) — bicycle/walking = 1.0 vì
-# OSRM trả đúng duration theo profile bike/foot.
-def to5(x: float) -> int:  # đổi điểm 0..1 của v1 -> thang 1..5 của v2
-    return int(x * 4 + 0.5) + 1
-
-MODES = [
-    ("gasoline_motorbike", "Xe máy xăng", "PRIVATE", "car", 0.92, 0, 0, 320, to5(0.92), to5(0.85)),
-    ("electric_motorbike", "Xe máy điện", "PRIVATE", "car", 0.96, 0, 0, 120, to5(0.88), to5(0.80)),
-    ("private_car", "Ô tô cá nhân", "PRIVATE", "car", 1.00, 0, 5000, 850, to5(0.80), to5(0.88)),
-    ("bus", "Xe buýt", "PUBLIC", "car", 1.29, 10, 7000, 0, to5(0.55), to5(0.50)),
-    ("taxi", "Taxi / Công nghệ", "TAXI", "car", 0.85, 5, 11000, 12500, to5(0.95), to5(0.90)),
-    ("bicycle", "Xe đạp", "ACTIVE", "bike", 1.00, 0, 0, 0, to5(0.72), to5(0.55)),
-    ("walking", "Đi bộ", "ACTIVE", "foot", 1.00, 0, 0, 0, to5(0.60), to5(0.40)),
-]
-
-# (code, name, category, fuel_type, emission_standard, emission_level, mode_code, is_default)
-# emission_level: 0=chưa rõ, 1..5=Euro 1..5, 9=không phát thải (EV)
-VEHICLE_TYPES = [
-    ("motorcycle_petrol_euro3", "Xe máy xăng (Euro 3)", "MOTORCYCLE", "PETROL", "EURO_3", 3, "gasoline_motorbike", True),
-    ("motorcycle_electric", "Xe máy điện", "MOTORCYCLE", "ELECTRIC", "ZERO_EMISSION", 9, "electric_motorbike", True),
-    ("car_petrol_euro4", "Ô tô cá nhân (xăng Euro 4)", "CAR", "PETROL", "EURO_4", 4, "private_car", True),
-    ("bus_euro5", "Xe buýt", "BUS", "DIESEL", "EURO_5", 5, "bus", True),
-    ("taxi_hybrid", "Taxi / xe công nghệ", "CAR", "HYBRID", "EURO_5", 5, "taxi", True),
-    ("bicycle", "Xe đạp", "BICYCLE", "HUMAN_POWERED", "ZERO_EMISSION", 9, "bicycle", True),
-    ("walking", "Đi bộ", "WALKING", "NONE", "ZERO_EMISSION", 9, "walking", True),
-]
-
-# Polygon Vành đai 1 (v1 seed.py — dựng từ trục OSM theo quy_dinh_vanh_dai_1.txt)
-RING1 = [
-    (21.036, 105.8527), (21.014, 105.853), (21.00858, 105.85141),
-    (21.00753, 105.84156), (21.00797, 105.83991), (21.00894, 105.83864),
-    (21.01501, 105.83326), (21.01806, 105.82971), (21.01881, 105.82961),
-    (21.0209, 105.82563), (21.01666, 105.82339), (21.01638, 105.8211),
-    (21.01378, 105.81889), (21.0165, 105.82), (21.0212, 105.821),
-    (21.0234, 105.81989), (21.03136, 105.82973), (21.03217, 105.83),
-    (21.0324, 105.82885), (21.03055, 105.81726), (21.0345, 105.815),
-    (21.03048, 105.81279), (21.04343, 105.81682), (21.0436, 105.8197),
-    (21.04291, 105.8237), (21.04092, 105.82792), (21.0427, 105.83272),
-    (21.04271, 105.83585), (21.0403, 105.8476), (21.0399, 105.84718),
-    (21.0407, 105.84993),
-]
-
-# (vehicle_type_code, restriction_type, min_emission_level, reason)
-# Theo Chỉ thị 20/CT-TTg: cấm xe máy xăng 24/7 từ 01/07/2026; xe máy điện,
-# xe đạp, giao thông công cộng được phép; ô tô xăng chưa cấm (chỉ phí cao hơn).
-RESTRICTIONS = [
-    ("motorcycle_petrol_euro3", "PROHIBITED", None,
-     "Cấm hoàn toàn xe mô tô, xe gắn máy (hai bánh) nhiên liệu hóa thạch "
-     "trong phạm vi Vành đai 1 — 24/7, hiệu lực từ 01/07/2026 theo Chỉ thị "
-     "số 20/CT-TTg."),
-    ("car_petrol_euro4", "CONDITIONAL", None,
-     "Ô tô chạy xăng/dầu chưa bị cấm hoàn toàn ở giai đoạn Vành đai 1, nhưng "
-     "chịu mức phí trước bạ, phí cấp biển số và phí trông giữ xe cao hơn tại "
-     "khu vực trung tâm theo lộ trình tăng dần từ Quý III/2025."),
-    ("motorcycle_electric", "ALLOWED", None, None),
-    ("bus_euro5", "ALLOWED", None, None),
-    ("taxi_hybrid", "ALLOWED", None, None),
-    ("bicycle", "ALLOWED", None, None),
-    ("walking", "ALLOWED", None, None),
-]
-
-# (name, location_type, lat, lng) — v1 seed; mọi điểm giao thông công cộng
-# đều phục vụ accessibility của mode 'bus' (location_type giữ chi tiết loại).
-LOCATIONS = [
-    ("Bến xe Giáp Bát", "BUS_STOP", 21.0034, 105.8412),
-    ("Bến xe Mỹ Đình", "BUS_STOP", 21.0276, 105.7763),
-    ("Bến xe Nước Ngầm", "BUS_STOP", 20.9960, 105.8495),
-    ("Bến xe Long Biên", "BUS_STOP", 21.0338, 105.8592),
-    ("Bến xe Kim Mã", "BUS_STOP", 21.0342, 105.8170),
-    ("Bến xe Gia Lâm", "BUS_STOP", 21.0378, 105.8745),
-    ("Bến xe Yên Nghĩa", "BUS_STOP", 20.9765, 105.7895),
-    ("Ga metro Cát Linh (tuyến 2A)", "METRO_STATION", 21.0299, 105.8147),
-    ("Ga metro Thượng Đình (tuyến 2A)", "METRO_STATION", 20.9906, 105.8085),
-    ("Ga metro La Khê (tuyến 2A)", "METRO_STATION", 20.9835, 105.7806),
-    ("Trạm BRT Trung Yên", "BRT_STOP", 21.0070, 105.7872),
-    ("Trạm BRT Nguyễn Trãi", "BRT_STOP", 20.9975, 105.8148),
-]
-
-# (code, name, criteria_type, default_weight) — tổng = 1.00 (v1: 25/20/20/10/10/10/5)
-CRITERIA = [
-    ("TRAVEL_TIME", "Thời gian di chuyển", "COST", 0.25),
-    ("COST", "Chi phí ước tính", "COST", 0.20),
-    ("LEZ_COMPLIANCE", "Tuân thủ LEZ", "BENEFIT", 0.20),
-    ("ACCESSIBILITY", "Khả năng tiếp cận", "BENEFIT", 0.10),
-    ("CONVENIENCE", "Thuận tiện", "BENEFIT", 0.10),
-    ("ENVIRONMENT", "Tác động môi trường", "BENEFIT", 0.10),
-    ("SURVEY_TREND", "Xu hướng khảo sát", "BENEFIT", 0.05),
-]
-
-ADMIN_EMAIL = os.environ.get("RIDESHIFT_ADMIN_EMAIL", "admin@rideshift.local")
-# DEMO credential — đổi bằng biến môi trường ở môi trường thật (rules.md: gắn nhãn DEMO)
-ADMIN_PASSWORD = os.environ.get("RIDESHIFT_ADMIN_PASSWORD", "admin123")
+DEMO_TRIPS = 150
 
 
-def ring1_wkt() -> str:
-    """MULTIPOLYGON WKT từ RING1 [(lat,lng)] — PostGIS dùng thứ tự (lng lat)."""
-    pts = ", ".join(f"{lng} {lat}" for lat, lng in RING1)
-    first_lng, first_lat = RING1[0][1], RING1[0][0]
-    return f"SRID=4326;MULTIPOLYGON((({pts}, {first_lng} {first_lat})))"
+def ensure_study_area() -> None:
+    with db.get_conn() as conn:
+        row = conn.execute(
+            "SELECT study_area_id FROM core.study_areas WHERE code = 'HN'"
+        ).fetchone()
+        if not row:
+            conn.execute(
+                """
+                INSERT INTO core.study_areas (code, name, area_type, description, status)
+                VALUES ('HN', 'Hà Nội', 'CITY',
+                        'Khu vực nghiên cứu RideShift (C1SE.48)', 'ACTIVE')
+                """
+            )
 
 
-def schema_applied(conn) -> bool:
-    row = conn.execute(
-        "SELECT to_regclass('core.study_areas') IS NOT NULL AS ok"
-    ).fetchone()
-    return bool(row["ok"])
-
-
-def already_seeded(conn) -> bool:
-    row = conn.execute(
-        "SELECT EXISTS(SELECT 1 FROM core.study_areas WHERE code = 'HN') AS ok"
-    ).fetchone()
-    return bool(row["ok"])
-
-
-def seed(conn) -> None:
-    # Khu vực nghiên cứu: Hà Nội
-    conn.execute(
-        """INSERT INTO core.study_areas (code, name, area_type, country_code, description)
-           VALUES ('HN', 'Hà Nội', 'CITY', 'VN',
-                   'Khu vực thí điểm: nội thành Hà Nội — Vành đai 1 theo Chỉ thị 20/CT-TTg')
-           ON CONFLICT (code) DO NOTHING""",
-    )
-    area_id = conn.execute(
-        "SELECT study_area_id FROM core.study_areas WHERE code = 'HN'"
-    ).fetchone()["study_area_id"]
-
-    # Admin (bcrypt — RULES.md §7 bắt buộc)
-    pw_hash = bcrypt.hashpw(ADMIN_PASSWORD.encode(), bcrypt.gensalt()).decode()
-    conn.execute(
-        """INSERT INTO core.admins (full_name, email, password_hash)
-           VALUES ('Quản trị viên hệ thống', %s, %s)
-           ON CONFLICT DO NOTHING""",
-        (ADMIN_EMAIL, pw_hash),
-    )
-
-    # Modes
-    for code, name, cat, profile, sf, wait, base_fare, per_km, acc, conv in MODES:
-        conn.execute(
-            """INSERT INTO transportation.transportation_modes
-                 (code, name, category, description, routing_profile,
-                  speed_factor, avg_wait_min, base_fare, cost_per_km,
-                  accessibility_score, convenience_score)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-               ON CONFLICT (code) DO NOTHING""",
-            (code, name, cat, None, profile, sf, wait, base_fare, per_km, acc, conv),
-        )
-    mode_ids = {
-        r["code"]: r["id"]
-        for r in conn.execute(
-            "SELECT code, transportation_mode_id AS id FROM transportation.transportation_modes"
+def load_mode_rows() -> list:
+    with db.get_conn() as conn:
+        return conn.execute(
+            """
+            SELECT m.*, vt.emission_level
+            FROM transportation.transportation_modes m
+            LEFT JOIN policy.vehicle_types vt
+              ON vt.transportation_mode_id = m.transportation_mode_id AND vt.is_default
+            ORDER BY m.transportation_mode_id
+            """
         ).fetchall()
+
+
+def load_zones_rings() -> list:
+    """[{id, name, polygon:[[lat,lng],...]}] từ policy.lez_zones (PostGIS)."""
+    with db.get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT lez_zone_id, name, status,
+                   ST_AsGeoJSON(geometry) AS geojson
+            FROM policy.lez_zones WHERE status = 'ACTIVE'
+            """
+        ).fetchall()
+    from .dto import ring_from_geojson
+
+    return [
+        {"id": r["lez_zone_id"], "name": r["name"], "polygon": ring_from_geojson(r["geojson"])}
+        for r in rows
+    ]
+
+
+def load_weights_100() -> dict:
+    with db.get_conn() as conn:
+        rows = conn.execute(
+            "SELECT code, default_weight FROM decision.recommendation_criteria"
+        ).fetchall()
+    return {
+        v2map.CRIT_V2_TO_V1.get(r["code"], r["code"].lower()): float(r["default_weight"] or 0) * 100
+        for r in rows
     }
 
-    # Vehicle types (mỗi mode 1 loại đại diện)
-    for code, name, cat, fuel, std, level, mode_code, is_default in VEHICLE_TYPES:
-        conn.execute(
-            """INSERT INTO policy.vehicle_types
-                 (code, name, category, fuel_type, emission_standard,
-                  emission_level, transportation_mode_id, is_default)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-               ON CONFLICT (code) DO NOTHING""",
-            (code, name, cat, fuel, std, level, mode_ids[mode_code], is_default),
+
+def find_region_id(conn, lat: float, lng: float):
+    row = conn.execute(
+        """
+        SELECT region_id FROM gis.administrative_regions
+        WHERE status = 'ACTIVE'
+          AND ST_Contains(geometry, ST_SetSRID(ST_MakePoint(%s, %s), 4326))
+        ORDER BY ST_Area(geometry) ASC
+        LIMIT 1
+        """,
+        (lng, lat),
+    ).fetchone()
+    return int(row["region_id"]) if row else None
+
+
+def evaluate_compliance(mode_code: str, rules_for_zone: list, dep_minutes: int, dep_day_iso: int) -> tuple[str, str]:
+    """Trả (trạng thái v1, lý do) — mirror logic compliance của trip.py."""
+    relevant = [r for r in rules_for_zone if r["mode_code"] == mode_code]
+    if not relevant:
+        return "compliant", "Không có quy định hạn chế nào của vùng bạn đi qua áp dụng cho phương tiện này."
+    r0 = relevant[0]
+    day_ok = dep_day_iso in (r0["days"] or [])
+    start, end = v2map.parse_hhmm(r0["start"]), v2map.parse_hhmm(r0["end"])
+    if start <= end:
+        time_ok = start <= dep_minutes <= end
+    else:
+        time_ok = dep_minutes >= start or dep_minutes <= end
+    if not (day_ok and time_ok):
+        return "compliant", (
+            f"Quy định hạn chế chỉ áp dụng trong khung giờ được cấu hình "
+            f"(ví dụ {v2map.hhmm(r0['start'])}–{v2map.hhmm(r0['end'])}, "
+            f"các ngày {v2map.days_iso_to_v1(r0['days'])}). "
+            "Thời gian khởi hành của bạn nằm ngoài khung giờ hạn chế."
         )
-    vtype_ids = {
-        r["code"]: r["id"]
-        for r in conn.execute(
-            "SELECT code, vehicle_type_id AS id FROM policy.vehicle_types"
+    if any(r["type"] == "PROHIBITED" for r in relevant):
+        return "not_permitted", f"Không được phép vào {r0['zone_name']} vào thời điểm khởi hành đã chọn."
+    return "conditionally_restricted", (
+        r0["reason"] or "Quy định hạn chế có điều kiện áp dụng trong vùng phát thải thấp."
+    )
+
+
+def load_rule_rows() -> list:
+    """Rule × mode đang ACTIVE (chỉ non-ALLOWED) — cho đánh giá compliance."""
+    with db.get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT lr.lez_rule_id, lr.lez_zone_id, lz.name AS zone_name,
+                   lr.start_time::text AS start_t, lr.end_time::text AS end_t,
+                   lr.days_of_week, lr.status,
+                   vr.restriction_type, vr.restriction_reason,
+                   tm.code AS mode_code
+            FROM policy.lez_rules lr
+            JOIN policy.lez_zones lz ON lz.lez_zone_id = lr.lez_zone_id
+            JOIN policy.vehicle_restrictions vr ON vr.lez_rule_id = lr.lez_rule_id
+            JOIN policy.vehicle_types vt ON vt.vehicle_type_id = vr.vehicle_type_id
+            JOIN transportation.transportation_modes tm
+              ON tm.transportation_mode_id = vt.transportation_mode_id
+            WHERE lr.status = 'ACTIVE'
+              AND vr.restriction_type IN ('PROHIBITED', 'CONDITIONAL')
+            """
         ).fetchall()
+    return [
+        {
+            "lez_rule_id": r["lez_rule_id"],
+            "zone_id": r["lez_zone_id"],
+            "zone_name": r["zone_name"],
+            "start": v2map.hhmm(r["start_t"]),
+            "end": v2map.hhmm(r["end_t"]),
+            "days": list(r["days_of_week"] or []),
+            "type": r["restriction_type"],
+            "reason": r["restriction_reason"],
+            "mode_code": r["mode_code"],
+        }
+        for r in rows
+    ]
+
+
+def default_vehicle_type_map() -> dict:
+    """mode_code -> default vehicle_type_id."""
+    with db.get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT tm.code AS mode_code, vt.vehicle_type_id
+            FROM policy.vehicle_types vt
+            JOIN transportation.transportation_modes tm
+              ON tm.transportation_mode_id = vt.transportation_mode_id
+            WHERE vt.is_default AND vt.status = 'ACTIVE'
+            """
+        ).fetchall()
+    return {r["mode_code"]: int(r["vehicle_type_id"]) for r in rows}
+
+
+def seed_demo_trips() -> int:
+    """Sinh chuyến đi DEMO qua công thức thật (bổ sung khi còn ít dữ liệu)."""
+    with db.get_conn() as conn:
+        n = conn.execute("SELECT count(*) AS c FROM trip.trips").fetchone()["c"]
+    if n >= 20:
+        return 0
+
+    rng = random.Random(48)
+    modes = [m for m in load_mode_rows() if m["is_active"]]
+    if not modes:
+        return 0
+    mode_codes = [m["code"] for m in modes]
+    vt_map = default_vehicle_type_map()
+
+    with db.get_conn() as conn:
+        loc_rows = conn.execute(
+            """
+            SELECT name, ST_Y(geometry) AS lat, ST_X(geometry) AS lng
+            FROM transportation.transportation_locations WHERE status = 'ACTIVE'
+            """
+        ).fetchall()
+    places = [(float(r["lat"]), float(r["lng"])) for r in loc_rows] or [(21.0287, 105.8524)]
+    weights = load_weights_100() or {
+        "travelTime": 25, "cost": 20, "lezCompliance": 20, "accessibility": 10,
+        "convenience": 10, "environment": 10, "trend": 5,
     }
+    zones = load_zones_rings()
+    rules = load_rule_rows()
+    trend_map = trend.latest_trend_map()
+    purposes = ["work", "school", "shopping", "leisure", "other"]
+    now = datetime.now(timezone.utc)
+    written = 0
 
-    # Vùng LEZ Vành đai 1 + rule 24/7 + restrictions
-    conn.execute(
-        """INSERT INTO policy.lez_zones (study_area_id, name, description,
-               geometry, effective_from, status)
-           VALUES (%s, 'Vùng phát thải thấp Vành đai 1',
-                   'Phạm vi phía trong vòng giới hạn Vành đai 1 (các trục Trần Khát Chân – Đại Cồ Việt – Xã Đàn; Ô Chợ Dừa – Hoàng Cầu; Voi Phục – Kim Mã – Giảng Võ; Nguyễn Khoái), theo Chỉ thị số 20/CT-TTg.',
-                   ST_GeomFromEWKT(%s), '2026-07-01', 'ACTIVE')""",
-        (area_id, ring1_wkt()),
-    )
-    zone_id = conn.execute(
-        "SELECT lez_zone_id FROM policy.lez_zones ORDER BY lez_zone_id DESC LIMIT 1"
-    ).fetchone()["lez_zone_id"]
+    for _ in range(DEMO_TRIPS):
+        origin = rng.choice(places)
+        dest = rng.choice(places)
+        if origin == dest:
+            continue
+        departure = now - timedelta(days=rng.randint(0, 29), hours=rng.randint(0, 14),
+                                    minutes=rng.randint(0, 59))
+        purpose = rng.choice(purposes)
+        vehicle = rng.choice(mode_codes)
 
-    conn.execute(
-        """INSERT INTO policy.lez_rules
-             (lez_zone_id, rule_name, description, start_time, end_time,
-              days_of_week, effective_from, status)
-           VALUES (%s, 'Cấm xe máy xăng trong Vành đai 1 — 24/7',
-                   'Áp dụng toàn bộ các ngày trong tuần, toàn bộ khung giờ.',
-                   '00:00', '23:59:59', ARRAY[1,2,3,4,5,6,7]::SMALLINT[],
-                   '2026-07-01', 'ACTIVE')""",
-        (zone_id,),
-    )
-    rule_id = conn.execute(
-        "SELECT lez_rule_id FROM policy.lez_rules ORDER BY lez_rule_id DESC LIMIT 1"
-    ).fetchone()["lez_rule_id"]
-
-    for vt_code, rtype, min_level, reason in RESTRICTIONS:
-        conn.execute(
-            """INSERT INTO policy.vehicle_restrictions
-                 (lez_rule_id, vehicle_type_id, restriction_type,
-                  min_emission_level, restriction_reason)
-               VALUES (%s, %s, %s, %s, %s)
-               ON CONFLICT (lez_rule_id, vehicle_type_id) DO NOTHING""",
-            (rule_id, vtype_ids[vt_code], rtype, min_level, reason),
+        coords = external_synthetic(origin, dest)
+        distance_km = geo.route_length_km(coords)
+        if distance_km < 0.4:
+            continue
+        zone_checks = geo.analyze_route_vs_zones(
+            coords, [{"id": z["id"], "name": z["name"], "polygon": z["polygon"]} for z in zones]
         )
+        affected = [z for z in zone_checks if z["status"] != "outside"]
+        dep_minutes = departure.hour * 60 + departure.minute
+        dep_day_iso = departure.isoweekday()
 
-    # Điểm giao thông công cộng
-    for name, ltype, lat, lng in LOCATIONS:
-        conn.execute(
-            """INSERT INTO transportation.transportation_locations
-                 (study_area_id, transportation_mode_id, name, location_type,
-                  geometry, source)
-               VALUES (%s, %s, %s, %s,
-                       ST_SetSRID(ST_MakePoint(%s, %s), 4326), 'seed-v2')""",
-            (area_id, mode_ids["bus"], name, ltype, lng, lat),
-        )
+        # compliance per mode (mirror trip.py)
+        compliance = {}
+        for code in mode_codes:
+            if not affected:
+                compliance[code] = "compliant"
+            else:
+                status, _ = evaluate_compliance(code, rules, dep_minutes, dep_day_iso)
+                compliance[code] = status
 
-    # Tiêu chí MCDM
-    for code, name, ctype, weight in CRITERIA:
-        conn.execute(
-            """INSERT INTO decision.recommendation_criteria
-                 (code, name, criteria_type, default_weight)
-               VALUES (%s, %s, %s, %s)
-               ON CONFLICT (code) DO NOTHING""",
-            (code, name, ctype, weight),
-        )
+        alternatives, metas = [], {}
+        for m in modes:
+            code = m["code"]
+            speed = v2map.mode_avg_speed(m)
+            co2 = v2map.mode_co2_per_km(code, m.get("emission_level"))
+            wait = float(m["avg_wait_min"] or 0)
+            travel_time = (distance_km / speed) * 60 + wait
+            cost = float(m["base_fare"] or 0) + float(m["cost_per_km"] or 0) * distance_km
+            lez_score = 1.0 if compliance[code] == "compliant" else (
+                0.5 if compliance[code] == "conditionally_restricted" else 0.0
+            )
+            accessibility = float(m["accessibility_score"] or 3) / 5.0
+            purpose_mod = constants.PURPOSE_CONVENIENCE.get(purpose, {}).get(code, 0)
+            convenience = constants.clamp01(float(m["convenience_score"] or 3) / 5.0 + purpose_mod)
+            t_adj = travel_time
+            if code == "walking" and distance_km > 5:
+                t_adj += (distance_km - 5) * 30
+            if code == "bicycle" and distance_km > 12:
+                t_adj += (distance_km - 12) * 8
+            alternatives.append({
+                "id": code,
+                "name": m["name"],
+                "raw": {
+                    "travelTime": t_adj,
+                    "cost": cost,
+                    "lezCompliance": lez_score,
+                    "accessibility": accessibility,
+                    "convenience": convenience,
+                    "environment": co2,
+                    "trend": trend_map.get(code, 0.01),
+                },
+            })
+            metas[code] = {"travelTimeMin": travel_time, "costVnd": cost}
+
+        scored = mcdm.topsis(alternatives, weights)
+        if not scored:
+            continue
+        top = scored[0]
+
+        with db.tx() as conn:
+            cur = conn.execute(
+                """
+                INSERT INTO trip.trips (study_area_id, origin, destination,
+                    origin_region_id, destination_region_id, vehicle_type_id,
+                    switched, travel_time, trip_purpose, preferences)
+                VALUES (1,
+                        ST_SnapToGrid(ST_SetSRID(ST_MakePoint(%s, %s), 4326), 0.001),
+                        ST_SnapToGrid(ST_SetSRID(ST_MakePoint(%s, %s), 4326), 0.001),
+                        (SELECT region_id FROM gis.administrative_regions
+                          WHERE ST_Contains(geometry, ST_SetSRID(ST_MakePoint(%s, %s), 4326))
+                          ORDER BY ST_Area(geometry) ASC LIMIT 1),
+                        (SELECT region_id FROM gis.administrative_regions
+                          WHERE ST_Contains(geometry, ST_SetSRID(ST_MakePoint(%s, %s), 4326))
+                          ORDER BY ST_Area(geometry) ASC LIMIT 1),
+                        %s, %s, %s, %s, '{"demo": true}'::jsonb)
+                RETURNING trip_id
+                """,
+                (origin[1], origin[0], dest[1], dest[0],
+                 origin[1], origin[0], dest[1], dest[0],
+                 vt_map.get(vehicle), False, departure, purpose),
+            )
+            trip_id = int(cur.fetchone()["trip_id"])
+
+            ring = [[p[1], p[0]] for p in coords]
+            ring.append(ring[0])
+            route_geojson = json.dumps({"type": "LineString", "coordinates": ring})
+            cur = conn.execute(
+                """
+                INSERT INTO trip.trip_routes (trip_id, routing_profile, route_index,
+                    provider, distance_m, duration_sec, geometry)
+                VALUES (%s, 'car', 0, 'DEMO_SYNTHETIC', %s, %s,
+                        ST_SetSRID(ST_GeomFromGeoJSON(%s), 4326))
+                RETURNING route_id
+                """,
+                (trip_id, round(distance_km * 1000, 2), int(metas[top["id"]]["travelTimeMin"] * 60),
+                 route_geojson),
+            )
+            route_id = int(cur.fetchone()["route_id"])
+
+            cur = conn.execute(
+                """
+                INSERT INTO decision.recommendation_runs (trip_id, algorithm, status, duration_ms)
+                VALUES (%s, 'TOPSIS', 'COMPLETED', %s)
+                RETURNING recommendation_run_id
+                """,
+                (trip_id, rng.randint(2, 9)),
+            )
+            run_id = int(cur.fetchone()["recommendation_run_id"])
+
+            for s in scored:
+                alt = next(a for a in alternatives if a["id"] == s["id"])
+                for crit_v1, raw_v in alt["raw"].items():
+                    conn.execute(
+                        """
+                        INSERT INTO decision.recommendation_scores
+                            (recommendation_run_id, transportation_mode_id, criteria_id,
+                             raw_value, normalized_value, weight, weighted_score,
+                             final_score, rank_position)
+                        VALUES (%s, (SELECT transportation_mode_id
+                                       FROM transportation.transportation_modes WHERE code = %s),
+                                (SELECT criteria_id FROM decision.recommendation_criteria
+                                  WHERE code = %s),
+                                %s, %s, %s, %s, %s, %s)
+                        """,
+                        (
+                            run_id, s["id"], v2map.CRIT_V1_TO_V2[crit_v1],
+                            round(float(raw_v), 6), round(float(s["normalized"][crit_v1]), 6),
+                            round(weights.get(crit_v1, 0) / 100.0, 6),
+                            round(float(s["contributions"][crit_v1]), 6),
+                            round(float(s["score"]), 6), s["rank"],
+                        ),
+                    )
+
+            for zc in zone_checks:
+                status_map = {"outside": "OUTSIDE", "partial": "PARTIAL", "within": "INSIDE"}
+                for code, vt_id in vt_map.items():
+                    comp = compliance.get(code, "compliant")
+                    comp_map = {"compliant": "COMPLIANT",
+                                "conditionally_restricted": "CONDITIONAL",
+                                "not_permitted": "NOT_COMPLIANT"}
+                    conn.execute(
+                        """
+                        INSERT INTO trip.trip_lez_analysis (route_id, lez_zone_id,
+                            vehicle_type_id, intersects, intersection_percentage,
+                            route_lez_status, compliance_status)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (route_id, lez_zone_id, vehicle_type_id) DO NOTHING
+                        """,
+                        (
+                            route_id, zc["zoneId"], vt_id,
+                            zc["status"] != "outside",
+                            round(float(zc["insideRatio"]) * 100, 2),
+                            status_map[zc["status"]],
+                            comp_map[comp],
+                        ),
+                    )
+        written += 1
+    return written
 
 
-def main() -> None:
-    with psycopg.connect(DSN, autocommit=True, row_factory=dict_row) as conn:
-        if not schema_applied(conn):
-            print("Áp schema_v2.sql ...")
-            conn.execute(SCHEMA_FILE.read_text(encoding="utf-8"))
-            print("Schema v2 đã được áp.")
-        if already_seeded(conn):
-            print("Đã seed sẵn (study_areas có HN) — bỏ qua.")
-            return
-        seed(conn)
-        w = conn.execute(
-            "SELECT round(sum(default_weight), 4) AS s FROM decision.recommendation_criteria"
-        ).fetchone()["s"]
-        print(f"Seed v2 hoàn tất. Tổng default_weight = {w} (kỳ vọng 1.0).")
+def external_synthetic(a, b):
+    from .services import external
+
+    return external.synthetic_route(a, b)
+
+
+def run() -> None:
+    """Full boot-time seed (idempotent)."""
+    auth.ensure_default_admin()
+    ensure_study_area()
+
+    from .services import geoimport, surveyimport
+
+    geo_report = geoimport.import_admin_regions()
+    if geo_report.get("imported"):
+        print(f"seed_v2: import {geo_report['imported']} phường/xã từ GeoJSON")
+    elif geo_report.get("reason"):
+        print(f"seed_v2: CẢNH BÁO GeoJSON — {geo_report['reason']}")
+
+    survey_report = surveyimport.import_survey()
+    if survey_report.get("imported"):
+        print(f"seed_v2: import {survey_report['imported']} dòng khảo sát Kaggle")
+
+    trend.run_pipeline()
+
+    demo = seed_demo_trips()
+    if demo:
+        print(f"seed_v2: sinh {demo} chuyến đi DEMO (công thức thật, tọa độ thật)")
+
+    print("Seed v2 completed.")
 
 
 if __name__ == "__main__":
-    main()
+    db.init_db()
+    run()

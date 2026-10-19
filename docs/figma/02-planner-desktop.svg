@@ -1,0 +1,193 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1110" viewBox="0 0 1440 1110" font-family="Inter, 'Segoe UI', system-ui, sans-serif">
+  <defs>
+    <linearGradient id="heroGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ECFDF5"/><stop offset="0.5" stop-color="#F8FBF8"/><stop offset="1" stop-color="#F0FDFA"/>
+    </linearGradient>
+    <clipPath id="mapClip"><rect x="440" y="192" width="976" height="818" rx="16"/></clipPath>
+    <clipPath id="hanoiClip">
+      <path d="M 20.0 320.0 C 33.3 283.3, 46.7 201.7, 80.0 160.0 C 113.3 118.3, 183.3 95.0, 220.0 70.0 C 256.7 45.0, 258.3 20.0, 300.0 10.0 C 341.7 -0.0, 421.7 -5.0, 470.0 10.0 C 518.3 25.0, 565.0 68.3, 590.0 100.0 C 615.0 131.7, 601.7 163.3, 620.0 200.0 C 638.3 236.7, 691.7 283.3, 700.0 320.0 C 708.3 356.7, 670.0 386.7, 670.0 420.0 C 670.0 453.3, 703.3 481.7, 700.0 520.0 C 696.7 558.3, 675.0 606.7, 650.0 650.0 C 625.0 693.3, 585.0 748.3, 550.0 780.0 C 515.0 811.7, 481.7 836.7, 440.0 840.0 C 398.3 843.3, 340.0 823.3, 300.0 800.0 C 260.0 776.7, 226.7 738.3, 200.0 700.0 C 173.3 661.7, 166.7 611.7, 140.0 570.0 C 113.3 528.3, 63.3 481.7, 40.0 450.0 C 16.7 418.3, 3.3 401.7, 0.0 380.0 C -3.3 358.3, 6.7 356.7, 20.0 320.0 Z"/>
+    </clipPath>
+    <filter id="aqiBlur" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="62"/></filter>
+  </defs>
+
+  <rect id="page-bg" width="1440" height="1110" fill="#F8FBF8"/>
+
+  <!-- ================= HEADER ================= -->
+  <g id="app-header">
+    <rect x="0" y="0" width="1440" height="64" fill="#FFFFFF"/><line x1="0" y1="64" x2="1440" y2="64" stroke="#D7E1D9"/>
+    <rect x="24" y="12" width="40" height="40" rx="12" fill="#00884B"/>
+    <path d="M34 44 C34 34 41 27 51 26 C51 37 44 44 34 44 Z" fill="#F8FBF8"/>
+    <path d="M36 42 C39 37 43 33 48 30" stroke="#00884B" stroke-width="1.4" fill="none"/>
+    <text x="76" y="34" font-size="18" font-weight="700" fill="#061009">Ride<tspan fill="#00884B">Shift</tspan></text>
+    <text x="76" y="50" font-size="10" fill="#606D64">Cố vấn chuyển đổi giao thông thông minh</text>
+    <g id="nav-pill">
+      <rect x="1090" y="14" width="326" height="36" rx="18" fill="#EBF3EC" stroke="#D7E1D9"/>
+      <rect x="1094" y="18" width="158" height="28" rx="14" fill="#00884B"/>
+      <text x="1173" y="36" font-size="12.5" font-weight="600" fill="#F8FBF8" text-anchor="middle">Lập kế hoạch</text>
+      <text x="1334" y="36" font-size="12.5" font-weight="500" fill="#606D64" text-anchor="middle">Quản trị</text>
+    </g>
+  </g>
+
+  <!-- ================= HERO ================= -->
+  <g id="hero-band">
+    <rect x="24" y="80" width="1392" height="96" rx="16" fill="url(#heroGrad)" stroke="#D7E1D9"/>
+    <circle cx="62" cy="112" r="14" fill="#D7F4DC"/><path d="M62 118 C62 112 66 108 72 107 C72 114 68 118 62 118 Z M56 118 C56 114 53 111 50 110 C51 115 53 118 56 118 Z" fill="#00884B"/>
+    <text x="88" y="114" font-size="20" font-weight="700" fill="#061009">Lựa chọn thông minh vì một Hà Nội trong lành hơn</text>
+    <text x="88" y="138" font-size="11.5" fill="#606D64">RideShift là nền tảng hỗ trợ ra quyết định giao thông dựa trên GIS: tính toán tuyến đường, kiểm tra khả năng tuân thủ vùng phát thải thấp (LEZ),</text>
+    <text x="88" y="155" font-size="11.5" fill="#606D64">hiển thị chất lượng không khí theo thời gian thực và xếp hạng các phương án di chuyển bằng mô hình ra quyết định đa tiêu chí.</text>
+  </g>
+
+  <!-- ================= FORM CARD ================= -->
+  <g id="planner-form-card">
+    <rect x="24" y="192" width="400" height="818" rx="16" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="48" y="224" font-size="16" font-weight="600" fill="#061009">Kế hoạch hành trình</text>
+    <text x="48" y="244" font-size="11" fill="#606D64">Nhập hành trình để nhận bảng xếp hạng phương tiện phù hợp</text>
+
+    <text x="48" y="276" font-size="10" font-weight="600" fill="#606D64" letter-spacing="0.5">ĐIỂM ĐI</text>
+    <rect x="48" y="284" width="352" height="40" rx="10" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <circle cx="66" cy="304" r="5.5" fill="none" stroke="#00884B" stroke-width="2"/><circle cx="66" cy="304" r="1.8" fill="#00884B"/>
+    <text x="82" y="309" font-size="13" fill="#061009">Cầu Long Biên</text>
+    <g id="btn-use-my-location"><circle cx="372" cy="304" r="12" fill="none" stroke="#606D64" stroke-width="1.5"/><circle cx="372" cy="304" r="3" fill="#606D64"/><line x1="372" y1="294" x2="372" y2="298" stroke="#606D64" stroke-width="1.5"/><line x1="372" y1="310" x2="372" y2="314" stroke="#606D64" stroke-width="1.5"/><line x1="362" y1="304" x2="366" y2="304" stroke="#606D64" stroke-width="1.5"/><line x1="378" y1="304" x2="382" y2="304" stroke="#606D64" stroke-width="1.5"/></g>
+
+    <g id="geocode-suggestions">
+      <rect x="48" y="330" width="352" height="104" rx="10" fill="#FFFFFF" stroke="#D7E1D9"/>
+      <rect x="49" y="331" width="350" height="34" rx="9" fill="#D7F4DC"/>
+      <text x="64" y="353" font-size="12" font-weight="500" fill="#061009">Hồ Hoàn Kiếm</text><text x="388" y="353" font-size="9" fill="#606D64" text-anchor="end">Hoàn Kiếm · Hà Nội</text>
+      <text x="64" y="387" font-size="12" fill="#061009">Cầu Long Biên</text><text x="388" y="387" font-size="9" fill="#606D64" text-anchor="end">Long Biên · Hà Nội</text>
+      <text x="64" y="421" font-size="12" fill="#061009">Bến xe Giáp Bát</text><text x="388" y="421" font-size="9" fill="#606D64" text-anchor="end">Hoàng Mai · Hà Nội</text>
+    </g>
+
+    <g id="btn-swap">
+      <circle cx="384" cy="462" r="18" fill="#FFFFFF" stroke="#D7E1D9"/>
+      <path d="M378 456 L390 456 M386 452 L390 456 L386 460" stroke="#00884B" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M390 468 L378 468 M382 464 L378 468 L382 472" stroke="#00884B" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+
+    <text x="48" y="474" font-size="10" font-weight="600" fill="#606D64" letter-spacing="0.5">ĐIỂM ĐẾN</text>
+    <rect x="48" y="482" width="352" height="40" rx="10" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <circle cx="66" cy="502" r="5.5" fill="none" stroke="#E7000B" stroke-width="2"/><circle cx="66" cy="502" r="1.8" fill="#E7000B"/>
+    <text x="82" y="507" font-size="13" fill="#061009">Nghĩa Đô, Cầu Giấy</text>
+
+    <text x="48" y="552" font-size="10" font-weight="600" fill="#606D64" letter-spacing="0.5">XE CỦA BẠN HIỆN TẠI</text>
+    <rect x="48" y="560" width="168" height="40" rx="10" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <rect x="62" y="573" width="15" height="10" rx="2" fill="none" stroke="#00884B" stroke-width="1.6"/><circle cx="65" cy="586" r="1.8" fill="#00884B"/><circle cx="74" cy="586" r="1.8" fill="#00884B"/>
+    <text x="84" y="585" font-size="12" fill="#061009">Xe máy xăng</text>
+    <path d="M200 576 L208 576 L204 584 Z" fill="#606D64"/>
+    <text x="232" y="552" font-size="10" font-weight="600" fill="#606D64" letter-spacing="0.5">MỤC ĐÍCH CHUYẾN ĐI</text>
+    <rect x="232" y="560" width="168" height="40" rx="10" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="248" y="585" font-size="12" fill="#061009">Đi làm / Hành chính</text>
+    <path d="M384 576 L392 576 L388 584 Z" fill="#606D64"/>
+
+    <text x="48" y="628" font-size="10" font-weight="600" fill="#606D64" letter-spacing="0.5">THỜI GIAN XUẤT PHÁT</text>
+    <rect x="48" y="636" width="352" height="40" rx="10" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="64" y="661" font-size="13" fill="#061009">25/09/2026 17:30</text>
+
+    <text x="48" y="704" font-size="12" font-weight="600" fill="#061009">Ưu tiên của bạn</text>
+    <g id="pref-fastest"><text x="48" y="726" font-size="11" fill="#061009">Nhanh nhất</text><text x="400" y="726" font-size="11" fill="#606D64" text-anchor="end">50%</text>
+      <rect x="48" y="736" width="352" height="6" rx="3" fill="#EBF3EC"/><rect x="48" y="736" width="176" height="6" rx="3" fill="#00884B"/><circle cx="224" cy="739" r="9" fill="#FFFFFF" stroke="#00884B" stroke-width="2.5"/></g>
+    <g id="pref-cheapest"><text x="48" y="782" font-size="11" fill="#061009">Tiết kiệm nhất</text><text x="400" y="782" font-size="11" fill="#606D64" text-anchor="end">35%</text>
+      <rect x="48" y="792" width="352" height="6" rx="3" fill="#EBF3EC"/><rect x="48" y="792" width="123" height="6" rx="3" fill="#00884B"/><circle cx="171" cy="795" r="9" fill="#FFFFFF" stroke="#00884B" stroke-width="2.5"/></g>
+    <g id="pref-eco"><text x="48" y="838" font-size="11" fill="#061009">Thân thiện môi trường</text><text x="400" y="838" font-size="11" fill="#606D64" text-anchor="end">70%</text>
+      <rect x="48" y="848" width="352" height="6" rx="3" fill="#EBF3EC"/><rect x="48" y="848" width="246" height="6" rx="3" fill="#00884B"/><circle cx="294" cy="851" r="9" fill="#FFFFFF" stroke="#00884B" stroke-width="2.5"/></g>
+    <g id="pref-comfort"><text x="48" y="894" font-size="11" fill="#061009">Tiện nghi</text><text x="400" y="894" font-size="11" fill="#606D64" text-anchor="end">60%</text>
+      <rect x="48" y="904" width="352" height="6" rx="3" fill="#EBF3EC"/><rect x="48" y="904" width="211" height="6" rx="3" fill="#00884B"/><circle cx="259" cy="907" r="9" fill="#FFFFFF" stroke="#00884B" stroke-width="2.5"/></g>
+
+    <g id="toggle-transport-points">
+      <rect x="48" y="930" width="44" height="24" rx="12" fill="#00884B"/><circle cx="80" cy="942" r="10" fill="#FFFFFF"/>
+      <text x="104" y="947" font-size="12" fill="#061009">Hiện điểm giao thông công cộng</text>
+    </g>
+
+    <g id="btn-analyze">
+      <rect x="48" y="970" width="352" height="44" rx="10" fill="#00884B"/>
+      <text x="224" y="998" font-size="14" font-weight="600" fill="#F8FBF8" text-anchor="middle">Phân tích hành trình</text>
+    </g>
+  </g>
+
+  <!-- ================= MAP CARD ================= -->
+  <g id="map-card" clip-path="url(#mapClip)">
+    <rect x="440" y="192" width="976" height="818" fill="#EFF3EC"/>
+    <!-- map base: roads + river (OSM-style, simplified) -->
+    <g id="map-base">
+      <path d="M440 380 L1416 320" stroke="#E6EAE0" stroke-width="2" fill="none"/>
+      <path d="M440 520 L1416 470" stroke="#E6EAE0" stroke-width="2" fill="none"/>
+      <path d="M440 660 L1416 620" stroke="#E6EAE0" stroke-width="2" fill="none"/>
+      <path d="M440 800 L1416 770" stroke="#E6EAE0" stroke-width="2" fill="none"/>
+      <path d="M600 192 L640 1010" stroke="#E6EAE0" stroke-width="2" fill="none"/>
+      <path d="M800 192 L820 1010" stroke="#E6EAE0" stroke-width="2" fill="none"/>
+      <path d="M1040 192 L1020 1010" stroke="#E6EAE0" stroke-width="2" fill="none"/>
+      <path d="M1240 192 L1260 1010" stroke="#E6EAE0" stroke-width="2" fill="none"/>
+      <path d="M1120 240 C1080 340 1020 380 940 420 C860 460 840 540 860 640 C880 740 940 800 1000 880" stroke="#E3E7DC" stroke-width="7" fill="none" stroke-linecap="round"/>
+      <path d="M1120 240 C1080 340 1020 380 940 420 C860 460 840 540 860 640 C880 740 940 800 1000 880" stroke="#FFFFFF" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+      <path d="M520 300 C700 330 900 330 1080 300 C1200 280 1320 290 1416 310" stroke="#E3E7DC" stroke-width="6" fill="none"/>
+      <path d="M520 300 C700 330 900 330 1080 300 C1200 280 1320 290 1416 310" stroke="#FFFFFF" stroke-width="3.5" fill="none"/>
+      <path d="M470 900 C640 860 840 850 1040 880 C1200 905 1330 900 1416 885" stroke="#E3E7DC" stroke-width="6" fill="none"/>
+      <path d="M470 900 C640 860 840 850 1040 880 C1200 905 1330 900 1416 885" stroke="#FFFFFF" stroke-width="3.5" fill="none"/>
+      <path d="M480 210 C560 420 620 560 700 700 C760 810 800 920 810 1010" stroke="#C9DDE6" stroke-width="13" fill="none" opacity="0.9"/>
+    </g>
+    <!-- AQI smooth weather field, clipped to Hanoi boundary (geo space) -->
+    <g id="aqi-weather-field" transform="translate(566,192) scale(0.965)">
+      <g clip-path="url(#hanoiClip)">
+        <g filter="url(#aqiBlur)" opacity="0.62">
+          <ellipse cx="150" cy="200" rx="260" ry="240" fill="#22C55E"/>
+          <ellipse cx="420" cy="150" rx="230" ry="210" fill="#57D96A"/>
+          <ellipse cx="420" cy="420" rx="240" ry="220" fill="#FACC15"/>
+          <ellipse cx="500" cy="580" rx="250" ry="210" fill="#F97316"/>
+          <ellipse cx="610" cy="430" rx="170" ry="160" fill="#EF4444"/>
+          <ellipse cx="640" cy="460" rx="90" ry="80" fill="#DC2626" opacity="0.9"/>
+        </g>
+      </g>
+      <path id="hanoi-outline" d="M 20.0 320.0 C 33.3 283.3, 46.7 201.7, 80.0 160.0 C 113.3 118.3, 183.3 95.0, 220.0 70.0 C 256.7 45.0, 258.3 20.0, 300.0 10.0 C 341.7 -0.0, 421.7 -5.0, 470.0 10.0 C 518.3 25.0, 565.0 68.3, 590.0 100.0 C 615.0 131.7, 601.7 163.3, 620.0 200.0 C 638.3 236.7, 691.7 283.3, 700.0 320.0 C 708.3 356.7, 670.0 386.7, 670.0 420.0 C 670.0 453.3, 703.3 481.7, 700.0 520.0 C 696.7 558.3, 675.0 606.7, 650.0 650.0 C 625.0 693.3, 585.0 748.3, 550.0 780.0 C 515.0 811.7, 481.7 836.7, 440.0 840.0 C 398.3 843.3, 340.0 823.3, 300.0 800.0 C 260.0 776.7, 226.7 738.3, 200.0 700.0 C 173.3 661.7, 166.7 611.7, 140.0 570.0 C 113.3 528.3, 63.3 481.7, 40.0 450.0 C 16.7 418.3, 3.3 401.7, 0.0 380.0 C -3.3 358.3, 6.7 356.7, 20.0 320.0 Z"
+        fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linejoin="round"/>
+      <path d="M 20.0 320.0 C 33.3 283.3, 46.7 201.7, 80.0 160.0 C 113.3 118.3, 183.3 95.0, 220.0 70.0 C 256.7 45.0, 258.3 20.0, 300.0 10.0 C 341.7 -0.0, 421.7 -5.0, 470.0 10.0 C 518.3 25.0, 565.0 68.3, 590.0 100.0 C 615.0 131.7, 601.7 163.3, 620.0 200.0 C 638.3 236.7, 691.7 283.3, 700.0 320.0 C 708.3 356.7, 670.0 386.7, 670.0 420.0 C 670.0 453.3, 703.3 481.7, 700.0 520.0 C 696.7 558.3, 675.0 606.7, 650.0 650.0 C 625.0 693.3, 585.0 748.3, 550.0 780.0 C 515.0 811.7, 481.7 836.7, 440.0 840.0 C 398.3 843.3, 340.0 823.3, 300.0 800.0 C 260.0 776.7, 226.7 738.3, 200.0 700.0 C 173.3 661.7, 166.7 611.7, 140.0 570.0 C 113.3 528.3, 63.3 481.7, 40.0 450.0 C 16.7 418.3, 3.3 401.7, 0.0 380.0 C -3.3 358.3, 6.7 356.7, 20.0 320.0 Z"
+        fill="none" stroke="#0F766E" stroke-width="2.4" stroke-linejoin="round"/>
+      <g id="monitoring-stations">
+        <circle cx="360" cy="290" r="6" fill="#F97316" stroke="#FFFFFF" stroke-width="2.5"/>
+        <circle cx="500" cy="350" r="6" fill="#EF4444" stroke="#FFFFFF" stroke-width="2.5"/>
+        <circle cx="300" cy="520" r="6" fill="#FACC15" stroke="#FFFFFF" stroke-width="2.5"/>
+        <circle cx="560" cy="480" r="6" fill="#EF4444" stroke="#FFFFFF" stroke-width="2.5"/>
+        <circle cx="200" cy="200" r="6" fill="#22C55E" stroke="#FFFFFF" stroke-width="2.5"/>
+      </g>
+    </g>
+    <!-- route + A/B markers -->
+    <g id="route-ab">
+      <path d="M1048.5 529.8 C1082 522 1122 552 1164.3 587.7" stroke="#00884B" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+      <circle cx="1048.5" cy="529.8" r="11" fill="#00884B" stroke="#FFFFFF" stroke-width="2.5"/><text x="1048.5" y="534" font-size="11" font-weight="700" fill="#FFFFFF" text-anchor="middle">A</text>
+      <circle cx="1164.3" cy="587.7" r="11" fill="#E7000B" stroke="#FFFFFF" stroke-width="2.5"/><text x="1164.3" y="592" font-size="11" font-weight="700" fill="#FFFFFF" text-anchor="middle">B</text>
+    </g>
+    <!-- floating map controls -->
+    <g id="map-toggle-pills">
+      <rect x="460" y="208" width="152" height="30" rx="15" fill="#FFFFFF" stroke="#D7E1D9" opacity="0.96"/>
+      <rect x="470" y="215" width="28" height="16" rx="8" fill="#00884B"/><circle cx="490" cy="223" r="6" fill="#FFFFFF"/>
+      <text x="506" y="227" font-size="11" font-weight="500" fill="#061009">Mô hình AQI</text>
+      <rect x="460" y="246" width="164" height="30" rx="15" fill="#FFFFFF" stroke="#D7E1D9" opacity="0.96"/>
+      <rect x="470" y="253" width="28" height="16" rx="8" fill="#00884B"/><circle cx="490" cy="261" r="6" fill="#FFFFFF"/>
+      <text x="506" y="265" font-size="11" font-weight="500" fill="#061009">Trạm quan trắc</text>
+      <rect x="460" y="284" width="246" height="24" rx="12" fill="#FFFFFF" stroke="#D7E1D9" opacity="0.92"/>
+      <text x="472" y="300" font-size="10" fill="#606D64">AQI cập nhật lúc 10:00 ngày 25/9/2026</text>
+      <circle cx="692" cy="296" r="9" fill="none" stroke="#00884B" stroke-width="1.6"/>
+      <path d="M688 296 A4 4 0 1 1 692 300 M692 296 L694 293 M692 296 L689 294" stroke="#00884B" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+      <text x="708" y="300" font-size="10" font-weight="600" fill="#00884B">Làm mới</text>
+    </g>
+    <g id="map-legend">
+      <rect x="1250" y="846" width="156" height="152" rx="10" fill="#FFFFFF" stroke="#D7E1D9" opacity="0.96"/>
+      <text x="1262" y="866" font-size="10" font-weight="600" fill="#061009">Chất lượng không khí (AQI)</text>
+      <rect x="1262" y="876" width="12" height="12" rx="3" fill="#22C55E"/><text x="1280" y="886" font-size="10" fill="#061009">Tốt</text><text x="1394" y="886" font-size="9" fill="#606D64" text-anchor="end">0–50</text>
+      <rect x="1262" y="893" width="12" height="12" rx="3" fill="#FACC15"/><text x="1280" y="903" font-size="10" fill="#061009">Trung bình</text><text x="1394" y="903" font-size="9" fill="#606D64" text-anchor="end">51–100</text>
+      <rect x="1262" y="910" width="12" height="12" rx="3" fill="#F97316"/><text x="1280" y="920" font-size="10" fill="#061009">Kém</text><text x="1394" y="920" font-size="9" fill="#606D64" text-anchor="end">101–150</text>
+      <rect x="1262" y="927" width="12" height="12" rx="3" fill="#EF4444"/><text x="1280" y="937" font-size="10" fill="#061009">Xấu</text><text x="1394" y="937" font-size="9" fill="#606D64" text-anchor="end">151–200</text>
+      <rect x="1262" y="944" width="12" height="12" rx="3" fill="#A855F7"/><text x="1280" y="954" font-size="10" fill="#061009">Rất xấu</text><text x="1394" y="954" font-size="9" fill="#606D64" text-anchor="end">201–300</text>
+      <rect x="1262" y="961" width="12" height="12" rx="3" fill="#7F1D1D"/><text x="1280" y="971" font-size="10" fill="#061009">Nguy hại</text><text x="1394" y="971" font-size="9" fill="#606D64" text-anchor="end">trên 300</text>
+    </g>
+    <text x="452" y="1000" font-size="9" fill="#606D64">Bản đồ khóa trong phạm vi Hà Nội · © OpenStreetMap · Định tuyến OSRM · AQI Open-Meteo</text>
+  </g>
+  <rect x="440" y="192" width="976" height="818" rx="16" fill="none" stroke="#D7E1D9"/>
+
+  <!-- ================= FOOTER ================= -->
+  <g id="app-footer">
+    <line x1="0" y1="1030" x2="1440" y2="1030" stroke="#D7E1D9"/>
+    <rect x="0" y="1030" width="1440" height="80" fill="#EBF3EC" opacity="0.5"/>
+    <path d="M28 1058 C28 1052 32 1048 38 1047 C38 1054 34 1058 28 1058 Z" fill="#00884B"/>
+    <text x="48" y="1062" font-size="11" fill="#606D64"><tspan font-weight="600" fill="#061009">RideShift</tspan> – Cố vấn chuyển đổi giao thông thông minh · Đồ án tốt nghiệp 1 (CMU-SE 450) · Nhóm C1SE.48 · Trường Đại học Quốc tế, Đại học Duy Tân</text>
+    <text x="1416" y="1084" font-size="10" fill="#606D64" text-anchor="end">Dữ liệu bản đồ © OpenStreetMap · Định tuyến OSRM · Chất lượng không khí Open-Meteo · Hà Nội trong lành hơn cho ngày mai tốt đẹp hơn</text>
+  </g>
+</svg>

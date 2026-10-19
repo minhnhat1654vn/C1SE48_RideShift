@@ -47,7 +47,7 @@ import {
   Search,
   TriangleAlert,
 } from 'lucide-react'
-import type { AnalyzeResponse, GeocodeResult, LezZoneDto, ModeInfo, TripPurpose } from '@/lib/types'
+import type { AnalyzeResponse, LezZoneDto, ModeInfo, TripPurpose } from '@/lib/types'
 import { TRIP_PURPOSES, CRITERION_LABELS } from '@/lib/types'
 import type { MapMarker } from '@/components/rideshift/map-view'
 import {
@@ -59,6 +59,7 @@ import {
   TripOverviewCard,
   MODE_ICONS,
 } from './results'
+import type { GeocodeResult } from '@/lib/external'
 
 const MapView = dynamic(() => import('./map-view'), {
   ssr: false,
@@ -154,6 +155,58 @@ function StepperNav({
         </Fragment>
       ))}
     </nav>
+  )
+}
+
+/**
+ * Dropdown gợi ý địa chỉ (geocode autocomplete).
+ *
+ * Wheel-scroll được điều khiển TƯỜNG MINH bằng JS qua listener non-passive:
+ * một số trình duyệt/Chromium builds không thực hiện default wheel-scroll
+ * bên trong các scroll container lồng nhau (dropdown nằm trong panel cuộn),
+ * khiến danh sách gợi ý không cuộn được bằng chuột. Cuộn chủ động bằng JS
+ * hoạt động ở mọi môi trường; preventDefault khi đã cuộn để trang phía dưới
+ * không cuộn theo (chặn scroll-chaining thủ công).
+ */
+function SuggestList({
+  items,
+  onPick,
+  iconClass,
+}: {
+  items: GeocodeResult[]
+  onPick: (s: GeocodeResult) => void
+  iconClass: string
+}) {
+  const listRef = useRef<HTMLUListElement | null>(null)
+  useEffect(() => {
+    const el = listRef.current
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      const before = el.scrollTop
+      el.scrollTop = before + e.deltaY
+      if (el.scrollTop !== before) e.preventDefault()
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [])
+  return (
+    <ul
+      ref={listRef}
+      className="absolute z-30 mt-1 max-h-56 w-full overflow-y-auto overscroll-contain rounded-md border bg-popover shadow-md"
+    >
+      {items.map((s, i) => (
+        <li key={`${s.lat}-${s.lng}-${i}`}>
+          <button
+            type="button"
+            className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
+            onMouseDown={() => onPick(s)}
+          >
+            <MapPin className={`mr-1.5 inline h-3.5 w-3.5 ${iconClass}`} />
+            {s.name}
+          </button>
+        </li>
+      ))}
+    </ul>
   )
 }
 
@@ -613,20 +666,7 @@ export default function TripPlanner({
                       <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
                     )}
                     {showOrigSug && origSugs.length > 0 && (
-                      <ul className="absolute z-30 mt-1 max-h-56 w-full overflow-y-auto rounded-md border bg-popover shadow-md">
-                        {origSugs.map((s, i) => (
-                          <li key={`${s.lat}-${s.lng}-${i}`}>
-                            <button
-                              type="button"
-                              className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
-                              onMouseDown={() => pick(s, 'origin')}
-                            >
-                              <MapPin className="mr-1.5 inline h-3.5 w-3.5 text-emerald-600" />
-                              {s.name}
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
+                      <SuggestList items={origSugs} onPick={(s) => pick(s, 'origin')} iconClass="text-emerald-600" />
                     )}
                     {originText.trim().length >= 3 && geoLoading !== 'origin' && !origin && origSugs.length === 0 && (
                       <p className="mt-1 text-[11px] text-muted-foreground">
@@ -697,20 +737,7 @@ export default function TripPlanner({
                       <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
                     )}
                     {showDestSug && destSugs.length > 0 && (
-                      <ul className="absolute z-30 mt-1 max-h-56 w-full overflow-y-auto rounded-md border bg-popover shadow-md">
-                        {destSugs.map((s, i) => (
-                          <li key={`${s.lat}-${s.lng}-${i}`}>
-                            <button
-                              type="button"
-                              className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
-                              onMouseDown={() => pick(s, 'dest')}
-                            >
-                              <MapPin className="mr-1.5 inline h-3.5 w-3.5 text-orange-500" />
-                              {s.name}
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
+                      <SuggestList items={destSugs} onPick={(s) => pick(s, 'dest')} iconClass="text-orange-500" />
                     )}
                     {destText.trim().length >= 3 && geoLoading !== 'dest' && !destination && destSugs.length === 0 && (
                       <p className="mt-1 text-[11px] text-muted-foreground">

@@ -99,7 +99,7 @@ type TrendPoint = DatasetTrendRow & { name: string; sharePct: number }
 // Small JSON fetch helper with consistent error extraction (server returns { error }).
 async function apiJson<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await apiFetch(url, {
-    credentials: 'same-origin',
+    credentials: 'include', // cross-origin: localhost:3000 → localhost:8000 cần gửi/nhận cookie phiên
     ...init,
     headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
   })
@@ -426,7 +426,7 @@ export default function AdminDashboard({
               <OverviewSection
                 modeName={modeName}
                 zones={zones}
-                rules={rules ?? []}
+                rules={rules}
                 onNavigate={(tab) => setActiveTab(tab)}
               />
             </TabsContent>
@@ -476,7 +476,7 @@ function LoginScreen({ onLoggedIn }: { onLoggedIn: (user: AdminUser) => void }) 
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-emerald-50 via-background to-background px-4 dark:from-emerald-950/30">
-      <Card className="w-full max-w-sm">
+      <Card>
         <CardHeader className="text-center">
           <div className="mx-auto mb-1 flex size-12 items-center justify-center rounded-xl bg-emerald-600 text-white">
             <ShieldCheck className="size-6" />
@@ -590,7 +590,7 @@ function OverviewSection({
 }: {
   modeName: (id: string) => string
   zones: LezZoneDto[]
-  rules: PolicyRuleDto[]
+  rules: PolicyRuleDto[] | null // null = chưa tải được (lỗi mạng/mất phiên) — không rút ra cảnh báo nghiệp vụ
   onNavigate: (tab: TabKey) => void
 }) {
   const defaults = useMemo(
@@ -749,24 +749,30 @@ function OverviewSection({
   ]
 
   // ---- Phase B: danh sách "Cần chú ý" từ dữ liệu cấu hình + pipeline ----
+  // Lưu ý: chỉ đưa ra cảnh báo nghiệp vụ khi dữ liệu tương ứng TẢI THÀNH CÔNG
+  // (analytics/rules khác null). Khi fetch lỗi (vd mất phiên), dữ liệu là null
+  // — hiển thị cảnh báo "pipeline trống / vùng không có quy định" sẽ là báo
+  // động giả, vì không ai biết DB thực sự trống hay chưa.
   const notices: { tone: 'warn' | 'info'; text: string; tab?: TabKey }[] = []
   const datasetLastRun = data?.dataset?.lastRun ?? null
-  if (!datasetLastRun) {
+  if (data !== null && !datasetLastRun) {
     notices.push({ tone: 'warn', text: 'Pipeline dữ liệu khảo sát chưa từng chạy — dữ liệu xu hướng đang trống.' })
-  } else {
+  } else if (datasetLastRun) {
     const days = Math.floor((Date.now() - new Date(datasetLastRun.ranAt).getTime()) / 86400000)
     if (days >= 7) {
       notices.push({ tone: 'warn', text: `Pipeline dữ liệu khảo sát đã ${days} ngày chưa chạy lại.` })
     }
   }
-  zones
-    .filter((z) => z.active && !rules.some((r) => r.zoneId === z.id && r.active))
-    .forEach((z) =>
-      notices.push({ tone: 'warn', text: `Vùng "${z.name}" đang hoạt động nhưng chưa có quy định nào.`, tab: 'rules' }),
-    )
+  if (rules !== null) {
+    zones
+      .filter((z) => z.active && !rules.some((r) => r.zoneId === z.id && r.active))
+      .forEach((z) =>
+        notices.push({ tone: 'warn', text: `Vùng "${z.name}" đang hoạt động nhưng chưa có quy định nào.`, tab: 'rules' }),
+      )
+  }
   const offZones = zones.filter((z) => !z.active).length
   if (offZones > 0) notices.push({ tone: 'info', text: `${offZones} vùng LEZ đang tạm tắt.`, tab: 'zones' })
-  const offRules = rules.filter((r) => !r.active).length
+  const offRules = rules?.filter((r) => !r.active).length ?? 0
   if (offRules > 0) notices.push({ tone: 'info', text: `${offRules} quy định đang tạm tắt.`, tab: 'rules' })
 
   // ---- Phase B: lọc bảng chuyến đi gần đây ----
@@ -813,14 +819,28 @@ function OverviewSection({
       value: lastRun ? lastRun.rowsClean.toLocaleString('vi-VN') : '—',
     },
     { label: 'Dòng đầu vào', value: lastRun ? lastRun.rowsIn.toLocaleString('vi-VN') : '—' },
-    { label: 'Tháng mới nhất', value: dataset?.latestMonth ?? '—' },
+    {
+      label: dataset?.periodKind === 'cohort' ? 'Kỳ dữ liệu cuối' : 'Tháng mới nhất',
+      value: dataset?.latestMonth ?? '—',
+    },
   ]
 
-  const trendData: TrendPoint[] = (dataset?.modeTrend ?? []).map((t) => ({
-    ...t,
-    name: t.modeName || modeName(t.modeId),
-    sharePct: Math.round(t.share * 1000) / 10, // 0..1 fraction → %
-  }))
+  // Dataset pipeline rewrites decision.dataset_trends each run (unique per mode+period) —
+  // de-dupe by modeId (values are identical) so the chart shows 7 clean bars.
+  const seenModes = new Set<string>()
+  const trendData: TrendPoint[] = (dataset?.modeTrend ?? [])
+    .filter((t) => {
+      if (seenModes.has(t.modeId)) return false
+      seenModes.add(t.modeId)
+      return true
+    })
+    .map((t) => ({
+      ...t,
+      name: t.modeName || modeName(t.modeId),
+      // API trả share dạng % (0–100) ở CẢ hai nhánh (monthly scaffold lẫn
+      // cohort Kaggle) — backend đã nhân 100 từ tỉ lệ 0..1 trong DB.
+      sharePct: Math.round(t.share * 10) / 10,
+    }))
 
   return (
     <div className="flex flex-col gap-4">
@@ -1011,7 +1031,7 @@ function OverviewSection({
             ))}
       </div>
 
-      {/* ---- US-25: survey dataset card ---- */}
+      {/* ---- US-35: survey dataset card ---- */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
@@ -1122,12 +1142,26 @@ function OverviewSection({
 
           {trendData.length > 0 && (
             <p className="text-xs text-muted-foreground">
-              Thị phần phương tiện cho tháng khảo sát mới nhất
-              {dataset?.latestMonth ? (
-                <> <span className="font-medium text-foreground">{dataset.latestMonth}</span></>
-              ) : null}
+              {dataset?.periodKind === 'cohort'
+                ? 'Thị phần phương tiện trong toàn bộ mẫu khảo sát'
+                : 'Thị phần phương tiện cho tháng khảo sát mới nhất'}
+              {dataset?.periodKind === 'cohort'
+                ? lastRun
+                  ? (
+                    <>
+                      {' '}(<span className="font-medium text-foreground">{lastRun.rowsClean.toLocaleString('vi-VN')}</span> dòng)
+                    </>
+                  )
+                  : null
+                : dataset?.latestMonth
+                  ? (
+                    <>
+                      {' '}<span className="font-medium text-foreground">{dataset.latestMonth}</span>
+                    </>
+                  )
+                  : null}
               {lastRun?.sourceFile ? (
-                <> · nguồn <span className="font-mono">{lastRun.sourceFile}</span></>
+                <> {' '}· nguồn <span className="font-mono">{lastRun.sourceFile}</span></>
               ) : null}
             </p>
           )}

@@ -1,8 +1,9 @@
 """Admin authentication — sha256+salt passwords, DB-backed session cookie.
 
 Identical scheme to the original implementation (US-21 login, US-30 logout):
-password hash stored as `SALT$sha256(SALT:password)`, session token in the
-admin_session table, httpOnly cookie `rs_admin_session` valid for 8 hours.
+password hash stored as `SALT$sha256(SALT:password)`, session token in
+core.admin_sessions, httpOnly cookie `rs_admin_session` valid for 8 hours.
+Logins/logouts are recorded in core.system_logs and core.admins.last_login_at.
 """
 import hashlib
 import secrets
@@ -23,18 +24,22 @@ def verify_password(password: str, stored: str) -> bool:
     return secrets.compare_digest(hash_password(password), stored)
 
 
-def create_session(conn, user_id: str) -> tuple[str, datetime]:
+def create_session(conn, admin_id: int) -> tuple[str, datetime]:
     token = secrets.token_hex(32)
     expires_at = datetime.now(timezone.utc) + timedelta(seconds=config.SESSION_TTL_SECONDS)
     conn.execute(
-        "INSERT INTO admin_session (id, token, user_id, expires_at) VALUES (%s, %s, %s, %s)",
-        (uuid.uuid4().hex, token, user_id, expires_at),
+        "INSERT INTO core.admin_sessions (admin_id, token, expires_at) VALUES (%s, %s, %s)",
+        (admin_id, token, expires_at),
+    )
+    conn.execute(
+        "UPDATE core.admins SET last_login_at = now(), updated_at = now() WHERE admin_id = %s",
+        (admin_id,),
     )
     return token, expires_at
 
 
 def destroy_session(conn, token: str) -> None:
-    conn.execute("DELETE FROM admin_session WHERE token = %s", (token,))
+    conn.execute("DELETE FROM core.admin_sessions WHERE token = %s", (token,))
 
 
 def set_session_cookie(response: Response, token: str) -> None:
@@ -62,8 +67,8 @@ def get_admin(request: Request) -> dict | None:
     with db.get_conn() as conn:
         row = conn.execute(
             """
-            SELECT s.id AS session_id, s.expires_at, u.id, u.username, u.full_name
-            FROM admin_session s JOIN admin_user u ON u.id = s.user_id
+            SELECT s.session_id, s.expires_at, a.admin_id, a.username, a.full_name
+            FROM core.admin_sessions s JOIN core.admins a ON a.admin_id = s.admin_id
             WHERE s.token = %s
             """,
             (token,),
@@ -73,11 +78,11 @@ def get_admin(request: Request) -> dict | None:
     if row["expires_at"] < datetime.now(timezone.utc):
         try:
             with db.get_conn() as conn:
-                conn.execute("DELETE FROM admin_session WHERE id = %s", (row["session_id"],))
+                conn.execute("DELETE FROM core.admin_sessions WHERE session_id = %s", (row["session_id"],))
         except Exception:
             pass
         return None
-    return {"id": row["id"], "username": row["username"], "fullName": row["full_name"]}
+    return {"id": row["admin_id"], "username": row["username"], "fullName": row["full_name"]}
 
 
 def require_admin(request: Request) -> dict:

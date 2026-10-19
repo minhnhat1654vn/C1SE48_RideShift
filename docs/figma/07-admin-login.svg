@@ -1,0 +1,147 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1240" viewBox="0 0 1440 1240" font-family="Inter, 'Segoe UI', system-ui, sans-serif">
+  <defs>
+    <marker id="mG3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#00884B"/></marker>
+    <marker id="mR3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#DC2626"/></marker>
+  </defs>
+  <rect id="page-bg" width="1440" height="1240" fill="#F8FBF8"/>
+
+  <text x="60" y="46" font-size="24" font-weight="700" fill="#061009">Màn Đăng nhập quản trị (Admin Login)</text>
+  <text x="60" y="70" font-size="12" fill="#606D64">Cổng vào Bảng điều khiển · US-21 · khớp components/rideshift/admin-dashboard.tsx (auth gate) + src/lib/auth.ts</text>
+
+  <!-- ================= FULL SCREEN ARTBOARD ================= -->
+  <g id="login-screen">
+    <rect x="60" y="100" width="620" height="620" rx="10" fill="#F8FBF8" stroke="#D7E1D9"/>
+
+    <!-- header inside screen -->
+    <rect x="60" y="100" width="620" height="64" rx="10" fill="#FFFFFF"/>
+    <line x1="60" y1="164" x2="680" y2="164" stroke="#D7E1D9"/>
+    <rect x="76" y="112" width="40" height="40" rx="12" fill="#00884B"/>
+    <path d="M86 142 C86 132 93 125 103 124 C103 135 96 142 86 142 Z" fill="#F8FBF8"/>
+    <text x="128" y="136" font-size="16" font-weight="700" fill="#061009">Ride<tspan fill="#00884B">Shift</tspan></text>
+    <rect x="436" y="116" width="228" height="32" rx="16" fill="#F0F5F1" stroke="#D7E1D9"/>
+    <text x="520" y="136" font-size="11" fill="#606D64" text-anchor="middle">Lập kế hoạch</text>
+    <rect x="562" y="118" width="94" height="28" rx="14" fill="#00884B"/>
+    <text x="609" y="136" font-size="11" font-weight="600" fill="#FFFFFF" text-anchor="middle">Quản trị</text>
+
+    <!-- login card -->
+    <rect x="200" y="210" width="340" height="380" rx="16" fill="#FFFFFF" stroke="#D7E1D9" stroke-width="1.5"/>
+    <circle cx="370" cy="258" r="24" fill="#D7F4DC"/>
+    <rect x="361" y="254" width="18" height="14" rx="3" fill="none" stroke="#00884B" stroke-width="1.8"/>
+    <path d="M364 254 L364 248 A6 6 0 0 1 376 248 L376 254" fill="none" stroke="#00884B" stroke-width="1.8"/>
+    <text x="370" y="308" font-size="16" font-weight="700" fill="#061009" text-anchor="middle">Đăng nhập quản trị</text>
+    <text x="370" y="328" font-size="10" fill="#606D64" text-anchor="middle">Đăng nhập để quản lý vùng LEZ, quy định chính sách,</text>
+    <text x="370" y="343" font-size="10" fill="#606D64" text-anchor="middle">phương tiện và trọng số MCDM.</text>
+
+    <text x="224" y="378" font-size="10.5" font-weight="600" fill="#061009">Tên đăng nhập</text>
+    <rect x="224" y="386" width="292" height="38" rx="10" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="238" y="410" font-size="11" fill="#061009">admin</text>
+    <text x="224" y="448" font-size="10.5" font-weight="600" fill="#061009">Mật khẩu</text>
+    <rect x="224" y="456" width="292" height="38" rx="10" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="238" y="480" font-size="11" fill="#061009">••••••••••</text>
+
+    <rect x="224" y="514" width="292" height="40" rx="10" fill="#00884B"/>
+    <text x="370" y="539" font-size="12" font-weight="700" fill="#FFFFFF" text-anchor="middle">Đăng nhập</text>
+    <text x="370" y="576" font-size="8.5" font-style="italic" fill="#8CA092" text-anchor="middle">Seed mặc định: admin / admin123 — đổi mật khẩu trước khi triển khai thật</text>
+
+    <!-- footer inside screen -->
+    <rect x="60" y="664" width="620" height="56" rx="0" fill="#F0F5F1"/>
+    <line x1="60" y1="664" x2="680" y2="664" stroke="#D7E1D9"/>
+    <text x="370" y="696" font-size="9" fill="#606D64" text-anchor="middle">RideShift – Cố vấn chuyển đổi giao thông thông minh · Nhóm C1SE.48 · ĐH Quốc tế, ĐH Duy Tân</text>
+  </g>
+  <text x="60" y="752" font-size="10" fill="#606D64">Bấm tab [Quản trị] khi chưa có phiên → hiển thị màn này (toàn màn hình, giữa trang) · đã có phiên → vào thẳng Dashboard.</text>
+
+  <!-- ================= STATE : ERROR ================= -->
+  <g id="state-error">
+    <rect x="720" y="100" width="320" height="240" rx="14" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="740" y="126" font-size="11" font-weight="700" fill="#DC2626">TRẠNG THÁI LỖI</text>
+    <rect x="740" y="140" width="280" height="160" rx="12" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="754" y="164" font-size="11" font-weight="700" fill="#061009">Đăng nhập quản trị</text>
+    <rect x="754" y="176" width="252" height="30" rx="8" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="764" y="195" font-size="9" fill="#061009">admin</text>
+    <rect x="754" y="212" width="252" height="30" rx="8" fill="#FFFFFF" stroke="#F5C2C0" stroke-width="1.4"/>
+    <text x="764" y="231" font-size="9" fill="#DC2626">••••••</text>
+    <rect x="754" y="250" width="252" height="30" rx="8" fill="#FDECEC" stroke="#F5C2C0"/>
+    <text x="766" y="269" font-size="8.5" fill="#B91C1C">✕ Thông tin đăng nhập quản trị không đúng.</text>
+    <rect x="754" y="288" width="252" height="0" fill="none"/>
+    <text x="740" y="324" font-size="9" fill="#606D64">API trả 401 → Alert đỏ phía trên nút · giữ nguyên giá trị đã nhập</text>
+  </g>
+
+  <!-- ================= STATE : LOADING ================= -->
+  <g id="state-loading">
+    <rect x="1060" y="100" width="320" height="240" rx="14" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="1080" y="126" font-size="11" font-weight="700" fill="#B45309">TRẠNG THÁI ĐANG XỬ LÝ</text>
+    <rect x="1080" y="140" width="280" height="160" rx="12" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <rect x="1094" y="276" width="252" height="34" rx="8" fill="#00884B" opacity="0.6"/>
+    <circle cx="1120" cy="293" r="8" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-dasharray="30 14"/>
+    <text x="1230" y="297" font-size="10" fill="#FFFFFF" text-anchor="middle">Đang xử lý…</text>
+    <text x="1080" y="324" font-size="9" fill="#606D64">Nút bị vô hiệu + spinner · chặn bấm trùng khi POST /api/admin/login</text>
+  </g>
+
+  <!-- ================= AUTH FLOW ================= -->
+  <g id="auth-flow">
+    <rect x="720" y="370" width="660" height="190" rx="14" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="744" y="398" font-size="12" font-weight="700" fill="#061009">Luồng xác thực</text>
+
+    <rect x="744" y="416" width="96" height="44" rx="10" fill="#F2FBF4" stroke="#00884B"/>
+    <text x="792" y="442" font-size="9" fill="#061009" text-anchor="middle">Form đăng nhập</text>
+    <line x1="840" y1="438" x2="876" y2="438" stroke="#00884B" stroke-width="1.6" marker-end="url(#mG3)"/>
+    <rect x="880" y="416" width="120" height="44" rx="10" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="940" y="434" font-size="8.5" fill="#061009" text-anchor="middle">POST /api/admin/login</text>
+    <text x="940" y="448" font-size="8" fill="#606D64" text-anchor="middle">{username, password}</text>
+    <line x1="1000" y1="438" x2="1036" y2="438" stroke="#00884B" stroke-width="1.6" marker-end="url(#mG3)"/>
+    <rect x="1040" y="416" width="130" height="44" rx="10" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="1105" y="434" font-size="8.5" fill="#061009" text-anchor="middle">so sánh sha256+salt</text>
+    <text x="1105" y="448" font-size="8" fill="#606D64" text-anchor="middle">bảng AdminUser</text>
+    <line x1="1170" y1="438" x2="1206" y2="438" stroke="#00884B" stroke-width="1.6" marker-end="url(#mG3)"/>
+    <rect x="1210" y="416" width="146" height="44" rx="10" fill="#D7F4DC" stroke="#00884B"/>
+    <text x="1283" y="434" font-size="8.5" font-weight="600" fill="#09311B" text-anchor="middle">tạo AdminSession + cookie</text>
+    <text x="1283" y="448" font-size="8" fill="#09311B" text-anchor="middle">rs_admin_session (8h)</text>
+
+    <path d="M 940 460 L 940 500 L 820 500 L 820 466" fill="none" stroke="#DC2626" stroke-width="1.4" marker-end="url(#mR3)"/>
+    <rect x="852" y="488" width="176" height="26" rx="8" fill="#FDECEC"/>
+    <text x="940" y="505" font-size="8.5" fill="#B91C1C" text-anchor="middle">sai → 401 → Alert đỏ trên form</text>
+    <text x="1283" y="500" font-size="8.5" fill="#0D9488" text-anchor="middle">đúng → chuyển thẳng Bảng điều khiển</text>
+    <text x="744" y="542" font-size="9" fill="#606D64">Mọi API /api/admin/* đều đọc lại cookie để xác thực (requireAdmin) — cookie hết hạn/tồn tại sai → 401 “Phiên đăng nhập đã hết hạn”.</text>
+  </g>
+
+  <!-- ================= SECURITY SPEC ================= -->
+  <g id="auth-spec">
+    <rect x="720" y="580" width="660" height="140" rx="14" fill="#E8F7EC" stroke="#B9DFC6"/>
+    <text x="744" y="608" font-size="12" font-weight="700" fill="#09311B">Quy tắc bảo mật áp dụng</text>
+    <text x="744" y="632" font-size="10" fill="#09311B">• Mật khẩu không bao giờ lưu plaintext: hash sha256 với salt cố định “rideshift-c1se48” (lib/auth.ts)</text>
+    <text x="744" y="652" font-size="10" fill="#09311B">• Cookie phiên: httpOnly, sameSite=lax, path=/, maxAge 8 giờ — JS phía client không đọc được</text>
+    <text x="744" y="672" font-size="10" fill="#09311B">• Token phiên 32 byte ngẫu nhiên (hex) lưu bảng AdminSession; hết hạn bị dọn khi có yêu cầu</text>
+    <text x="744" y="692" font-size="10" fill="#09311B">• Đăng xuất → POST /api/admin/logout → xóa dòng phiên + xóa cookie → quay về màn đăng nhập</text>
+  </g>
+
+  <!-- ================= DB LINK ================= -->
+  <g id="db-link">
+    <rect x="60" y="790" width="1320" height="200" rx="14" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="84" y="818" font-size="12" font-weight="700" fill="#061009">Gắn với cơ sở dữ liệu (chi tiết: docs/db.md)</text>
+
+    <rect x="84" y="836" width="380" height="130" rx="10" fill="#F8FBF8" stroke="#D7E1D9"/>
+    <text x="100" y="858" font-size="10.5" font-weight="700" fill="#061009">AdminUser</text>
+    <text x="100" y="878" font-size="9" fill="#061009">(k) id : String (cuid) — PK</text>
+    <text x="100" y="894" font-size="9" fill="#061009">username : String — UNIQUE, NOT NULL</text>
+    <text x="100" y="910" font-size="9" fill="#061009">passwordHash : String — “salt$sha256(salt:password)”</text>
+    <text x="100" y="926" font-size="9" fill="#061009">fullName : String?</text>
+    <text x="100" y="942" font-size="9" fill="#061009">createdAt : DateTime — default now()</text>
+
+    <rect x="500" y="836" width="420" height="130" rx="10" fill="#F8FBF8" stroke="#D7E1D9"/>
+    <text x="516" y="858" font-size="10.5" font-weight="700" fill="#061009">AdminSession</text>
+    <text x="516" y="878" font-size="9" fill="#061009">(k) id : String (cuid) — PK</text>
+    <text x="516" y="894" font-size="9" fill="#061009">token : String — UNIQUE (giá trị cookie)</text>
+    <text x="516" y="910" font-size="9" fill="#061009">(k) userId : String → AdminUser.id — onDelete: Cascade</text>
+    <text x="516" y="926" font-size="9" fill="#061009">expiresAt : DateTime — NOT NULL (now + 8h)</text>
+    <text x="516" y="942" font-size="9" fill="#061009">createdAt : DateTime — default now()</text>
+
+    <rect x="956" y="836" width="400" height="130" rx="10" fill="#F0F5F1" stroke="#D7E1D9"/>
+    <text x="972" y="858" font-size="10.5" font-weight="700" fill="#061009">Quan hệ &amp; ràng buộc</text>
+    <text x="972" y="880" font-size="9" fill="#061009">AdminUser 1..1 ─── 1..n AdminSession</text>
+    <text x="972" y="900" font-size="9" fill="#061009">Constraint: xóa user → cascade xóa toàn bộ phiên</text>
+    <text x="972" y="920" font-size="9" fill="#061009">Constraint: token UNIQUE → tra cookie O(1)</text>
+    <text x="972" y="940" font-size="9" fill="#061009">Session TTL = 8 giờ (SESSION_TTL_MS, lib/auth.ts)</text>
+  </g>
+
+  <text x="720" y="1150" font-size="9" fill="#8CA092">Màn này không có riêng route /admin — là “auth gate” bên trong trang duy nhất / (SPA): chưa đăng nhập → thẻ đăng nhập; đã đăng nhập → dashboard 4 tab.</text>
+</svg>

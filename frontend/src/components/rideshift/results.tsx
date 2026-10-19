@@ -4,7 +4,7 @@
 // compliance, air quality, ranked MCDM recommendations, comparison table
 // and impact estimator (US-02..US-12, US-17, US-19, US-20).
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'

@@ -33,10 +33,10 @@ RideShift giúp người dân tra cứu hành trình, kiểm tra **tuân thủ q
 ┌──────────────────┐   REST (JSON)   ┌─────────────────────┐   SQL   ┌──────────────────────────┐
 │  Frontend        │ ──────────────► │  Backend            │ ──────► │  PostgreSQL 16 + PostGIS │
 │  Next.js 16      │                 │  Python + FastAPI   │         │  rideshift               │
-│  React 19        │ ◄────────────── │  pandas + Shapely   │ ◄────── │  (geometry GIST khi có   │
-│  Tailwind+shadcn │                 │  uvicorn :8000      │         │   PostGIS, JSON polyline │
-│  Leaflet :3000   │                 └─────────────────────┘         │   là nguồn chuẩn)        │
-└──────────────────┘                                                 └──────────────────────────┘
+│  React 19        │ ◄────────────── │  pandas + Shapely   │ ◄────── │  10 cột GEOMETRY(DB      │
+│  Tailwind+shadcn │                 │  uvicorn :8000      │         │  FINAL) + GIST index     │
+│  Leaflet :3000   │                 └─────────────────────┘         └──────────────────────────┘
+└──────────────────┘
         │  ▲
         │  │  Dịch vụ bên ngoài (public): OSM tiles · Nominatim (geocode)
         └──┘  OSRM (routing) · Open-Meteo (air quality)
@@ -54,7 +54,7 @@ RideShift giúp người dân tra cứu hành trình, kiểm tra **tuân thủ q
 | Routing | OSRM | OSRM công cộng (routed-car/bike/foot) — có hướng dẫn tự host tại `osrm/` |
 | Geocoding | Nominatim | Nominatim + bộ địa danh Hà Nội dự phòng |
 | Backend | Python + FastAPI | FastAPI + uvicorn + pandas + numpy + Shapely + httpx |
-| Database | PostgreSQL + PostGIS | PostgreSQL 16 (image `postgis/postgis:16-3.4`), psycopg 3 |
+| Database | PostgreSQL + PostGIS | PostgreSQL 16 (image `postgis/postgis:16-3.4`), psycopg 3 — 10 cột hình học `GEOMETRY(...)` đúng DB FINAL + GIST index |
 | MCDM | TOPSIS | TOPSIS 7 tiêu chí — `backend/app/services/mcdm.py` |
 | Chất lượng không khí | Open-Meteo | Open-Meteo Air-Quality + cache 30' + mô phỏng dự phòng |
 
@@ -66,7 +66,7 @@ C1SE48_RideShift/
 ├── frontend/               # Next.js 16 — toàn bộ giao diện (chạy :3000)
 ├── backend/                # FastAPI — REST API, MCDM, dịch vụ ngoài (chạy :8000)
 ├── postgres/               # Tài sản database
-│   ├── init/01_schema.sql  #   schema tạo tự động khi khởi tạo container (idempotent)
+│   ├── schema.reference.sql #   bản sao tham khảo của backend/app/schema.sql (KHÔNG tự chạy)
 │   └── snapshot/           #   ảnh dữ liệu mẫu (restore nhanh cho demo)
 ├── osrm/                   # Hướng dẫn + script tự host OSRM (tải/build/chạy)
 ├── docs/                   # Kiến trúc, ERD, tài liệu DB, tài liệu đồ án, dữ liệu nguồn
@@ -76,33 +76,6 @@ C1SE48_RideShift/
 ├── README.md
 ├── AGENTS.md               # Hướng dẫn cho AI agent tham gia phát triển
 └── docker-compose.yml      # db + backend + frontend (+ osrm tuỳ chọn)
-```
-
-## 💻 Yêu cầu môi trường
-
-Để chạy dự án bằng Docker, máy cần cài:
-
-- Git
-- Docker Desktop
-- Docker Compose v2
-
-Kiểm tra:
-
-```bash
-git --version
-docker --version
-docker compose version
-```
-
-## ⚡ Quick Start
-
-```bash
-git clone <REPOSITORY_URL>
-cd C1SE48_RideShift
-
-cp .env.example .env
-
-docker compose up --build
 ```
 
 ## 🚀 Chạy bằng Docker (khuyên dùng)
@@ -118,14 +91,28 @@ docker compose up --build
 | API + Swagger | http://localhost:8000/docs |
 | PostGIS | localhost:5432 (db `rideshift`) |
 
-Lần đầu khởi động: backend tự tạo schema, tự seed dữ liệu mẫu (7 phương tiện, vùng LEZ Vành đai 1 + phố cổ, quy định, trọng số, địa điểm, chuyến đi demo) và chạy pipeline xử lý dataset khảo sát.
+Lần đầu khởi động: backend tự tạo toàn bộ schema — **24 bảng nghiệp vụ trong 6 schema theo tài liệu thiết kế DB FINAL + ERD nhóm** (`core`, `gis`, `transportation`, `policy`, `trip`, `decision`; PK BIGSERIAL; đã bỏ `users`/`vehicles` — hệ thống chỉ có role guest/admin), tự seed dữ liệu mẫu (khu vực Hà Nội, 31 quận/huyện, 7 phương tiện + 7 loại xe, vùng LEZ Vành đai 1, quy định, trọng số, địa điểm, 140 chuyến đi demo) và chạy pipeline xử lý **bộ khảo sát thật Kaggle "Vehicle at Ha Noi Dataset" 25.590 dòng** (`backend/data/dataHN.csv` → 25.586 dòng sạch vào `decision.vehicle_survey_responses`, 42 aggregate theo 6 nhóm tuổi vào `decision.dataset_trends`). Frontend là API consumer thuần, **không sở hữu bảng nào** — sơ đồ chi tiết xem `postgres/README.md`.
+
+### Sự cố thường gặp
+
+- **F5 trang quản trị bị đá ra đăng nhập / KPI hiện "—" + cảnh báo giả** — frontend gọi backend khác port (cross-origin): cookie phiên chỉ được gửi/nhận khi fetch dùng `credentials: 'include'` và backend liệt kê đúng origin frontend trong `CORS_ORIGINS`. Bản này đã sửa sẵn; nếu bạn mở frontend qua IP LAN/domain khác, thêm origin vào biến `CORS_ORIGINS` trong `.env` rồi `docker compose up -d backend`.
+- **Autocomplete mất số nhà (chỉ gợi ý địa danh chung)** — backend không gọi được Nominatim công cộng (chậm/chặn/rate-limit, xem `docker compose logs backend` — hiện nay đã log rõ). **Cách trị dứt điểm:** đăng ký key miễn phí tại goong.io và đặt `GOONG_API_KEY` trong `.env` — khi có key, Goong (phủ địa chỉ VN + số nhà) là lựa chọn đầu của chuỗi tra cứu; Nominatim chỉ còn là dự phòng. Xem biến `NOMINATIM_URL` trong `.env.example` nếu muốn trỏ mirror OSM.
+- **Đã từng chạy bản cũ (bảng tên cũ `admin_user`/`trip_record`…, camelCase `AdminUser`, schema `tiger`/`topology`…)** — backend **tự migrate dữ liệu sang 24 bảng mới rồi dọn bảng cũ lúc boot** (`seed.py::migrate_legacy`), không mất dữ liệu demo; muốn DB sạch hẳn thì:
+
+  ```bash
+  docker compose down -v
+  docker compose up --build
+  ```
+
+  (schema + seed idempotent nên chạy lại `up` bao nhiêu lần cũng an toàn.)
+- **Login quản trị báo lỗi 500** — xem `docker compose logs backend`: backend tự seed `admin/admin123` lúc boot; lỗi thường do DB chưa sẵn sàng — chờ healthcheck db rồi `docker compose restart backend`.
 
 ## 🔧 Chạy thủ công (không Docker)
 
-**1. PostgreSQL + PostGIS** — tạo database `rideshift`, schema sẽ do backend tự đảm bảo (hoặc chạy `postgres/init/01_schema.sql`):
+**1. PostgreSQL + PostGIS** — tạo database `rideshift`; backend tự tạo toàn bộ schema theo 6 schema DB FINAL khi boot (khởi tạo thủ công nếu muốn):
 
 ```bash
-psql "postgresql://postgres:postgres@localhost:5432/rideshift" -f postgres/init/01_schema.sql
+psql "postgresql://postgres:postgres@localhost:5432/rideshift" -f postgres/schema.reference.sql
 ```
 
 **2. Backend (Python 3.12+):**
@@ -154,6 +141,9 @@ NEXT_PUBLIC_API_BASE=http://localhost:8000 bun run dev   # → http://localhost:
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | db | `postgres` / `postgres` / `rideshift` | Khởi tạo container PostgreSQL |
 | `DATABASE_URL` | backend | `postgresql://postgres@127.0.0.1:5432/rideshift` | DSN PostgreSQL |
 | `RIDESHIFT_SALT` | backend | `rideshift-c1se48` | Pepper mã hoá mật khẩu quản trị |
+| `CORS_ORIGINS` | backend | `http://localhost:3000,http://127.0.0.1:3000` | Origin frontend được gọi backend (cookie phiên cần origin tường minh) |
+| `NOMINATIM_URL` | backend | Nominatim công cộng | Geocoding dự phòng — đổi khi bị chậm/chặn/rate-limit |
+| `GOONG_API_KEY` | backend + frontend | *(trống = tắt)* | **Khuyến nghị**: key goong.io (miễn phí) — geocoding VN có số nhà, là lựa chọn đầu của chuỗi tra cứu khi được đặt |
 | `BACKEND_PORT` | backend | `8000` | Cổng HTTP backend |
 | `NEXT_PUBLIC_API_BASE` | frontend | *(rỗng = chế độ gateway)* | Origin backend trình duyệt gọi trực tiếp |
 

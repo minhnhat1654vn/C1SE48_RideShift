@@ -1,9 +1,16 @@
 """PostgreSQL access layer — psycopg 3, connection-per-request.
 
-The database schema is owned by this service (schema.sql + seed.py);
-Prisma is no longer used at runtime.
+The whole database schema is owned by this service (schema.sql + seed.py).
+Business tables live in the 6 schemas from the "DB FINAL" design document
+(core / gis / transportation / policy / trip / decision) — app SQL uses
+fully-qualified table names so the `search_path` is only a safety net.
+
+Per DB FINAL every shape column is a real PostGIS GEOMETRY type. The wire
+format between backend and frontend stays GeoJSON, so writes go through
+ST_SetSRID(ST_GeomFromGeoJSON(…),4326) and reads through ST_AsGeoJSON —
+use the geom_write()/geom_read() builders below instead of hand-writing
+the ST_* expressions.
 """
-import json
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -14,6 +21,11 @@ from . import config
 
 SCHEMA_FILE = Path(__file__).resolve().parent / "schema.sql"
 
+# public first: PostGIS installs its objects there; unqualified DML then
+# resolves business tables in the design-document schemas.
+SEARCH_PATH = "public,core,policy,transportation,trip,decision"
+CONNECT_OPTIONS = f"-c search_path={SEARCH_PATH}"
+
 
 def dsn() -> str:
     return config.DATABASE_URL
@@ -21,7 +33,9 @@ def dsn() -> str:
 
 @contextmanager
 def get_conn():
-    conn = psycopg.connect(dsn(), row_factory=dict_row, autocommit=True)
+    conn = psycopg.connect(
+        dsn(), row_factory=dict_row, autocommit=True, options=CONNECT_OPTIONS
+    )
     try:
         yield conn
     finally:
@@ -31,7 +45,7 @@ def get_conn():
 @contextmanager
 def tx():
     """Transactional connection (commit/rollback managed)."""
-    conn = psycopg.connect(dsn(), row_factory=dict_row)
+    conn = psycopg.connect(dsn(), row_factory=dict_row, options=CONNECT_OPTIONS)
     try:
         with conn:
             yield conn
@@ -40,11 +54,15 @@ def tx():
 
 
 def init_db() -> None:
-    """Create schema (idempotent) and attempt PostGIS enablement."""
+    """Create/upgrade the schema (idempotent).
+
+    schema.sql now owns everything PostGIS-related: it requires the extension,
+    defines the DB FINAL GEOMETRY columns, upgrades interim TEXT volumes in
+    place and creates the GIST spatial indexes.
+    """
     sql = SCHEMA_FILE.read_text(encoding="utf-8")
     with get_conn() as conn:
         conn.execute(sql)
-    enable_postgis_if_available()
 
 
 def postgis_available() -> bool:
@@ -55,67 +73,103 @@ def postgis_available() -> bool:
         return bool(row and row["ok"])
 
 
-def enable_postgis_if_available() -> bool:
-    """Try CREATE EXTENSION postgis; populate a GIST-indexed geometry column.
+# ---------------------------------------------------------------------------
+# Geometry column helpers (DB FINAL: GEOMETRY columns, GeoJSON on the wire)
+# ---------------------------------------------------------------------------
 
-    In this sandbox PostgreSQL runs without the PostGIS extension (no root to
-    install libpostgis), so spatial analysis runs in the Python/Shapely layer.
-    The docker-compose deployment uses the postgis/postgis image where this
-    succeeds and lez_zone.geom is kept in sync for DB-level spatial queries.
+def geom_write(multi: bool = False) -> str:
+    """Value expression for INSERT/UPDATE of a geometry column.
+
+    The GeoJSON text travels in the NEXT %s parameter, e.g.::
+
+        sql = f"INSERT INTO policy.lez_zones (geometry) "
+              f"VALUES ({db.geom_write(multi=True)})"
+        conn.execute(sql, (geojson_text,))
+
+    multi=True wraps the parsed shape with ST_Multi so both Polygon and
+    MultiPolygon GeoJSON satisfy the geometry(MultiPolygon,4326) columns.
     """
-    try:
-        with get_conn() as conn:
-            conn.execute("CREATE EXTENSION IF NOT EXISTS postgis")
-    except Exception:
-        return False
+    inner = "ST_GeomFromGeoJSON(%s)"
+    if multi:
+        inner = f"ST_Multi({inner})"
+    return f"ST_SetSRID({inner}, 4326)"
+
+
+def geom_read(col: str, alias: str | None = None) -> str:
+    """SELECT expression returning a shape column as GeoJSON text.
+
+    PostGIS would otherwise render the column as hex EWKB in text protocol.
+    Pass alias to bind the result to a named key, e.g. 'geometry_json'.
+    """
+    expr = f"ST_AsGeoJSON({col})"
+    return f"{expr} AS {alias}" if alias else expr
+
+
+# ---------------------------------------------------------------------------
+# Small shared lookups (id maps for the BIGSERIAL layout)
+# ---------------------------------------------------------------------------
+
+def study_area_id(conn, code: str = "HN") -> int | None:
+    row = conn.execute(
+        "SELECT study_area_id FROM core.study_areas WHERE code = %s", (code,)
+    ).fetchone()
+    return int(row["study_area_id"]) if row else None
+
+
+def mode_id_by_code(conn, code: str) -> int | None:
+    row = conn.execute(
+        "SELECT transportation_mode_id FROM transportation.transportation_modes WHERE code = %s",
+        (code,),
+    ).fetchone()
+    return int(row["transportation_mode_id"]) if row else None
+
+
+def vehicle_type_id_by_mode_code(conn, code: str) -> int | None:
+    row = conn.execute(
+        """
+        SELECT vt.vehicle_type_id
+        FROM policy.vehicle_types vt
+        JOIN transportation.transportation_modes tm
+          ON tm.transportation_mode_id = vt.transportation_mode_id
+        WHERE tm.code = %s
+        ORDER BY vt.is_default DESC
+        LIMIT 1
+        """,
+        (code,),
+    ).fetchone()
+    return int(row["vehicle_type_id"]) if row else None
+
+
+def region_id_by_name(conn, name: str) -> int | None:
+    if not name:
+        return None
+    row = conn.execute(
+        "SELECT region_id FROM gis.administrative_regions WHERE name = %s LIMIT 1",
+        (name,),
+    ).fetchone()
+    return int(row["region_id"]) if row else None
+
+
+def log_action(
+    action: str,
+    admin_id: int | None = None,
+    entity_type: str | None = None,
+    entity_id: int | None = None,
+    description: str | None = None,
+    ip: str | None = None,
+    level: str = "info",
+) -> None:
+    """Append to core.system_logs (US audit trail). Never raises."""
     try:
         with get_conn() as conn:
             conn.execute(
-                "ALTER TABLE lez_zone ADD COLUMN IF NOT EXISTS geom geometry(Polygon,4326)"
+                """
+                INSERT INTO core.system_logs
+                    (admin_id, level, action, entity_type, entity_id, description, ip_address)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """,
+                (admin_id, level, action, entity_type, entity_id, description, ip),
             )
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS lez_zone_geom_gist ON lez_zone USING gist (geom)"
-            )
-            _backfill_zone_geom(conn)
-    except Exception:
-        return False
-    return True
-
-
-def _backfill_zone_geom(conn) -> None:
-    """Populate lez_zone.geom from the canonical coordinates JSON."""
-    zones = conn.execute("SELECT id, coordinates FROM lez_zone").fetchall()
-    for z in zones:
-        try:
-            pts = json.loads(z["coordinates"])
-        except Exception:
-            continue
-        if not isinstance(pts, list) or len(pts) < 3:
-            continue
-        ring = [[float(p[1]), float(p[0])] for p in pts]
-        ring.append(ring[0])
-        geojson = json.dumps({"type": "Polygon", "coordinates": [ring]})
-        conn.execute(
-            "UPDATE lez_zone SET geom = ST_SetSRID(ST_GeomFromGeoJSON(%s), 4326) WHERE id = %s",
-            (geojson, z["id"]),
-        )
-
-
-def sync_zone_geom(conn, zone_id: str, coordinates_json: str) -> None:
-    """Keep geom in sync on zone create/update when PostGIS is present."""
-    if not postgis_available():
-        return
-    try:
-        pts = json.loads(coordinates_json)
-        if not isinstance(pts, list) or len(pts) < 3:
-            return
-        ring = [[float(p[1]), float(p[0])] for p in pts]
-        ring.append(ring[0])
-        geojson = json.dumps({"type": "Polygon", "coordinates": [ring]})
-        conn.execute(
-            "UPDATE lez_zone SET geom = ST_SetSRID(ST_GeomFromGeoJSON(%s), 4326) WHERE id = %s",
-            (geojson, zone_id),
-        )
     except Exception:
         pass
 

@@ -21,7 +21,13 @@ export function apiUrl(path: string): string {
   return qs ? `${base}?${qs}` : base
 }
 
-/** fetch wrapper with the same semantics the components already use. */
+/** fetch wrapper with the same semantics the components already use.
+ *
+ * `credentials: 'include'` is REQUIRED for the Docker deployment where the
+ * browser talks to the backend cross-origin (localhost:3000 → localhost:8000):
+ * the default 'same-origin' mode neither sends nor stores the admin session
+ * cookie (`rs_admin_session`) on cross-origin requests, which logged everyone
+ * out on refresh. On the sandbox (same-origin gateway) it is a no-op. */
 export function apiFetch(path: string, init?: RequestInit): Promise<Response> {
-  return fetch(apiUrl(path), init)
+  return fetch(apiUrl(path), { credentials: 'include', ...init })
 }

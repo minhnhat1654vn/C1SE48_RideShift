@@ -6,9 +6,22 @@ name: rideshift
 #   database  : PostgreSQL 16 + PostGIS (postgis/postgis)   -> localhost:5432
 #   external  : OpenStreetMap tiles, OSRM, Nominatim, Open-Meteo (public APIs)
 #
+# The PostgreSQL schema is owned ENTIRELY by the FastAPI backend: it creates
+# and seeds everything on boot (backend/app/schema.sql + seed.py) and organises
+# the tables into the 6 schemas of the "DB FINAL" design document (core, gis,
+# transportation, policy, trip, decision). The frontend is a pure API consumer
+# and owns no table — see postgres/README.md for the schema map.
+#
+# Deterministic start-up order (no race):
+#   db -> backend (own schema + seed + dataset pipeline) -> frontend
+#
 # Usage:
 #   cp .env.example .env
 #   docker compose up --build
+#   # Re-running is safe: schema + seeds are idempotent.
+#   # Nếu từng chạy bản cũ (volume đã khởi tạo): nên `docker compose down -v`
+#   # một lần để DB được xếp lại theo 6 schema (backend cũng tự dọn legacy
+#   # bảng camelCase/tiger/topology lúc boot, nhưng down -v cho DB sạch hẳn).
 
 services:
   db:
@@ -17,13 +30,14 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-rideshift}
+      # Chỉ cài extension postgis — image mặc định còn tạo tiger geocoder +
+      # topology (schemas tiger/tiger_data/topology) mà dự án không dùng.
+      # Backend schema.sql cũng tự DROP các phần thừa này lúc boot.
+      POSTGRES_MULTIPLE_EXTENSIONS: postgis
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      # Schema được tạo tự động lần đầu (idempotent CREATE TABLE IF NOT EXISTS);
-      # backend cũng tự đảm bảo schema + seed khi khởi động.
-      - ./postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-rideshift}"]
       interval: 5s
@@ -35,6 +49,15 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-rideshift}
       RIDESHIFT_SALT: ${RIDESHIFT_SALT:-rideshift-c1se48}
+      # Cookie phiên quản trị chỉ được trình duyệt gửi/nhận khi origin frontend
+      # được liệt kê tường minh (không dùng "*"). Thêm origin của bạn nếu truy
+      # cập frontend qua IP LAN/domain khác, ví dụ http://192.168.1.10:3000.
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      # Tuỳ chọn: trỏ Nominatim mirror/tự host khi bản công cộng bị chậm/chặn
+      # (autocomplete mất số nhà = đang rơi vào danh sách địa danh dự phòng).
+      NOMINATIM_URL: ${NOMINATIM_URL:-}
+      # KHUYẾN NGHỊ: key goong.io (miễn phí) — geocoding VN có số nhà,
+      # trở thành lựa chọn đầu của chuỗi tra cứu khi được đặt.
       GOONG_API_KEY: ${GOONG_API_KEY:-}
     ports:
       - "8000:8000"
@@ -47,10 +70,18 @@ services:
       context: ./frontend
       args:
         NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-http://localhost:8000}
+    environment:
+      # Chỉ dùng bởi route server-side /api/geocode (chế độ gateway/sandbox khi
+      # trình duyệt gọi Next thay vì FastAPI). Luồng Docker chuẩn: browser gọi
+      # thẳng FastAPI — key của backend ở khối environment phía trên.
+      GOONG_API_KEY: ${GOONG_API_KEY:-}
     ports:
       - "3000:3000"
     depends_on:
-      - backend
+      db:
+        condition: service_healthy
+      backend:
+        condition: service_started
 
   # ── Tuỳ chọn: tự host OSRM thay vì dùng provider công cộng ──
   # Xem osrm/README.md: chạy download.sh -> build.sh -> đặt data vào ./osrm/data

@@ -14,7 +14,7 @@
 | 3 | Database: PostgreSQL | PostgreSQL 18.4 (embedded trong sandbox) / 16 + PostGIS (Docker) | ✅ |
 | 4 | PostgreSQL + PostGIS (Deliverable #10, NFR-02) | docker-compose dùng image **postgis/postgis:16-3.4**; schema sẵn cột `geometry(Polygon,4326)` + GIST; trong sandbox không có root → spatial chạy Shapely (fallback tự động) | ✅ deploy / ⚠️ sandbox (hạn chế môi trường) |
 | 5 | Data processing: Python + Pandas | **pandas pipeline** `app/services/trend.py` xử lý "Vehicle at Ha Noi Dataset" → trend criterion + analytics aggregation + Deliverable #11 (processed CSV) | ✅ |
-| 6 | "Vehicle at Ha Noi Dataset" | `data/vehicle_at_hanoi.csv` (2.400 khảo sát; thay bằng CSV Kaggle thật cùng cột là chạy lại ngay) | ✅ |
+| 6 | "Vehicle at Ha Noi Dataset" | `data/dataHN.csv` — bộ Kaggle **thật** 25.590 dòng × 58 cột (9,1MB trong repo); trục cohort 6 nhóm tuổi; fallback scaffold monthly khi thiếu file | ✅ |
 | 7 | Leaflet / MapLibre | Leaflet 1.9.4 + react-leaflet 5 | ✅ |
 | 8 | OpenStreetMap | OSM tiles + Nominatim geocoding | ✅ |
 | 9 | OSRM routing | FOSSGIS OSRM chain + demo server + fallback ước lượng, cache 30' | ✅ |

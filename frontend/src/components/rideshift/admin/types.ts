@@ -20,14 +20,16 @@ export type DatasetRunInfo = {
   rowsClean: number
 }
 
-/** One transport mode's share in the latest survey month (dataset_trend). */
+/** One transport mode's share for the reported survey period (decision.dataset_trends). */
 export type DatasetTrendRow = {
   modeId: string
   modeName: string
-  /** Share of survey trips for this mode in the latest month (0..1). */
+  /** Share of survey trips for this mode in the reported period.
+   *  The API reports it as 0–100 % (DB stores a 0..1 fraction).
+   *  With cohort-kind data (Kaggle) this is the whole-sample share. */
   share: number
   /** Composite adoption+growth trend index (0..1, higher = rising mode). */
-  trendIndex: number
+  trendIndex: number | null
   /** Number of cleaned survey rows behind the share. */
   sampleCount: number
 }
@@ -35,7 +37,11 @@ export type DatasetTrendRow = {
 /** Optional `dataset` section of the admin analytics response. */
 export type DatasetSection = {
   lastRun: DatasetRunInfo | null
+  /** Latest period label — survey month (monthly scaffold) or age cohort
+   *  (Kaggle dataHN.csv, periodKind "cohort"). */
   latestMonth: string | null
+  /** "month" = monthly scaffold data, "cohort" = Kaggle age-cohort data. */
+  periodKind?: 'month' | 'cohort'
   modeTrend: DatasetTrendRow[]
 }
 

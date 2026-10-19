@@ -13,11 +13,11 @@
 |---|---|
 | **Kiến trúc tổng thể** (§12: 5 actor + luồng dữ liệu) | ✅ **Khớp** — đủ 5 actor: User, Admin, Map & Routing (OSM+OSRM), Air Quality (Open-Meteo), hệ thống trung tâm RideShift |
 | **Backend** (§10: Python + FastAPI) | ✅ **Khớp** — FastAPI/UVicorn port 8000, 25 REST endpoints, Swagger tự sinh tại `/docs` |
-| **Database** (§10 + Deliverable #10 + NFR-02) | ✅ **Khớp** — PostgreSQL + PostGIS dual-mode (xem `database.md`) |
+| **Database** (§10 + Deliverable #10 + NFR-02) | ✅ **Khớp** — PostgreSQL + PostGIS (10 cột GEOMETRY thật + GIST, xem `db.md`) |
 | **Frontend** (§10: ReactJS / HTML5-CSS3-JS) | ✅ React 19 (Next.js App Router) / ➕ mở rộng: TypeScript + Tailwind + shadcn/ui |
 | **MCDM** (§10: MCDM/TOPSIS) | ✅ TOPSIS (Hwang & Yoon) trên numpy, 7 tiêu chí, trọng số admin cấu hình được |
 | **Docker** (Scope #18) | ✅ docker-compose.yml + 2 Dockerfile hoàn chỉnh / ⚠️ sandbox không có Docker daemon để chạy thử |
-| **Deliverable #11 — Processed Survey Dataset** | ⚠️ **LỖI HỢP cần khắc phục**: pipeline pandas hoạt động đủ 4 sản phẩm (cleaned/transformed/analysis/features) nhưng **file nguồn hiện là scaffold 2.400 dòng**, không phải Kaggle "Vehicle at Ha Noi Dataset" 25.590 dòng (bản tích hợp thật đã mất khi sandbox reset — xem §8) |
+| **Deliverable #11 — Processed Survey Dataset** | ✅ **ĐÃ ĐÓNG KÍN**: pipeline pandas chạy trên bộ dữ liệu thật Kaggle "Vehicle at Ha Noi Dataset" **25.590 dòng × 58 cột** (`data/dataHN.csv`, 9,1MB trong repo) — trục xu hướng 6 nhóm tuổi, persist 25.586 dòng sạch vào `decision.vehicle_survey_responses` + 42 aggregate vào `decision.dataset_trends` (chi tiết §8) |
 
 Chi tiết từng dòng: `docs/tech-stack.md` (15/15 dòng của bảng §10).
 
@@ -59,7 +59,7 @@ Chi tiết từng dòng: `docs/tech-stack.md` (15/15 dòng của bảng §10).
 │  (sandbox) /          │        │   OSRM FOSSGIS — road routing    │
 │  postgis:16-3.4       │        │   Open-Meteo — air quality       │
 │  (docker-compose)     │        │   OSM raster tiles — Leaflet     │
-│  11 tables            │        └──────────────────────────────────┘
+│  24 tables / 6 schema │        └──────────────────────────────────┘
 │  app/schema.sql       │
 │  + seed.py            │
 └───────────────────────┘
@@ -97,10 +97,11 @@ nội bộ (`services/geo.py`): Shapely trong sandbox, PostGIS trong deployment 
 1. **Geocode** origin/destination (Nominatim + fallback local list).
 2. **Route** (OSRM): distance, duration, polyline ~370 điểm; cache RAM 30 phút;
    nếu cả 2 provider hỏng → synthetic route + cờ `source: 'estimated'`.
-3. **LEZ spatial**: dựng polygon từng `lez_zone` từ `coordinates` (JSON [lat,lng]),
-   so route vs zone → `outside | partial | within` + % chiều dài trong zone.
-   - Có PostGIS: đồng bộ `lez_zone.geom` (GIST) phục vụ truy vấn DB-level.
-   - Không PostGIS (sandbox): Shapely `ParallelOffset/sampling` trong app layer — kết quả như nhau.
+3. **LEZ spatial**: polygon từng `lez_zones.geometry` (PostGIS MULTIPOLYGON, đọc
+   qua `ST_AsGeoJSON` — `db.geom_read`) so route vs zone →
+   `outside | partial | within` + % chiều dài trong zone (Shapely sampling).
+   - DB-level: cột geometry + GIST index sẵn sàng cho truy vấn không gian
+     trực tiếp (ST_Intersects / ST_DWithin…) đúng DB FINAL workflow.
 4. **Compliance**: quét `policy_rule` theo zone×mode (banned/conditional, giờ, ngày trong tuần, điều kiện Euro standard).
 5. **Air quality**: AQI theo tọa độ (cache bảng `air_quality_cache`, TTL 30').
 6. **Trend criterion**: bảng `dataset_trend` do pipeline pandas tạo (fallback `TREND_PRIOR`).
@@ -121,9 +122,10 @@ docker-compose.yml
 └── frontend  : build Dockerfile gốc (bun build → standalone), NEXT_PUBLIC_API_BASE build-arg
 ```
 
-- `db` khởi tạo extension PostGIS sẵn trong image → `app/db.py::enable_postgis_if_available()`
-  thành công, tạo `lez_zone.geom geometry(Polygon,4326)` + GIST index (NFR-02) và
-  backfill từ `coordinates` JSON mỗi lần boot.
+- `db` khởi tạo extension PostGIS sẵn trong image → `schema.sql` tạo bảng với
+  **10 cột `GEOMETRY(...)` thật + 10 GIST index** (đúng DB FINAL). Volume cũ
+  layout TEXT/`coordinates` JSON được **upgrade in-place** bởi khối cuối
+  `schema.sql` (không mất dữ liệu, không cần re-seed).
 - Sandbox dev KHÔNG có Docker/root: PostgreSQL chạy user-space (embedded-postgres 18.4,
   `scripts/postgres.ts start`), PostGIS fallback Shapely — đây là **hạn chế môi trường**,
   không phải hạn chế thiết kế.
@@ -155,22 +157,37 @@ docker-compose.yml
 | Security vulnerabilities (Medium) | sha256+salt, session 8h httpOnly cookie, 401/400 envelope, input validation Pydantic |
 | Poor system performance (Medium) | GIST index (PostGIS mode), index `trip_record(created_at, purpose)`, cache route + AQI |
 
-## 8. Khoảng trống đang mở (quan trọng)
+## 8. Nguồn dữ liệu khảo sát — Deliverable #11 (đÃ ĐÓNG KÍN)
 
-**Deliverable #11 — nguồn dữ liệu khảo sát đã bị cuộn lùi.** Lần reset sandbox gần nhất
-(trước phiên này) đã khôi phục project về snapshot Task-16:
+**Bộ dữ liệu Kaggle thật đã tích hợp trở lại.** File `dataHN.csv`
+(Kaggle "Vehicle at Ha Noi Dataset", 25.590 dòng × 58 cột, 9,1MB) từng bị coi
+là mất sau lần reset sandbox — đã được tìm lại trong thư mục tạm `/tmp` của
+máy phát triển và đưa trở lại vào repo tại `backend/data/dataHN.csv`
+(9,1MB, commit trực tiếp). Tình trạng hiện tại:
 
-- `data/vehicle_at_hanoi.csv` hiện là **scaffold 2.400 dòng** do `tools/make_dataset.py`
-  sinh ra (deterministic, đúng schema cột) — KHÔNG phải Kaggle "Vehicle at Ha Noi
-  Dataset" 25.590 dòng × 58 cột mà proposal trích ("a survey dataset of over 25,000 samples").
-- `app/services/trend.py` hiện là bản pipeline theo **tháng** (2.400 dòng) — bản
-  cohort-based cho Kaggle (period 6 độ tuổi, growth = −polyfit, trend_index =
-  0.6×adoption + 0.4×growth) đã mất.
-- `data/district_data.csv` (30 quận × 6 đặc trưng) và `data/processed/district_features.csv` cũng không còn.
-
-Cơ chế pipeline + bảng `dataset_trend`/`dataset_run` + 4 processed CSV vẫn nguyên vẹn —
-chỉ cần tải lại CSV Kaggle và port lại phần đọc/feature-engineering là đóng kín gap.
-Kiến trúc và database **không** bị ảnh hưởng bởi khoảng trống này.
+- `app/services/trend.py` có **2 nhánh loader**: nhánh cohort cho Kaggle
+  (`vehic → mode`, `OD_dist_km → distance`, `travtime → duration`,
+  `oridist → district`, `purp → purpose`, `age → 6 nhóm tuổi`) và nhánh monthly
+  cho scaffold fallback (`survey_month`). `dataHN.csv` có mặt → nhánh cohort
+  chạy tự động khi boot (nếu `dataset_trends`/`vehicle_survey_responses` rỗng)
+  hoặc khi admin bấm Reprocess.
+- Trục xu hướng = **6 nhóm tuổi** `0-17 · 18-25 · 26-35 · 36-55 · 56-75 · 75+`
+  (khảo sát không có cột ngày); growth = −polyfit theo trục tuổi — mode được
+  người trẻ dùng nhiều được coi là hướng tương lai; trend_index =
+  0.6×adoption + 0.4×growth.
+- Persist: 25.586 dòng sạch (lọc 4 dòng NaN/khoảng cách >80km) vào
+  `decision.vehicle_survey_responses` với `raw_data` JSONB đủ 58 cột;
+  42 aggregate (6 cohort × 7 mode) vào `decision.dataset_trends`; 1 audit row
+  vào `core.dataset_runs` với `notes.periodKind="cohort"`.
+- Seed mở rộng **31 administrative regions** (30 quận/huyện khớp `oridist` +
+  "Central Hanoi") → 100% dòng khảo sát map được `region_id`.
+- Dashboard admin nhận `periodKind=cohort` → hiển thị **thị phần toàn mẫu**
+  (xe máy xăng 57,4% · ô tô 26,9% · xe máy điện 5,7% …) thay vì slice nhóm cuối;
+  nhãn KPI đổi "Tháng mới nhất" → "Kỳ dữ liệu cuối".
+- `GET /api/dataset/summary` là **read-only** (aggregate từ DB) — không chạy lại
+  pipeline 25k dòng trên mỗi GET.
+- Fallback scaffold monthly (2.400 dòng, `tools/make_dataset.py`) vẫn giữ để
+  chạy thử khi thiếu file thật.
 
 ## 9. Đối chiếu bộ tài liệu chính thức v1.0 (Task 23)
 
@@ -211,4 +228,4 @@ So sánh toàn bộ hệ thống với 4 tài liệu chính thức: **Proposal v
 - **Project Plan v1.0:** architecture + DB khớp baseline (Agile Scrum, Docker, deliverables 1–16 trừ khoảng trống dataset Kaggle đã ghi ở §8).
 - **Proposal v1.0:** MATCH 15/15 dòng tech stack (audit Task 21), System Context 5/5 actor, FR-01…FR-15 + NFR đề cập đều được thỏa.
 
-Còn mở duy nhất: nguồn CSV Kaggle 25.590 dòng (Deliverable #11) — xem §8.
+Còn mở: không còn — Deliverable #11 đã chạy trên bộ Kaggle thật (§8).

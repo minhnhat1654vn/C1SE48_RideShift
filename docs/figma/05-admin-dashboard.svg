@@ -1,0 +1,164 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1240" viewBox="0 0 1440 1240" font-family="Inter, 'Segoe UI', system-ui, sans-serif">
+  <rect id="page-bg" width="1440" height="1240" fill="#F8FBF8"/>
+
+  <!-- ================= HEADER (admin) ================= -->
+  <g id="app-header">
+    <rect x="0" y="0" width="1440" height="64" fill="#FFFFFF"/><line x1="0" y1="64" x2="1440" y2="64" stroke="#D7E1D9"/>
+    <rect x="24" y="12" width="40" height="40" rx="12" fill="#00884B"/>
+    <path d="M34 44 C34 34 41 27 51 26 C51 37 44 44 34 44 Z" fill="#F8FBF8"/>
+    <path d="M36 42 C39 37 43 33 48 30" stroke="#00884B" stroke-width="1.4" fill="none"/>
+    <text x="76" y="34" font-size="18" font-weight="700" fill="#061009">Ride<tspan fill="#00884B">Shift</tspan></text>
+    <text x="76" y="50" font-size="10" fill="#606D64">Bảng điều khiển quản trị · C1SE.48</text>
+    <rect x="1000" y="18" width="286" height="28" rx="14" fill="#D7F4DC"/>
+    <text x="1016" y="36" font-size="11" font-weight="500" fill="#09311B">Đăng nhập với tư cách: Quản trị viên RideShift</text>
+    <text x="1416" y="36" font-size="12" font-weight="600" fill="#00884B" text-anchor="end">Đăng xuất</text>
+  </g>
+
+  <!-- ================= TABS ================= -->
+  <g id="admin-tabs">
+    <rect x="24" y="84" width="14" height="14" rx="4" fill="#00884B"/>
+    <text x="46" y="96" font-size="13" font-weight="600" fill="#00884B">Tổng quan</text>
+    <rect x="24" y="108" width="76" height="3" rx="1.5" fill="#00884B"/>
+    <rect x="160" y="84" width="14" height="14" rx="4" fill="none" stroke="#606D64" stroke-width="1.5"/>
+    <text x="182" y="96" font-size="13" font-weight="500" fill="#606D64">Vùng LEZ</text>
+    <rect x="290" y="84" width="14" height="14" rx="4" fill="none" stroke="#606D64" stroke-width="1.5"/>
+    <text x="312" y="96" font-size="13" font-weight="500" fill="#606D64">Quy định chính sách</text>
+    <rect x="470" y="84" width="14" height="14" rx="4" fill="none" stroke="#606D64" stroke-width="1.5"/>
+    <text x="492" y="96" font-size="13" font-weight="500" fill="#606D64">Phương tiện &amp; Trọng số</text>
+  </g>
+
+  <!-- ================= FILTER ROW ================= -->
+  <g id="date-filter">
+    <text x="24" y="146" font-size="10" font-weight="600" fill="#606D64">TỪ NGÀY</text>
+    <rect x="24" y="152" width="140" height="36" rx="10" fill="#FFFFFF" stroke="#D7E1D9"/><text x="40" y="175" font-size="12" fill="#061009">26/08/2026</text>
+    <text x="188" y="146" font-size="10" font-weight="600" fill="#606D64">ĐẾN NGÀY</text>
+    <rect x="188" y="152" width="140" height="36" rx="10" fill="#FFFFFF" stroke="#D7E1D9"/><text x="204" y="175" font-size="12" fill="#061009">25/09/2026</text>
+    <rect x="352" y="152" width="96" height="36" rx="10" fill="#00884B"/><text x="400" y="175" font-size="12" font-weight="600" fill="#F8FBF8" text-anchor="middle">Áp dụng</text>
+    <rect x="460" y="152" width="84" height="36" rx="10" fill="#FFFFFF" stroke="#D7E1D9"/><text x="502" y="175" font-size="12" font-weight="500" fill="#061009" text-anchor="middle">Đặt lại</text>
+    <text x="568" y="175" font-size="12" font-weight="600" fill="#606D64">Làm mới</text>
+  </g>
+
+  <!-- ================= KPI GRID ================= -->
+  <g id="kpi-grid">
+    <g id="kpi-1"><rect x="24" y="212" width="448" height="96" rx="16" fill="#FFFFFF" stroke="#D7E1D9"/><text x="44" y="240" font-size="10" font-weight="600" fill="#606D64" letter-spacing="0.5">CHUYẾN ĐÃ PHÂN TÍCH</text><text x="44" y="272" font-size="22" font-weight="700" fill="#061009">142</text><text x="44" y="292" font-size="10" fill="#606D64">+18% so với kỳ trước</text></g>
+    <g id="kpi-2"><rect x="496" y="212" width="448" height="96" rx="16" fill="#FFFFFF" stroke="#D7E1D9"/><text x="516" y="240" font-size="10" font-weight="600" fill="#606D64" letter-spacing="0.5">BỊ ẢNH HƯỞNG VÙNG LEZ</text><text x="516" y="272" font-size="22" font-weight="700" fill="#061009">41,5%</text><text x="516" y="292" font-size="10" fill="#606D64">59/142 chuyến chạm vùng LEZ</text></g>
+    <g id="kpi-3"><rect x="968" y="212" width="448" height="96" rx="16" fill="#FFFFFF" stroke="#D7E1D9"/><text x="988" y="240" font-size="10" font-weight="600" fill="#606D64" letter-spacing="0.5">THỜI GIAN TRUNG BÌNH</text><text x="988" y="272" font-size="22" font-weight="700" fill="#061009">27,4 phút</text><text x="988" y="292" font-size="10" fill="#606D64">các phương án được đề xuất</text></g>
+    <g id="kpi-4"><rect x="24" y="324" width="448" height="96" rx="16" fill="#FFFFFF" stroke="#D7E1D9"/><text x="44" y="352" font-size="10" font-weight="600" fill="#606D64" letter-spacing="0.5">CHI PHÍ TRUNG BÌNH</text><text x="44" y="384" font-size="22" font-weight="700" fill="#061009">9.860 ₫</text><text x="44" y="404" font-size="10" fill="#606D64">mỗi chuyến đi</text></g>
+    <g id="kpi-5"><rect x="496" y="324" width="448" height="96" rx="16" fill="#FFFFFF" stroke="#D7E1D9"/><text x="516" y="352" font-size="10" font-weight="600" fill="#606D64" letter-spacing="0.5">Ý ĐỊNH CHUYỂN ĐỔI</text><text x="516" y="384" font-size="22" font-weight="700" fill="#00884B">35,2%</text><text x="516" y="404" font-size="10" fill="#606D64">50 lượt "Tôi sẽ dùng xe này"</text></g>
+    <g id="kpi-6"><rect x="968" y="324" width="448" height="96" rx="16" fill="#FFFFFF" stroke="#D7E1D9"/><text x="988" y="352" font-size="10" font-weight="600" fill="#606D64" letter-spacing="0.5">ĐƯỢC ĐỀ XUẤT NHIỀU NHẤT</text><text x="988" y="384" font-size="22" font-weight="700" fill="#061009">Xe buýt công cộng</text><text x="988" y="404" font-size="10" fill="#606D64">54 lượt xếp hạng 1</text></g>
+  </g>
+
+  <!-- ================= CHART 1: DONUT ================= -->
+  <g id="chart-mode-distribution">
+    <rect x="24" y="444" width="700" height="280" rx="16" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="44" y="476" font-size="13" font-weight="600" fill="#061009">Cơ cấu phương tiện được đề xuất</text>
+    <text x="44" y="494" font-size="10" fill="#606D64">Tỷ trọng lượt xếp hạng 1 trong kỳ</text>
+    <g transform="translate(-140, 410)">
+      <path d="M 350.00 110.00 A 80 80 0 0 1 404.76 248.32 L 381.49 223.53 A 46 46 0 0 0 350.00 144.00 Z" fill="#00884B"/>
+      <path d="M 404.76 248.32 A 80 80 0 0 1 295.24 248.32 L 318.51 223.53 A 46 46 0 0 0 381.49 223.53 Z" fill="#57A45B"/>
+      <path d="M 295.24 248.32 A 80 80 0 0 1 270.16 184.98 L 304.09 187.11 A 46 46 0 0 0 318.51 223.53 Z" fill="#94AB39"/>
+      <path d="M 270.16 184.98 A 80 80 0 0 1 295.24 131.68 L 318.51 156.47 A 46 46 0 0 0 304.09 187.11 Z" fill="#C8AD3F"/>
+      <path d="M 295.24 131.68 A 80 80 0 0 1 350.00 110.00 L 350.00 144.00 A 46 46 0 0 0 318.51 156.47 Z" fill="#C65D26"/>
+    </g>
+    <g id="donut-legend">
+      <rect x="380" y="516" width="12" height="12" rx="3" fill="#00884B"/><text x="400" y="526" font-size="11" fill="#061009">Xe buýt công cộng</text><text x="704" y="526" font-size="11" font-weight="600" fill="#061009" text-anchor="end">38%</text>
+      <rect x="380" y="546" width="12" height="12" rx="3" fill="#57A45B"/><text x="400" y="556" font-size="11" fill="#061009">Xe máy điện</text><text x="704" y="556" font-size="11" font-weight="600" fill="#061009" text-anchor="end">24%</text>
+      <rect x="380" y="576" width="12" height="12" rx="3" fill="#94AB39"/><text x="400" y="586" font-size="11" fill="#061009">Đi bộ</text><text x="704" y="586" font-size="11" font-weight="600" fill="#061009" text-anchor="end">14%</text>
+      <rect x="380" y="606" width="12" height="12" rx="3" fill="#C8AD3F"/><text x="400" y="616" font-size="11" fill="#061009">Xe đạp</text><text x="704" y="616" font-size="11" font-weight="600" fill="#061009" text-anchor="end">12%</text>
+      <rect x="380" y="636" width="12" height="12" rx="3" fill="#C65D26"/><text x="400" y="646" font-size="11" fill="#061009">Taxi / Công nghệ</text><text x="704" y="646" font-size="11" font-weight="600" fill="#061009" text-anchor="end">12%</text>
+    </g>
+  </g>
+
+  <!-- ================= CHART 2: BARS BY DISTRICT ================= -->
+  <g id="chart-by-district">
+    <rect x="748" y="444" width="668" height="280" rx="16" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="768" y="476" font-size="13" font-weight="600" fill="#061009">Lượt phân tích theo quận</text>
+    <text x="768" y="494" font-size="10" fill="#606D64">Nguồn: trường originDistrict của chuyến đi</text>
+    <g id="district-bars">
+      <rect x="780" y="522" width="40" height="140" rx="4" fill="#00884B"/><text x="800" y="514" font-size="10" fill="#606D64" text-anchor="middle">32</text>
+      <rect x="858" y="557" width="40" height="105" rx="4" fill="#57A45B"/><text x="878" y="549" font-size="10" fill="#606D64" text-anchor="middle">24</text>
+      <rect x="936" y="570" width="40" height="92" rx="4" fill="#00884B"/><text x="956" y="562" font-size="10" fill="#606D64" text-anchor="middle">21</text>
+      <rect x="1014" y="583" width="40" height="79" rx="4" fill="#57A45B"/><text x="1034" y="575" font-size="10" fill="#606D64" text-anchor="middle">18</text>
+      <rect x="1092" y="601" width="40" height="61" rx="4" fill="#00884B"/><text x="1112" y="593" font-size="10" fill="#606D64" text-anchor="middle">14</text>
+      <rect x="1170" y="609" width="40" height="53" rx="4" fill="#57A45B"/><text x="1190" y="601" font-size="10" fill="#606D64" text-anchor="middle">12</text>
+      <rect x="1248" y="623" width="40" height="39" rx="4" fill="#00884B"/><text x="1268" y="615" font-size="10" fill="#606D64" text-anchor="middle">9</text>
+      <rect x="1326" y="609" width="40" height="53" rx="4" fill="#57A45B"/><text x="1346" y="601" font-size="10" fill="#606D64" text-anchor="middle">12</text>
+    </g>
+    <line x1="768" y1="662" x2="1396" y2="662" stroke="#D7E1D9"/>
+    <text x="800" y="680" font-size="9" fill="#606D64" text-anchor="middle">Hoàn Kiếm</text>
+    <text x="878" y="680" font-size="9" fill="#606D64" text-anchor="middle">Đống Đa</text>
+    <text x="956" y="680" font-size="9" fill="#606D64" text-anchor="middle">Cầu Giấy</text>
+    <text x="1034" y="680" font-size="9" fill="#606D64" text-anchor="middle">Thanh Xuân</text>
+    <text x="1112" y="680" font-size="9" fill="#606D64" text-anchor="middle">Hà Đông</text>
+    <text x="1190" y="680" font-size="9" fill="#606D64" text-anchor="middle">Long Biên</text>
+    <text x="1268" y="680" font-size="9" fill="#606D64" text-anchor="middle">Tây Hồ</text>
+    <text x="1346" y="680" font-size="9" fill="#606D64" text-anchor="middle">Khác</text>
+  </g>
+
+  <!-- ================= CHART 3: PURPOSE ================= -->
+  <g id="chart-by-purpose">
+    <rect x="24" y="748" width="700" height="280" rx="16" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="44" y="780" font-size="13" font-weight="600" fill="#061009">Theo mục đích chuyến đi</text>
+    <text x="44" y="798" font-size="10" fill="#606D64">Đi làm chiếm tỷ trọng lớn nhất</text>
+    <g id="purpose-bars">
+      <rect x="72" y="826" width="64" height="140" rx="4" fill="#00884B"/><text x="104" y="818" font-size="10" fill="#606D64" text-anchor="middle">64</text>
+      <rect x="192" y="905" width="64" height="61" rx="4" fill="#57A45B"/><text x="224" y="897" font-size="10" fill="#606D64" text-anchor="middle">28</text>
+      <rect x="312" y="927" width="64" height="39" rx="4" fill="#94AB39"/><text x="344" y="919" font-size="10" fill="#606D64" text-anchor="middle">18</text>
+      <rect x="432" y="922" width="64" height="44" rx="4" fill="#C8AD3F"/><text x="464" y="914" font-size="10" fill="#606D64" text-anchor="middle">20</text>
+      <rect x="552" y="940" width="64" height="26" rx="4" fill="#C65D26"/><text x="584" y="932" font-size="10" fill="#606D64" text-anchor="middle">12</text>
+    </g>
+    <line x1="44" y1="966" x2="704" y2="966" stroke="#D7E1D9"/>
+    <text x="104" y="984" font-size="9" fill="#606D64" text-anchor="middle">Đi làm</text>
+    <text x="224" y="984" font-size="9" fill="#606D64" text-anchor="middle">Đi học</text>
+    <text x="344" y="984" font-size="9" fill="#606D64" text-anchor="middle">Mua sắm</text>
+    <text x="464" y="984" font-size="9" fill="#606D64" text-anchor="middle">Giải trí</text>
+    <text x="584" y="984" font-size="9" fill="#606D64" text-anchor="middle">Khác</text>
+  </g>
+
+  <!-- ================= CHART 4: SWITCHING ================= -->
+  <g id="chart-switching">
+    <rect x="748" y="748" width="668" height="280" rx="16" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="768" y="780" font-size="13" font-weight="600" fill="#061009">Ý định chuyển đổi sang</text>
+    <text x="768" y="798" font-size="10" fill="#606D64">Phương tiện người dùng chọn sau khi xem đề xuất</text>
+    <g id="switching-bars">
+      <rect x="800" y="826" width="64" height="140" rx="4" fill="#00884B"/><text x="832" y="818" font-size="10" fill="#606D64" text-anchor="middle">20</text>
+      <rect x="940" y="868" width="64" height="98" rx="4" fill="#57A45B"/><text x="972" y="860" font-size="10" fill="#606D64" text-anchor="middle">14</text>
+      <rect x="1080" y="903" width="64" height="63" rx="4" fill="#94AB39"/><text x="1112" y="895" font-size="10" fill="#606D64" text-anchor="middle">9</text>
+      <rect x="1220" y="917" width="64" height="49" rx="4" fill="#C8AD3F"/><text x="1252" y="909" font-size="10" fill="#606D64" text-anchor="middle">7</text>
+    </g>
+    <line x1="768" y1="966" x2="1396" y2="966" stroke="#D7E1D9"/>
+    <text x="832" y="984" font-size="9" fill="#606D64" text-anchor="middle">Xe buýt</text>
+    <text x="972" y="984" font-size="9" fill="#606D64" text-anchor="middle">Xe máy điện</text>
+    <text x="1112" y="984" font-size="9" fill="#606D64" text-anchor="middle">Xe đạp</text>
+    <text x="1252" y="984" font-size="9" fill="#606D64" text-anchor="middle">Đi bộ</text>
+  </g>
+
+  <!-- ================= RECENT TRIPS TABLE ================= -->
+  <g id="recent-trips">
+    <rect x="24" y="1052" width="1392" height="164" rx="16" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="44" y="1080" font-size="13" font-weight="600" fill="#061009">Chuyến gần đây</text>
+    <text x="1400" y="1080" font-size="11" fill="#606D64" text-anchor="end">142 chuyến</text>
+    <rect x="40" y="1090" width="1360" height="26" rx="6" fill="#EBF3EC"/>
+    <text x="52" y="1107" font-size="9.5" font-weight="600" fill="#606D64">THỜI GIAN</text>
+    <text x="180" y="1107" font-size="9.5" font-weight="600" fill="#606D64">HÀNH TRÌNH</text>
+    <text x="570" y="1107" font-size="9.5" font-weight="600" fill="#606D64">QUÃNG ĐƯỜNG</text>
+    <text x="680" y="1107" font-size="9.5" font-weight="600" fill="#606D64">PHƯƠNG TIỆN</text>
+    <text x="820" y="1107" font-size="9.5" font-weight="600" fill="#606D64">MỤC ĐÍCH</text>
+    <text x="910" y="1107" font-size="9.5" font-weight="600" fill="#606D64">ĐỀ XUẤT SỐ 1</text>
+    <text x="1090" y="1107" font-size="9.5" font-weight="600" fill="#606D64">VÙNG LEZ</text>
+    <text x="1210" y="1107" font-size="9.5" font-weight="600" fill="#606D64">ĐÃ CHUYỂN ĐỔI</text>
+    <g id="trips-rows">
+      <text x="52" y="1136" font-size="11" fill="#061009">25/09 17:12</text><text x="180" y="1136" font-size="11" fill="#061009">Cầu Long Biên → Nghĩa Đô</text><text x="570" y="1136" font-size="11" fill="#061009">9,4 km</text><text x="680" y="1136" font-size="11" fill="#061009">Xe máy xăng</text><text x="820" y="1136" font-size="11" fill="#061009">Đi làm</text><text x="910" y="1136" font-size="11" font-weight="600" fill="#061009">Xe buýt công cộng</text>
+      <rect x="1090" y="1122" width="100" height="18" rx="9" fill="#FFFBEB" stroke="#FE9A00"/><text x="1140" y="1135" font-size="9" font-weight="600" fill="#92400E" text-anchor="middle">Bị ảnh hưởng</text>
+      <rect x="1210" y="1122" width="106" height="18" rx="9" fill="#E7F4E9"/><text x="1263" y="1135" font-size="9" font-weight="600" fill="#00884B" text-anchor="middle">Đã chuyển đổi</text>
+      <line x1="40" y1="1146" x2="1400" y2="1146" stroke="#D7E1D9"/>
+      <text x="52" y="1166" font-size="11" fill="#061009">25/09 16:40</text><text x="180" y="1166" font-size="11" fill="#061009">Hồ Gươm → Times City</text><text x="570" y="1166" font-size="11" fill="#061009">6,1 km</text><text x="680" y="1166" font-size="11" fill="#061009">Ô tô cá nhân</text><text x="820" y="1166" font-size="11" fill="#061009">Mua sắm</text><text x="910" y="1166" font-size="11" font-weight="600" fill="#061009">Xe máy điện</text>
+      <rect x="1090" y="1152" width="100" height="18" rx="9" fill="#FFFBEB" stroke="#FE9A00"/><text x="1140" y="1165" font-size="9" font-weight="600" fill="#92400E" text-anchor="middle">Bị ảnh hưởng</text>
+      <text x="1210" y="1166" font-size="11" fill="#606D64">—</text>
+      <line x1="40" y1="1176" x2="1400" y2="1176" stroke="#D7E1D9"/>
+      <text x="52" y="1196" font-size="11" fill="#061009">25/09 14:05</text><text x="180" y="1196" font-size="11" fill="#061009">ĐH Quốc tế → Bách Khoa</text><text x="570" y="1196" font-size="11" fill="#061009">4,2 km</text><text x="680" y="1196" font-size="11" fill="#061009">Xe máy điện</text><text x="820" y="1196" font-size="11" fill="#061009">Đi học</text><text x="910" y="1196" font-size="11" font-weight="600" fill="#061009">Xe máy điện</text>
+      <rect x="1090" y="1182" width="96" height="18" rx="9" fill="#E7F4E9"/><text x="1138" y="1195" font-size="9" font-weight="600" fill="#00884B" text-anchor="middle">Ngoài vùng</text>
+      <text x="1210" y="1196" font-size="11" fill="#606D64">—</text>
+    </g>
+  </g>
+</svg>

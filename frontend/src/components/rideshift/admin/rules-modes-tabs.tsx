@@ -107,7 +107,7 @@ import { Textarea } from '@/components/ui/textarea'
 // Small JSON fetch helper with consistent error extraction (server returns { error }).
 async function apiJson<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await apiFetch(url, {
-    credentials: 'same-origin',
+    credentials: 'include', // cross-origin: localhost:3000 → localhost:8000 cần gửi/nhận cookie phiên
     ...init,
     headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
   })
@@ -446,7 +446,7 @@ export function RulesTab({ zones, modes }: RulesTabProps) {
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        {/* ---- toolbar: search + filters + primary action ---- */}
+        {/* ---- toolbar: search + filters + primary action (US-24) ---- */}
         <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-1 flex-wrap items-center gap-2">
             <div className="relative min-w-0 flex-1 sm:min-w-44">

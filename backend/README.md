@@ -11,8 +11,9 @@ hiện thực đúng đề xuất: **Python + FastAPI + pandas + Shapely trên P
 - **Sở hữu schema** PostgreSQL: tự tạo (`app/schema.sql`, idempotent), tự seed (`app/seed.py`,
   bỏ qua nếu đã có dữ liệu), thêm cột hình học PostGIS khi khả dụng (`app/db.py`), và chạy
   pipeline xử lý dataset khảo sát lần đầu (`app/services/trend.py`).
-- Tích hợp dịch vụ ngoài: Nominatim (geocode), OSRM (routing), Open-Meteo (air quality) —
-  đều có timeout, User-Agent riêng và phương án dự phòng.
+- Tích hợp dịch vụ ngoài: **Goong.io (geocode số nhà VN — bật bằng `GOONG_API_KEY`, là lựa chọn đầu)** →
+  Nominatim (geocode dự phòng) → địa danh local; OSRM (routing); Open-Meteo (air quality) —
+  đều có timeout, User-Agent riêng, TTL cache in-memory và phương án dự phòng (không dùng bảng DB cho cache geocode).
 
 ## Chạy local
 
@@ -45,7 +46,7 @@ app/
 ├── main.py→ FastAPI app, CORS, error handlers (envelope {error})
 ├── config.py          # env-driven config (DSN, salt, provider OSRM, cache TTL)
 ├── constants.py       # hằng số nghiệp vụ
-├── schema.sql         # SCHEMA PostgreSQL (idempotent) — đồng bộ với postgres/init/
+├── schema.sql         # SCHEMA PostgreSQL (idempotent) — backend tự sở hữu, tự chạy khi boot
 ├── db.py              # psycopg pool, init_db, PostGIS geometry setup
 ├── seed.py            # seed idempotent (admin, phương tiện, vùng, quy định, trọng số…)
 ├── auth.py            # mật khẩu + phiên quản trị (cookie rs_admin_session, 8h)

@@ -1,0 +1,131 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1080" viewBox="0 0 1440 1080" font-family="Inter, 'Segoe UI', system-ui, sans-serif">
+  <defs>
+    <marker id="mG2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#00884B"/></marker>
+  </defs>
+  <rect id="page-bg" width="1440" height="1080" fill="#F8FBF8"/>
+
+  <text x="60" y="46" font-size="24" font-weight="700" fill="#061009">Header &amp; Footer — Component Kit</text>
+  <text x="60" y="70" font-size="12" fill="#606D64">Bộ component dùng chung mọi màn hình · khớp src/app/page.tsx · bo góc, màu, chữ lấy từ design tokens (file 01)</text>
+
+  <!-- ================= HEADER DESKTOP (GUEST) ================= -->
+  <g id="header-desktop-guest">
+    <text x="60" y="112" font-size="11" font-weight="700" fill="#00884B" letter-spacing="0.5">HEADER · DESKTOP · KHÁCH (tab mặc định “Lập kế hoạch”)</text>
+    <rect x="60" y="122" width="1320" height="64" rx="0" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <rect x="60" y="122" width="1320" height="64" fill="#FFFFFF" fill-opacity="0.9"/>
+    <rect x="76" y="134" width="40" height="40" rx="12" fill="#00884B"/>
+    <path d="M86 164 C86 154 93 147 103 146 C103 157 96 164 86 164 Z" fill="#F8FBF8"/>
+    <path d="M88 162 C91 157 95 153 100 150" stroke="#00884B" stroke-width="1.4" fill="none"/>
+    <text x="128" y="156" font-size="18" font-weight="700" fill="#061009">Ride<tspan fill="#00884B">Shift</tspan></text>
+    <text x="128" y="173" font-size="11" fill="#606D64">Cố vấn chuyển đổi giao thông thông minh</text>
+
+    <rect x="1078" y="136" width="286" height="36" rx="18" fill="#F0F5F1" stroke="#D7E1D9"/>
+    <rect x="1086" y="142" width="136" height="24" rx="12" fill="#00884B"/>
+    <circle cx="1102" cy="154" r="7" fill="none" stroke="#FFFFFF" stroke-width="1.4"/>
+    <path d="M1099 154 L1102 157 L1107 151" stroke="#FFFFFF" stroke-width="1.4" fill="none"/>
+    <text x="1160" y="158" font-size="12" font-weight="600" fill="#FFFFFF" text-anchor="middle">Lập kế hoạch</text>
+    <text x="1288" y="158" font-size="12" font-weight="500" fill="#606D64" text-anchor="middle">Quản trị</text>
+
+    <circle cx="1400" cy="140" r="9" fill="none" stroke="#B9DFC6"/>
+    <text x="1400" y="144" font-size="9" fill="#8CA092" text-anchor="middle">A</text>
+    <line x1="1078" y1="186" x2="1364" y2="186" stroke="#00884B" stroke-width="1.2" stroke-dasharray="3 3" marker-end="url(#mG2)"/>
+    <text x="1120" y="204" font-size="9" fill="#00884B">nav pill: chiều cao 36px · trạng thái active = nền primary + chữ trắng</text>
+  </g>
+
+  <!-- ================= HEADER DESKTOP (ADMIN) ================= -->
+  <g id="header-desktop-admin">
+    <text x="60" y="242" font-size="11" font-weight="700" fill="#0D9488" letter-spacing="0.5">HEADER · DESKTOP · ĐÃ ĐĂNG NHẬP QUẢN TRỊ (tab “Quản trị” active)</text>
+    <rect x="60" y="252" width="1320" height="64" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <rect x="76" y="264" width="40" height="40" rx="12" fill="#00884B"/>
+    <path d="M86 294 C86 284 93 277 103 276 C103 287 96 294 86 294 Z" fill="#F8FBF8"/>
+    <text x="128" y="286" font-size="18" font-weight="700" fill="#061009">Ride<tspan fill="#00884B">Shift</tspan></text>
+    <text x="128" y="303" font-size="11" fill="#606D64">Bảng điều khiển quản trị · C1SE.48</text>
+
+    <rect x="1078" y="266" width="286" height="36" rx="18" fill="#F0F5F1" stroke="#D7E1D9"/>
+    <rect x="1086" y="272" width="136" height="24" rx="12" fill="#FFFFFF"/>
+    <text x="1154" y="288" font-size="12" font-weight="500" fill="#606D64" text-anchor="middle">Lập kế hoạch</text>
+    <rect x="1226" y="272" width="130" height="24" rx="12" fill="#00884B"/>
+    <path d="M1236 280 L1240 284 L1248 276" stroke="#FFFFFF" stroke-width="1.5" fill="none"/>
+    <circle cx="1242" cy="281" r="6.5" fill="none" stroke="#FFFFFF" stroke-width="1.4"/>
+    <text x="1296" y="288" font-size="12" font-weight="600" fill="#FFFFFF" text-anchor="middle">Quản trị</text>
+
+    <text x="60" y="336" font-size="9" fill="#606D64">· Header dính (sticky top-0, z-40) · nền mờ backdrop-blur khi cuộn · viền dưới 1px #D7E1D9 · logo 40×40 bo 12px · nhãn phụ 11px màu muted</text>
+  </g>
+
+  <!-- ================= HEADER MOBILE ================= -->
+  <g id="header-mobile">
+    <text x="60" y="392" font-size="11" font-weight="700" fill="#061009" letter-spacing="0.5">HEADER · MOBILE 390px (logo + nav xếp hai dòng)</text>
+    <rect x="60" y="402" width="390" height="112" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <rect x="76" y="414" width="40" height="40" rx="12" fill="#00884B"/>
+    <path d="M86 444 C86 434 93 427 103 426 C103 437 96 444 86 444 Z" fill="#F8FBF8"/>
+    <text x="128" y="436" font-size="17" font-weight="700" fill="#061009">Ride<tspan fill="#00884B">Shift</tspan></text>
+    <text x="128" y="452" font-size="10" fill="#606D64">Cố vấn chuyển đổi giao thông thông minh</text>
+    <rect x="76" y="466" width="358" height="36" rx="18" fill="#F0F5F1" stroke="#D7E1D9"/>
+    <rect x="82" y="472" width="172" height="24" rx="12" fill="#00884B"/>
+    <text x="168" y="488" font-size="12" font-weight="600" fill="#FFFFFF" text-anchor="middle">Lập kế hoạch</text>
+    <text x="342" y="488" font-size="12" font-weight="500" fill="#606D64" text-anchor="middle">Quản trị</text>
+    <text x="60" y="534" font-size="9" fill="#606D64">· flex-wrap cho phép nav rớt dòng · nút nav cao ≥ 44px vùng chạm (h-9 + padding)</text>
+  </g>
+
+  <!-- ================= SPEC CARD HEADER ================= -->
+  <g id="header-spec">
+    <rect x="500" y="380" width="880" height="176" rx="14" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="524" y="408" font-size="12" font-weight="700" fill="#061009">Thông số kỹ thuật Header</text>
+    <text x="524" y="432" font-size="10" fill="#606D64">• Chiều cao 64px · sticky top-0 z-40 · nền background/90 + backdrop-blur (lớp mờ khi cuộn)</text>
+    <text x="524" y="450" font-size="10" fill="#606D64">• Logo: khối 40×40 bo góc 12px nền primary #00884B, icon lá trắng; tên “RideShift” 18px bold (“Shift” màu primary)</text>
+    <text x="524" y="468" font-size="10" fill="#606D64">• Nav pill: viền 1px #D7E1D9 nền muted/50, bo tròn 999px, padding 4px; item bo 999px, padding 14px×6px</text>
+    <text x="524" y="486" font-size="10" fill="#606D64">• Trạng thái active: nền primary + shadow-sm + chữ trắng; không active: chữ muted, hover đậm màu</text>
+    <text x="524" y="504" font-size="10" fill="#606D64">• Icon: MapPinned (Lập kế hoạch) · ShieldCheck (Quản trị) 16px; aria-current="page" cho tab đang mở</text>
+    <text x="524" y="522" font-size="10" fill="#606D64">• Đóng vai trò điều hướng SPA: bấm tab đổi nội dung main ngay lập tức (không tải lại trang) — xem luồng 00-user-flow</text>
+    <text x="524" y="540" font-size="10" fill="#606D64">• Giới hạn bề ngang nội dung: max-w-7xl (1280px) canh giữa</text>
+  </g>
+
+  <!-- ================= FOOTER DESKTOP ================= -->
+  <g id="footer-desktop">
+    <text x="60" y="608" font-size="11" font-weight="700" fill="#00884B" letter-spacing="0.5">FOOTER · DESKTOP</text>
+    <rect x="60" y="618" width="1320" height="72" fill="#F0F5F1" stroke="#D7E1D9"/>
+    <line x1="60" y1="618" x2="1380" y2="618" stroke="#D7E1D9"/>
+    <path d="M80 652 C80 644 86 638 94 637 C94 646 89 652 80 652 Z" fill="#00884B"/>
+    <text x="102" y="648" font-size="11" fill="#061009"><tspan font-weight="700">RideShift</tspan> – Cố vấn chuyển đổi giao thông thông minh · Đồ án tốt nghiệp 1 (CMU-SE 450)</text>
+    <text x="102" y="664" font-size="11" fill="#061009">· Nhóm C1SE.48 · Trường Đại học Quốc tế, Đại học Duy Tân</text>
+    <text x="1364" y="648" font-size="10.5" fill="#606D64" text-anchor="end">Dữ liệu bản đồ © OpenStreetMap · Định tuyến OSRM · Chất lượng không khí Open-Meteo</text>
+    <text x="1364" y="666" font-size="10.5" font-style="italic" fill="#606D64" text-anchor="end">“Hà Nội trong lành hơn cho ngày mai tốt đẹp hơn”</text>
+  </g>
+
+  <!-- ================= FOOTER MOBILE ================= -->
+  <g id="footer-mobile">
+    <text x="60" y="738" font-size="11" font-weight="700" fill="#061009" letter-spacing="0.5">FOOTER · MOBILE 390px (xếp dọc, canh giữa)</text>
+    <rect x="60" y="748" width="390" height="132" fill="#F0F5F1" stroke="#D7E1D9"/>
+    <path d="M80 776 C80 768 86 762 94 761 C94 770 89 776 80 776 Z" fill="#00884B"/>
+    <text x="102" y="772" font-size="10.5" fill="#061009"><tspan font-weight="700">RideShift</tspan> – Cố vấn chuyển đổi giao thông thông minh</text>
+    <text x="102" y="788" font-size="10.5" fill="#061009">Đồ án tốt nghiệp 1 · Nhóm C1SE.48 · ĐH Duy Tân</text>
+    <text x="255" y="816" font-size="9.5" fill="#606D64" text-anchor="middle">Dữ liệu bản đồ © OpenStreetMap · OSRM · Open-Meteo</text>
+    <text x="255" y="832" font-size="9.5" font-style="italic" fill="#606D64" text-anchor="middle">“Hà Nội trong lành hơn cho ngày mai tốt đẹp hơn”</text>
+    <rect x="60" y="868" width="390" height="12" fill="#E3EFE6"/>
+    <text x="255" y="897" font-size="8.5" fill="#606D64" text-anchor="middle">⌷ vùng đệm safe-area-inset-bottom (iPhone)</text>
+  </g>
+
+  <!-- ================= SPEC CARD FOOTER ================= -->
+  <g id="footer-spec">
+    <rect x="500" y="726" width="880" height="200" rx="14" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <text x="524" y="754" font-size="12" font-weight="700" fill="#061009">Thông số kỹ thuật Footer</text>
+    <text x="524" y="778" font-size="10" fill="#606D64">• Dính đáy (sticky footer): layout gốc min-h-screen + flex-col, footer dùng mt-auto — trang ngắn vẫn áp đáy màn hình,</text>
+    <text x="524" y="796" font-size="10" fill="#606D64">   trang dài thì bị đẩy xuống tự nhiên, không đè nội dung</text>
+    <text x="524" y="814" font-size="10" fill="#606D64">• Nền muted/40 (#F0F5F1) · viền trên 1px #D7E1D9 · chữ 12px màu muted</text>
+    <text x="524" y="832" font-size="10" fill="#606D64">• Cột trái: icon lá + tên mạnh (semibold) + tín chỉ đồ án C1SE.48 · CMU-SE 450 · ĐH Quốc tế, ĐH Duy Tân</text>
+    <text x="524" y="850" font-size="10" fill="#606D64">• Cột phải: nguồn dữ liệu (OpenStreetMap · OSRM · Open-Meteo) + slogan in nghiêng</text>
+    <text x="524" y="868" font-size="10" fill="#606D64">• Mobile: flex-col canh giữa, gap 8px; đệm đáy pb-[env(safe-area-inset-bottom)] cho máy có thanh home</text>
+    <text x="524" y="886" font-size="10" fill="#606D64">• Không chứa link điều hướng — chỉ thông tin dự án &amp; nguồn dữ liệu (điều hướng nằm ở Header)</text>
+    <text x="524" y="904" font-size="10" fill="#606D64">• Màu chữ/nền bám token theme → tự động đúng cả light/dark mode</text>
+  </g>
+
+  <!-- anatomy note -->
+  <g id="anatomy">
+    <rect x="60" y="940" width="1320" height="96" rx="14" fill="#E8F7EC" stroke="#B9DFC6"/>
+    <text x="84" y="968" font-size="11" font-weight="700" fill="#09311B">CẤU TRÚC CHUNG TRANG (áp cho mọi màn hình)</text>
+    <rect x="84" y="980" width="1256" height="18" rx="4" fill="#FFFFFF" stroke="#B9DFC6"/>
+    <rect x="84" y="980" width="180" height="18" rx="4" fill="#00884B"/><text x="174" y="993" font-size="8" fill="#FFFFFF" text-anchor="middle">HEADER (sticky)</text>
+    <rect x="268" y="980" width="920" height="18" fill="#FFFFFF" stroke="#B9DFC6"/><text x="728" y="993" font-size="8" fill="#061009" text-anchor="middle">MAIN — nội dung màn (Planner / Results / Admin)</text>
+    <rect x="1192" y="980" width="148" height="18" rx="4" fill="#84CC16"/><text x="1266" y="993" font-size="8" fill="#FFFFFF" text-anchor="middle">FOOTER (mt-auto)</text>
+    <text x="84" y="1022" font-size="9" fill="#09311B">min-h-screen flex flex-col → footer luôn áp đáy; main flex-1 chiếm phần còn lại; nội dung giới hạn max-w-7xl canh giữa.</text>
+  </g>
+</svg>

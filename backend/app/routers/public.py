@@ -31,7 +31,13 @@ def get_zones(all: str = Query(default="", alias="all")):
     include_inactive = all == "1"
     with db.get_conn() as conn:
         rows = conn.execute(
-            "SELECT * FROM lez_zone WHERE (%s OR active) ORDER BY created_at ASC",
+            f"""
+            SELECT lez_zone_id, name, description, status, effective_from,
+                   created_at, updated_at, {db.geom_read('geometry', 'geometry_json')}
+            FROM policy.lez_zones
+            WHERE (%s OR status = 'active')
+            ORDER BY created_at ASC
+            """,
             (include_inactive,),
         ).fetchall()
     return {"zones": [zone_dto(r, parsed_coordinates=True) for r in rows]}
@@ -40,7 +46,9 @@ def get_zones(all: str = Query(default="", alias="all")):
 @router.get("/api/modes")
 def get_modes():
     with db.get_conn() as conn:
-        rows = conn.execute("SELECT * FROM transport_mode ORDER BY sort_order ASC").fetchall()
+        rows = conn.execute(
+            "SELECT * FROM transportation.transportation_modes ORDER BY sort_order ASC"
+        ).fetchall()
     return {"modes": [mode_dto(r) for r in rows]}
 
 
@@ -48,7 +56,12 @@ def get_modes():
 def get_locations():
     with db.get_conn() as conn:
         rows = conn.execute(
-            "SELECT * FROM transportation_location WHERE active ORDER BY name"
+            """
+            SELECT transportation_location_id, name, location_type, lat, lng,
+                   address, source, status
+            FROM transportation.transportation_locations
+            WHERE status = 'active' ORDER BY name
+            """
         ).fetchall()
     return {"locations": [location_dto(r) for r in rows]}
 

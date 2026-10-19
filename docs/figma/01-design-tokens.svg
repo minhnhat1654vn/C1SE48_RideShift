@@ -1,0 +1,143 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1560" viewBox="0 0 1200 1560" font-family="Inter, 'Segoe UI', system-ui, sans-serif">
+  <defs>
+    <linearGradient id="heroGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ECFDF5"/><stop offset="0.5" stop-color="#F8FBF8"/><stop offset="1" stop-color="#F0FDFA"/>
+    </linearGradient>
+  </defs>
+
+  <rect id="canvas-bg" width="1200" height="1560" fill="#F8FBF8"/>
+
+  <g id="page-header">
+    <text x="40" y="56" font-size="26" font-weight="700" fill="#061009">RideShift — Design Tokens</text>
+    <text x="40" y="80" font-size="12" fill="#606D64">Bộ token dùng chung cho Figma và code (src/app/globals.css · src/lib/aqi-visual.ts) · Nhóm C1SE.48</text>
+  </g>
+
+  <!-- ============ SECTION 1: THEME COLORS ============ -->
+  <g id="section-theme-colors">
+    <text x="40" y="128" font-size="13" font-weight="700" fill="#061009" letter-spacing="1">1 · MÀU CHỦ ĐỀ (LIGHT THEME)</text>
+
+    <g id="swatch-row-1">
+      <rect x="40" y="142" width="272" height="56" rx="10" fill="#F8FBF8" stroke="#D7E1D9"/><text x="40" y="216" font-size="11" font-weight="600" fill="#061009">background</text><text x="40" y="230" font-size="10" fill="#606D64">#F8FBF8 · oklch(0.985 0.005 150)</text>
+      <rect x="336" y="142" width="272" height="56" rx="10" fill="#FFFFFF" stroke="#D7E1D9"/><text x="336" y="216" font-size="11" font-weight="600" fill="#061009">card</text><text x="336" y="230" font-size="10" fill="#606D64">#FFFFFF · oklch(1 0 0)</text>
+      <rect x="632" y="142" width="272" height="56" rx="10" fill="#00884B"/><text x="632" y="216" font-size="11" font-weight="600" fill="#061009">primary — thương hiệu</text><text x="632" y="230" font-size="10" fill="#606D64">#00884B · oklch(0.55 0.14 155)</text>
+      <rect x="928" y="142" width="272" height="56" rx="10" fill="#F8FBF8" stroke="#D7E1D9"/><text x="928" y="216" font-size="11" font-weight="600" fill="#061009">primary-foreground</text><text x="928" y="230" font-size="10" fill="#606D64">#F8FBF8 · chữ trên nền primary</text>
+    </g>
+    <g id="swatch-row-2">
+      <rect x="40" y="262" width="272" height="56" rx="10" fill="#E7F4E9"/><text x="40" y="336" font-size="11" font-weight="600" fill="#061009">secondary</text><text x="40" y="350" font-size="10" fill="#606D64">#E7F4E9 · nút phụ, nền nhấn nhẹ</text>
+      <rect x="336" y="262" width="272" height="56" rx="10" fill="#EBF3EC"/><text x="336" y="336" font-size="11" font-weight="600" fill="#061009">muted</text><text x="336" y="350" font-size="10" fill="#606D64">#EBF3EC · footer, pill nav, skeleton</text>
+      <rect x="632" y="262" width="272" height="56" rx="10" fill="#606D64"/><text x="632" y="336" font-size="11" font-weight="600" fill="#061009">muted-foreground</text><text x="632" y="350" font-size="10" fill="#606D64">#606D64 · chữ phụ, nhãn</text>
+      <rect x="928" y="262" width="272" height="56" rx="10" fill="#D7F4DC"/><text x="928" y="336" font-size="11" font-weight="600" fill="#061009">accent</text><text x="928" y="350" font-size="10" fill="#606D64">#D7F4DC · hover, highlight</text>
+    </g>
+    <g id="swatch-row-3">
+      <rect x="40" y="382" width="272" height="56" rx="10" fill="#061009"/><text x="40" y="456" font-size="11" font-weight="600" fill="#061009">foreground</text><text x="40" y="470" font-size="10" fill="#606D64">#061009 · chữ chính</text>
+      <rect x="336" y="382" width="272" height="56" rx="10" fill="#E7000B"/><text x="336" y="456" font-size="11" font-weight="600" fill="#061009">destructive</text><text x="336" y="470" font-size="10" fill="#606D64">#E7000B · lỗi, trạng thái Cấm</text>
+      <rect x="632" y="382" width="272" height="56" rx="10" fill="#D7E1D9"/><text x="632" y="456" font-size="11" font-weight="600" fill="#061009">border / input</text><text x="632" y="470" font-size="10" fill="#606D64">#D7E1D9 · viền card, input</text>
+      <rect x="928" y="382" width="272" height="56" rx="10" fill="#389560"/><text x="928" y="456" font-size="11" font-weight="600" fill="#061009">ring</text><text x="928" y="470" font-size="10" fill="#606D64">#389560 · vòng focus bàn phím</text>
+    </g>
+    <g id="hero-gradient-swatch">
+      <rect x="40" y="500" width="1160" height="40" rx="10" fill="url(#heroGrad)" stroke="#D7E1D9"/>
+      <text x="56" y="525" font-size="11" font-weight="600" fill="#061009">hero-gradient — emerald-50 → background → teal-50 (banner giới thiệu trang Planner)</text>
+    </g>
+  </g>
+
+  <!-- ============ SECTION 2: AQI PALETTE ============ -->
+  <g id="section-aqi-palette">
+    <text x="40" y="584" font-size="13" font-weight="700" fill="#061009" letter-spacing="1">2 · BẢNG MÀU AQI (CHUẨN HÓA TOÀN ỨNG DỤNG)</text>
+    <g id="aqi-swatches">
+      <rect x="40" y="600" width="158" height="48" rx="8" fill="#22C55E"/><text x="40" y="666" font-size="11" font-weight="600" fill="#061009">Tốt</text><text x="40" y="680" font-size="10" fill="#606D64">0–50 · #22C55E</text>
+      <rect x="206" y="600" width="158" height="48" rx="8" fill="#FACC15"/><text x="206" y="666" font-size="11" font-weight="600" fill="#061009">Trung bình</text><text x="206" y="680" font-size="10" fill="#606D64">51–100 · #FACC15</text>
+      <rect x="372" y="600" width="158" height="48" rx="8" fill="#F97316"/><text x="372" y="666" font-size="11" font-weight="600" fill="#061009">Kém</text><text x="372" y="680" font-size="10" fill="#606D64">101–150 · #F97316</text>
+      <rect x="538" y="600" width="158" height="48" rx="8" fill="#EF4444"/><text x="538" y="666" font-size="11" font-weight="600" fill="#061009">Xấu</text><text x="538" y="680" font-size="10" fill="#606D64">151–200 · #EF4444</text>
+      <rect x="704" y="600" width="158" height="48" rx="8" fill="#A855F7"/><text x="704" y="666" font-size="11" font-weight="600" fill="#061009">Rất xấu</text><text x="704" y="680" font-size="10" fill="#606D64">201–300 · #A855F7</text>
+      <rect x="870" y="600" width="158" height="48" rx="8" fill="#7F1D1D"/><text x="870" y="666" font-size="11" font-weight="600" fill="#061009">Nguy hại</text><text x="870" y="680" font-size="10" fill="#606D64">trên 300 · #7F1D1D</text>
+      <rect x="1036" y="600" width="158" height="48" rx="8" fill="#94A3B8"/><text x="1036" y="666" font-size="11" font-weight="600" fill="#061009">Không rõ</text><text x="1036" y="680" font-size="10" fill="#606D64">— · #94A3B8</text>
+    </g>
+    <text x="40" y="708" font-size="11" fill="#606D64">Lớp bản đồ hiển thị dạng trường mượt liên tục (nội suy IDW giữa các băng, blend màu tại biên), cắt theo ranh giới Hà Nội, opacity 0.6 — giống bản đồ thời tiết.</text>
+  </g>
+
+  <!-- ============ SECTION 3: CHART COLORS ============ -->
+  <g id="section-chart-colors">
+    <text x="40" y="748" font-size="13" font-weight="700" fill="#061009" letter-spacing="1">3 · MÀU BIỂU ĐỒ (ADMIN · RECHARTS)</text>
+    <g id="chart-swatches">
+      <rect x="40" y="764" width="224" height="44" rx="8" fill="#00884B"/><text x="40" y="826" font-size="11" font-weight="600" fill="#061009">chart-1 · #00884B</text>
+      <rect x="274" y="764" width="224" height="44" rx="8" fill="#57A45B"/><text x="274" y="826" font-size="11" font-weight="600" fill="#061009">chart-2 · #57A45B</text>
+      <rect x="508" y="764" width="224" height="44" rx="8" fill="#94AB39"/><text x="508" y="826" font-size="11" font-weight="600" fill="#061009">chart-3 · #94AB39</text>
+      <rect x="742" y="764" width="224" height="44" rx="8" fill="#C8AD3F"/><text x="742" y="826" font-size="11" font-weight="600" fill="#061009">chart-4 · #C8AD3F</text>
+      <rect x="976" y="764" width="224" height="44" rx="8" fill="#C65D26"/><text x="976" y="826" font-size="11" font-weight="600" fill="#061009">chart-5 · #C65D26</text>
+    </g>
+  </g>
+
+  <!-- ============ SECTION 4: TYPOGRAPHY ============ -->
+  <g id="section-typography">
+    <text x="40" y="872" font-size="13" font-weight="700" fill="#061009" letter-spacing="1">4 · TYPOGRAPHY — GEIST SANS / INTER</text>
+    <text x="40" y="906" font-size="20" font-weight="700" fill="#061009">Lựa chọn thông minh vì một Hà Nội trong lành hơn</text>
+    <text x="760" y="906" font-size="10" fill="#606D64">text-xl · 700 · tiêu đề hero</text>
+    <text x="40" y="938" font-size="16" font-weight="600" fill="#061009">Kế hoạch hành trình</text>
+    <text x="760" y="938" font-size="10" fill="#606D64">text-base · 600 · tiêu đề card</text>
+    <text x="40" y="964" font-size="14" fill="#061009">RideShift tính toán tuyến đường, kiểm tra vùng LEZ và xếp hạng các phương án di chuyển.</text>
+    <text x="760" y="964" font-size="10" fill="#606D64">text-sm · 400 · nội dung</text>
+    <text x="40" y="988" font-size="12" fill="#606D64">AQI cập nhật lúc 10:00 (Asia/Ho_Chi_Minh) · 9.860 ₫</text>
+    <text x="760" y="988" font-size="10" fill="#606D64">text-xs · 400 · nhãn phụ</text>
+    <text x="40" y="1008" font-size="11" fill="#606D64">Cố vấn chuyển đổi giao thông thông minh</text>
+    <text x="760" y="1008" font-size="10" fill="#606D64">text-[11px] · tagline</text>
+  </g>
+
+  <!-- ============ SECTION 5: RADIUS + COMPONENTS ============ -->
+  <g id="section-radius">
+    <text x="40" y="1052" font-size="13" font-weight="700" fill="#061009" letter-spacing="1">5 · BO GÓC</text>
+    <rect x="40" y="1066" width="96" height="56" rx="10" fill="#FFFFFF" stroke="#D7E1D9"/><text x="40" y="1140" font-size="10" fill="#606D64">rounded-lg · 10px</text>
+    <rect x="160" y="1066" width="96" height="56" rx="14" fill="#FFFFFF" stroke="#D7E1D9"/><text x="160" y="1140" font-size="10" fill="#606D64">rounded-xl · 14px</text>
+    <rect x="280" y="1066" width="96" height="56" rx="16" fill="#FFFFFF" stroke="#D7E1D9"/><text x="280" y="1140" font-size="10" fill="#606D64">rounded-2xl · 16px</text>
+    <rect x="400" y="1066" width="140" height="56" rx="28" fill="#FFFFFF" stroke="#D7E1D9"/><text x="400" y="1140" font-size="10" fill="#606D64">rounded-full · pill</text>
+  </g>
+
+  <g id="section-buttons-badges">
+    <text x="40" y="1180" font-size="13" font-weight="700" fill="#061009" letter-spacing="1">6 · NÚT &amp; BADGE</text>
+    <rect x="40" y="1196" width="220" height="44" rx="10" fill="#00884B"/><text x="150" y="1223" font-size="14" font-weight="600" fill="#F8FBF8" text-anchor="middle">Phân tích hành trình</text>
+    <rect x="280" y="1196" width="130" height="44" rx="10" fill="#FFFFFF" stroke="#D7E1D9"/><text x="345" y="1223" font-size="14" font-weight="600" fill="#061009" text-anchor="middle">Đổi chiều</text>
+    <text x="440" y="1223" font-size="14" font-weight="600" fill="#606D64">Làm mới</text>
+    <g id="badges">
+      <rect x="40" y="1258" width="96" height="26" rx="13" fill="#E7F4E9"/><text x="88" y="1275" font-size="11" font-weight="600" fill="#00884B" text-anchor="middle">Ngoài vùng</text>
+      <rect x="148" y="1258" width="196" height="26" rx="13" fill="#FFFBEB" stroke="#FE9A00"/><text x="246" y="1275" font-size="11" font-weight="600" fill="#92400E" text-anchor="middle">Một phần trong vùng LEZ</text>
+      <rect x="356" y="1258" width="104" height="26" rx="13" fill="#FEE2E2"/><text x="408" y="1275" font-size="11" font-weight="600" fill="#B91C1C" text-anchor="middle">Trong vùng</text>
+      <rect x="472" y="1258" width="58" height="26" rx="13" fill="#FEE2E2"/><text x="501" y="1275" font-size="11" font-weight="600" fill="#B91C1C" text-anchor="middle">Cấm</text>
+      <rect x="542" y="1258" width="106" height="26" rx="13" fill="#FFFBEB" stroke="#FE9A00"/><text x="595" y="1275" font-size="11" font-weight="600" fill="#92400E" text-anchor="middle">Có điều kiện</text>
+      <rect x="660" y="1258" width="108" height="26" rx="13" fill="#E7F4E9"/><text x="714" y="1275" font-size="11" font-weight="600" fill="#00884B" text-anchor="middle">Đã ghi nhận</text>
+      <rect x="780" y="1258" width="150" height="26" rx="13" fill="#EBF3EC"/><text x="855" y="1275" font-size="11" font-weight="600" fill="#606D64" text-anchor="middle">Nguồn: Open-Meteo</text>
+    </g>
+  </g>
+
+  <g id="section-form-controls">
+    <text x="40" y="1330" font-size="13" font-weight="700" fill="#061009" letter-spacing="1">7 · FORM CONTROLS</text>
+    <text x="40" y="1354" font-size="11" font-weight="600" fill="#606D64">ĐIỂM ĐI</text>
+    <rect x="40" y="1362" width="320" height="40" rx="10" fill="#FFFFFF" stroke="#D7E1D9"/>
+    <circle cx="60" cy="1382" r="5" fill="none" stroke="#00884B" stroke-width="2"/><circle cx="60" cy="1382" r="1.6" fill="#00884B"/>
+    <text x="76" y="1387" font-size="13" fill="#061009">Cầu Long Biên</text>
+    <rect x="400" y="1362" width="220" height="40" rx="10" fill="#FFFFFF" stroke="#D7E1D9"/><text x="416" y="1387" font-size="13" fill="#061009">Xe máy xăng</text>
+    <path d="M596 1378 L604 1378 L600 1386 Z" fill="#606D64"/>
+    <g id="switch-sample">
+      <rect x="660" y="1370" width="44" height="24" rx="12" fill="#00884B"/><circle cx="692" cy="1382" r="10" fill="#FFFFFF"/>
+      <text x="716" y="1387" font-size="13" fill="#061009">Mô hình AQI</text>
+    </g>
+    <g id="slider-sample">
+      <rect x="40" y="1428" width="320" height="6" rx="3" fill="#EBF3EC"/><rect x="40" y="1428" width="160" height="6" rx="3" fill="#00884B"/><circle cx="200" cy="1431" r="9" fill="#FFFFFF" stroke="#00884B" stroke-width="2.5"/>
+      <text x="40" y="1462" font-size="11" font-weight="600" fill="#061009">Nhanh nhất</text><text x="360" y="1462" font-size="11" fill="#606D64" text-anchor="end">50%</text>
+    </g>
+  </g>
+
+  <g id="section-aqi-legend-sample">
+    <text x="440" y="1330" font-size="13" font-weight="700" fill="#061009" letter-spacing="1">8 · LEGEND TRÊN BẢN ĐỒ</text>
+    <rect x="440" y="1344" width="230" height="136" rx="10" fill="#FFFFFF" stroke="#D7E1D9" opacity="0.96"/>
+    <text x="454" y="1364" font-size="10" font-weight="600" fill="#061009">Chất lượng không khí (AQI)</text>
+    <rect x="454" y="1374" width="12" height="12" rx="3" fill="#22C55E"/><text x="472" y="1384" font-size="10" fill="#061009">Tốt</text><text x="656" y="1384" font-size="9" fill="#606D64" text-anchor="end">0–50</text>
+    <rect x="454" y="1391" width="12" height="12" rx="3" fill="#FACC15"/><text x="472" y="1401" font-size="10" fill="#061009">Trung bình</text><text x="656" y="1401" font-size="9" fill="#606D64" text-anchor="end">51–100</text>
+    <rect x="454" y="1408" width="12" height="12" rx="3" fill="#F97316"/><text x="472" y="1418" font-size="10" fill="#061009">Kém</text><text x="656" y="1418" font-size="9" fill="#606D64" text-anchor="end">101–150</text>
+    <rect x="454" y="1425" width="12" height="12" rx="3" fill="#EF4444"/><text x="472" y="1435" font-size="10" fill="#061009">Xấu</text><text x="656" y="1435" font-size="9" fill="#606D64" text-anchor="end">151–200</text>
+    <rect x="454" y="1442" width="12" height="12" rx="3" fill="#A855F7"/><text x="472" y="1452" font-size="10" fill="#061009">Rất xấu</text><text x="656" y="1452" font-size="9" fill="#606D64" text-anchor="end">201–300</text>
+    <rect x="454" y="1459" width="12" height="12" rx="3" fill="#7F1D1D"/><text x="472" y="1469" font-size="10" fill="#061009">Nguy hại</text><text x="656" y="1469" font-size="9" fill="#606D64" text-anchor="end">trên 300</text>
+  </g>
+
+  <g id="page-footer-note">
+    <text x="40" y="1530" font-size="10" fill="#606D64">Giá trị HEX là quy đổi từ token OKLCH trong globals.css — khi sửa token, cập nhật đồng bộ cả tài liệu này và bộ bản vẽ Figma.</text>
+  </g>
+</svg>

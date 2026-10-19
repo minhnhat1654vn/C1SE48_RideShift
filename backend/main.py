@@ -17,8 +17,8 @@ if str(BACKEND_DIR) not in sys.path:
 from fastapi import FastAPI  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 
-from app import db, seed  # noqa: E402
-from app.routers import admin, admin_v2, public, trip, trip_v2  # noqa: E402
+from app import config, db, seed  # noqa: E402
+from app.routers import admin, public, trip  # noqa: E402
 
 
 @asynccontextmanager
@@ -26,19 +26,28 @@ async def lifespan(application: FastAPI):
     try:
         db.init_db()
         seed.seed()
-        from app import db_v2
-
-        db_v2.init_v2()  # schema v2 (7 nhóm) + seed v2 — song song với v1
         from app.services import trend
 
         with db.get_conn() as conn:
-            n = conn.execute("SELECT count(*) AS c FROM dataset_trend").fetchone()["c"]
-        if n == 0:
-            trend.run_pipeline()  # process the survey dataset on first boot
+            n = conn.execute("SELECT count(*) AS c FROM decision.dataset_trends").fetchone()["c"]
+            n_survey = conn.execute(
+                "SELECT count(*) AS c FROM decision.vehicle_survey_responses"
+            ).fetchone()["c"]
+        # process the survey dataset on first boot — and self-heal after a
+        # snapshot restore that kept dataset_trends but skipped the 25k
+        # vehicle_survey_responses rows (regenerated from the CSV in seconds)
+        if n == 0 or n_survey == 0:
+            trend.run_pipeline()
         trend.latest_trend_map()
         print("RideShift backend ready: schema ensured, seed ensured, dataset pipeline OK")
     except Exception as e:
+        # Never swallow silently: an empty dataset_trend / missing seed shows
+        # up in the UI as "no data" warnings — make the cause searchable in
+        # `docker compose logs backend`.
+        import traceback
+
         print(f"startup warning: {e!r}")
+        traceback.print_exc()
     yield
 
 
@@ -54,7 +63,10 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # same-origin via gateway; CORS kept permissive for dev
+    # Explicit origins (env CORS_ORIGINS): cross-origin fetches only carry /
+    # receive the admin session cookie when the exact origin is echoed back —
+    # a "*" wildcard makes the browser drop Set-Cookie on the Docker setup.
+    allow_origins=config.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -63,8 +75,6 @@ app.add_middleware(
 app.include_router(public.router)
 app.include_router(trip.router)
 app.include_router(admin.router)
-app.include_router(trip_v2.router)
-app.include_router(admin_v2.router)
 
 
 @app.exception_handler(Exception)

@@ -1,6 +1,9 @@
-"""External service adapters — OpenStreetMap ecosystem (proposal stack):
+"""External service adapters:
 
-- Nominatim          : geocoding (FR-01/FR-02) with a local Hanoi fallback
+- Goong.io           : Vietnam-first geocoding WITH HOUSE NUMBERS (optional,
+                       enabled by GOONG_API_KEY) — first choice of the chain
+- Nominatim          : OpenStreetMap geocoding (FR-01/FR-02) — second choice
+- LOCAL_PLACES       : offline Hanoi landmark fallback — last resort
 - OSRM               : road-following routing with a provider chain + cache
 - Open-Meteo         : air quality (FR-05/US-08) with deterministic simulation
 
@@ -11,6 +14,7 @@ import math
 import socket
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import List, Optional
 
 import httpx
@@ -51,9 +55,32 @@ def http() -> httpx.Client:
 
 
 # --------------------------------------------------------------------------
-# Geocoding (Nominatim + local Hanoi landmark fallback)
+# Geocoding — provider chain: Goong (VN house numbers) → Nominatim → LOCAL_PLACES
 
-GeocodeResult = dict  # {name, lat, lng, source}
+GeocodeResult = dict  # {name, lat, lng, source, provider}
+
+# In-memory TTL cache (deliberately NOT a database table — geocoding is a
+# stateless lookup; the cache only saves provider quota across autocomplete
+# keystrokes and repeated demo queries).
+_geo_cache: dict = {}
+_geo_cache_lock = threading.Lock()
+
+
+def _geo_cache_get(key: str):
+    with _geo_cache_lock:
+        hit = _geo_cache.get(key)
+        if hit and time.time() - hit["at"] < config.GEOCODE_CACHE_TTL_SECONDS:
+            return hit["result"]
+    return None
+
+
+def _geo_cache_set(key: str, result: list) -> None:
+    with _geo_cache_lock:
+        _geo_cache[key] = {"at": time.time(), "result": result}
+        if len(_geo_cache) > config.GEOCODE_CACHE_MAX:
+            oldest = next(iter(_geo_cache))
+            _geo_cache.pop(oldest, None)
+
 
 LOCAL_PLACES: List[GeocodeResult] = [
     {"name": "Hồ Hoàn Kiếm, Hoàn Kiếm, Hà Nội", "lat": 21.0287, "lng": 105.8524, "source": "local"},
@@ -87,63 +114,123 @@ LOCAL_PLACES: List[GeocodeResult] = [
 ]
 
 
-def _dist_km(lat: float, lng: float, center: tuple[float, float]) -> float:
-    """Ước lượng khoảng cách phẳng (đủ chính xác cho bán kính < 100km)."""
-    dlat = (lat - center[0]) * 111.32
-    dlng = (lng - center[1]) * 111.32 * 0.93  # cos(21°) ≈ 0.93
-    return math.hypot(dlat, dlng)
+def _geocode_goong_classic(q: str) -> List[GeocodeResult]:
+    """Classic Goong Geocoding API — best for COMPLETE addresses.
+
+    Response is parsed defensively against shape drift (the API returns the
+    array under "results"; older docs/Mapbox-style payloads use
+    "geocoding_results" / "features" + "center": [lng, lat]).
+    """
+    try:
+        resp = http().get(
+            config.GOONG_GEOCODE_URL,
+            params={"address": q, "api_key": config.GOONG_API_KEY},
+            timeout=config.TIMEOUT_GEOCODE,
+        )
+        if resp.status_code != 200:
+            # 401/403: invalid key — 429: quota exhausted. Visible in
+            # `docker compose logs backend`; the chain degrades to Nominatim.
+            print(f"geocode: goong-geocode HTTP {resp.status_code} for q={q!r} — falling through")
+            return []
+        data = resp.json()
+        items = (
+            data.get("results")
+            or data.get("geocoding_results")
+            or data.get("features")
+            or []
+        )
+        results: List[GeocodeResult] = []
+        for d in items[:6]:
+            loc = (d.get("geometry") or {}).get("location") or {}
+            lat = loc.get("lat", d.get("lat"))
+            lng = loc.get("lng", d.get("lng"))
+            if lat is None or lng is None:
+                center = d.get("center")  # Mapbox-style [lng, lat]
+                if isinstance(center, (list, tuple)) and len(center) == 2:
+                    lng, lat = center[0], center[1]
+            name = d.get("name") or d.get("formatted_address") or ""
+            if lat is None or lng is None or not name:
+                continue
+            results.append({
+                "name": name,
+                "lat": float(lat),
+                "lng": float(lng),
+                "source": "external",
+                "provider": "goong",
+            })
+        return results
+    except Exception as e:
+        print(f"geocode: goong-geocode unreachable ({e.__class__.__name__}: {e}) — falling through")
+        return []
 
 
-def _goong_geocode(q: str) -> List[GeocodeResult]:
-    """Goong Forward Geocode V2 — hiểu số nhà Việt Nam tốt hơn Nominatim.
+def _geocode_goong(q: str) -> List[GeocodeResult]:
+    """Goong.io — returns [] when disabled / failed / zero hits.
 
-    V2 không có tham số bias -> kết quả được lọc/xếp theo khoảng cách tới tâm
-    khu vực nghiên cứu; trả [] khi tất cả đều quá xa (chuyển sang Nominatim).
+    Two-step chain (the Goong/Google Places pattern — a plain text query like
+    "120 yên" needs the AutoComplete endpoint; the classic /geocode endpoint
+    only understands near-complete addresses and mis-resolves partial input):
+      1) Place AutoComplete — VN text search WITH house numbers; predictions
+         carry a place_id but NO coordinates
+      2) Place Detail       — resolves each prediction to exact coordinates
+         (calls run in parallel, capped at 6)
+    Falls back to the classic Geocoding API when AutoComplete yields nothing.
     """
     if not config.GOONG_API_KEY:
         return []
-    url = (
-        f"{config.GOONG_GEOCODE_URL}?api_key={config.GOONG_API_KEY}"
-        f"&address={httpx.QueryParams({'address': q})['address']}"
-    )
     try:
-        resp = http().get(url, timeout=config.TIMEOUT_GEOCODE)
-        if resp.status_code != 200:
-            return []
-        data = resp.json()
-        results = []
-        for d in data.get("results", [])[:6]:
-            loc = d.get("geometry", {}).get("location", {})
-            if loc.get("lat") is None or loc.get("lng") is None:
-                continue
-            results.append({
-                "name": d.get("formatted_address") or d.get("name") or q,
-                "lat": float(loc["lat"]),
-                "lng": float(loc["lng"]),
-                "source": "goong",
-            })
-        near = [
-            r for r in results
-            if _dist_km(r["lat"], r["lng"], config.STUDY_CENTER) <= config.GOONG_MAX_KM
-        ]
-        near.sort(key=lambda r: _dist_km(r["lat"], r["lng"], config.STUDY_CENTER))
-        return near
-    except Exception:
+        results: List[GeocodeResult] = []
+        resp = http().get(
+            config.GOONG_AUTOCOMPLETE_URL,
+            params={"input": q, "api_key": config.GOONG_API_KEY, "limit": 8},
+            timeout=config.TIMEOUT_GEOCODE,
+        )
+        if resp.status_code == 200:
+            predictions = (resp.json() or {}).get("predictions") or []
+            place_ids = [
+                p["place_id"] for p in predictions[:8] if p.get("place_id")
+            ]
+
+            def _detail(place_id: str) -> Optional[GeocodeResult]:
+                try:
+                    r2 = http().get(
+                        config.GOONG_PLACE_DETAIL_URL,
+                        params={"place_id": place_id, "api_key": config.GOONG_API_KEY},
+                        timeout=config.TIMEOUT_GEOCODE,
+                    )
+                    if r2.status_code != 200:
+                        return None
+                    d = (r2.json() or {}).get("result") or {}
+                    loc = (d.get("geometry") or {}).get("location") or {}
+                    lat, lng = loc.get("lat"), loc.get("lng")
+                    name = d.get("formatted_address") or d.get("name") or ""
+                    if lat is None or lng is None or not name:
+                        return None
+                    return {
+                        "name": name,
+                        "lat": float(lat),
+                        "lng": float(lng),
+                        "source": "external",
+                        "provider": "goong",
+                    }
+                except Exception:
+                    return None
+
+            if place_ids:
+                with ThreadPoolExecutor(max_workers=8) as pool:
+                    results = [r for r in pool.map(_detail, place_ids) if r]
+
+        if not results:
+            results = _geocode_goong_classic(q)
+        if not results:
+            print(f"geocode: goong 0 result for q={q!r} — falling through")
+        return results
+    except Exception as e:
+        print(f"geocode: goong unreachable ({e.__class__.__name__}: {e}) — falling through")
         return []
 
 
-def geocode_address(query: str) -> List[GeocodeResult]:
-    q = (query or "").strip()
-    if not q:
-        return []
-
-    # 1) Goong — ưu tiên vì dữ liệu số nhà VN đầy đủ (nhóm đã duyệt, Q-goong);
-    #    chỉ nhận kết quả trong bán kính khu vực, quá xa -> nhường nguồn sau.
-    goong_all = _goong_geocode(q)
-    if goong_all:
-        return goong_all
-
-    # 2) Nominatim (fallback, giới hạn viewbox Hà Nội)
+def _geocode_nominatim(q: str) -> List[GeocodeResult]:
     url = (
         f"{config.NOMINATIM_URL}?format=json&limit=6&countrycodes=vn"
         f"&viewbox=105.60,21.18,106.05,20.70&bounded=1&q={httpx.QueryParams({'q': q})['q']}"
@@ -159,14 +246,40 @@ def geocode_address(query: str) -> List[GeocodeResult]:
                         "lat": float(d["lat"]),
                         "lng": float(d["lon"]),
                         "source": "external",
+                        "provider": "nominatim",
                     }
                     for d in data
                     if d.get("lat") and d.get("lon")
                 ][:6]
-    except Exception:
-        pass
-    ql = q.lower()
-    return [p for p in LOCAL_PLACES if ql in p["name"].lower()][:6]
+        else:
+            # Visible in `docker compose logs backend` — a 403/429 here means
+            # Nominatim is rate-limiting / blocking this network and the
+            # address autocomplete degrades to the built-in LOCAL_PLACES list.
+            print(f"geocode: nominatim HTTP {resp.status_code} for q={q!r}")
+    except Exception as e:
+        print(f"geocode: nominatim unreachable ({e.__class__.__name__}: {e}) — falling back to LOCAL_PLACES")
+    return []
+
+
+def geocode_address(query: str) -> List[GeocodeResult]:
+    q = (query or "").strip()
+    if not q:
+        return []
+    key = q.lower()
+    hit = _geo_cache_get(key)
+    if hit is not None:
+        return hit
+    # 1) Goong (VN house numbers) → 2) Nominatim → 3) local landmarks
+    results = _geocode_goong(q) or _geocode_nominatim(q)
+    if not results:
+        ql = q.lower()
+        results = [
+            {**p, "provider": "local"}
+            for p in LOCAL_PLACES
+            if ql in p["name"].lower()
+        ][:6]
+    _geo_cache_set(key, results)
+    return results
 
 
 # --------------------------------------------------------------------------

@@ -2,24 +2,9 @@
 
 import type { LatLng } from './geo'
 import type { Criterion, CriterionVector } from './mcdm'
+import type { RouteResult } from './external'
 
 export type { LatLng, Criterion, CriterionVector }
-
-// Lộ trình trả về từ endpoint analyze — source 'osrm' hoặc 'estimated' khi fallback
-export type RouteResult = {
-  coords: LatLng[]
-  distanceKm: number
-  durationMin: number
-  source: 'osrm' | 'estimated'
-}
-
-// Kết quả geocode từ /api/geocode — dùng cho tìm điểm đi/đến
-export type GeocodeResult = {
-  name: string
-  lat: number
-  lng: number
-  source: 'external' | 'local'
-}
 
 // Air quality payload returned by the backend (US-08/US-19). Numeric,
 // category and measuredAt fields are null when the upstream provider is

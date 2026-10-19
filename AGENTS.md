@@ -14,10 +14,12 @@ frontend/     Next.js 16 + React 19 + TS + Tailwind 4 + shadcn/ui + Leaflet (por
 backend/      FastAPI (port 8000) — Python 3.12, pandas, Shapely, psycopg 3
   app/routers/                   public.py, trip.py, admin.py (all REST endpoints)
   app/services/                  geo.py, mcdm.py (TOPSIS), external.py, airquality.py, trend.py
-  app/schema.sql                 canonical PostgreSQL schema (idempotent)
-  app/db.py + app/seed.py        connection, PostGIS setup, idempotent seed
+  app/schema.sql                 canonical PostgreSQL schema (idempotent) — 6 DB FINAL schemas,
+                                 10 PostGIS GEOMETRY(...) columns + GIST indexes
+  app/db.py + app/seed.py        connection (+search_path), geom_write/geom_read helpers, idempotent seed
+  app/geojson.py                 GeoJSON ⇄ [[lat,lng]] pair helpers (wire format stays GeoJSON)
   data/                          survey dataset CSVs (Deliverable #11)
-postgres/     init/01_schema.sql (docker-entrypoint-initdb.d) + snapshot/ (demo data)
+postgres/     schema.reference.sql (mirror of backend schema, docs only) + snapshot/ (demo data)
 osrm/         optional self-hosted OSRM setup (scripts + README)
 docs/         architecture, ERD, DB docs, project documents, data sources
 ```
@@ -38,14 +40,20 @@ Admin demo credentials: `admin` / `admin123`.
 
 ## Architecture rules — do NOT break
 
-1. **Frontend is a pure React layer.** No direct database access (Prisma in `frontend/prisma/` is a
-   legacy reference only). Every REST call goes through `frontend/src/lib/api.ts`
-   (`apiUrl`/`apiFetch`): set `NEXT_PUBLIC_API_BASE` for normal deploys; empty value = sandbox
-   gateway mode that appends the `XTransformPort` query parameter.
+1. **Frontend is a pure React layer.** It owns NO database — no Prisma, no ORM. Every REST call
+   goes through `frontend/src/lib/api.ts` (`apiUrl`/`apiFetch`, `credentials: 'include'` so the
+   admin session cookie survives the cross-origin Docker setup): set `NEXT_PUBLIC_API_BASE` for
+   normal deploys; empty value = sandbox gateway mode that appends the `XTransformPort` query
+   parameter.
 2. **Backend owns the schema.** Tables live in `backend/app/schema.sql`
-   (`CREATE TABLE IF NOT EXISTS` — safe to re-run), plus a PostGIS `geometry(Polygon,4326)`
-   column + GIST index added by `backend/app/db.py` **when PostGIS is present**. The
-   `coordinates` JSON array of `[lat, lng]` pairs is always the canonical polygon storage.
+   (`CREATE TABLE IF NOT EXISTS` — safe to re-run). **PostGIS is a hard
+   requirement** (DB FINAL): all 10 shape columns are real `GEOMETRY(...)`
+   types (MULTIPOLYGON / LINESTRING / POINT, SRID 4326) with GIST indexes.
+   Writes go through `db.geom_write()` (GeoJSON → ST_SetSRID(ST_GeomFromGeoJSON…))
+   and reads through `db.geom_read()` (ST_AsGeoJSON) — the REST wire format
+   stays GeoJSON / `[[lat, lng], …]` so the frontend is untouched. Volumes
+   created by the older TEXT-column layout are upgraded in place by the
+   upgrade blocks at the end of schema.sql (idempotent, no data loss).
 3. **Seed is idempotent** (`backend/app/seed.py` skips when data exists). On first boot the
    backend also runs the survey-dataset pipeline (`app/services/trend.py`) when empty.
 4. **Error contract:** every non-2xx response is `{ "error": string }` (Vietnamese, user-facing).
@@ -72,7 +80,7 @@ Admin demo credentials: `admin` / `admin123`.
 | Planner behaviour | `frontend/src/components/rideshift/planner.tsx` |
 | Admin screens | `frontend/src/components/rideshift/admin-dashboard.tsx`, `admin/*.tsx` |
 | Map layers / 3D wards | `frontend/src/components/rideshift/map-view.tsx` + `public/data/hanoi-wards.geojson` |
-| Schema change | `backend/app/schema.sql` + `backend/app/db.py` + `postgres/init/01_schema.sql` (keep in sync) + `backend/app/seed.py` if new default rows |
+| Schema change | `backend/app/schema.sql` (business tables live in the 6 DB FINAL schemas: core/gis/transportation/policy/trip/decision) + `backend/app/db.py` if search_path/PostGIS touched + `backend/app/seed.py` for new default rows; mirror the DDL to `postgres/schema.reference.sql` |
 | Seed/demo content | `backend/app/seed.py`, `backend/data/` |
 
 ## Gotchas
@@ -81,6 +89,10 @@ Admin demo credentials: `admin` / `admin123`.
   the client bundle; rebuild the image when it changes.
 - The frontend `bun run dev` script logs to `dev.log` (sandbox habit); safe to ignore locally.
 - `osrm/data/` is gitignored — OSRM extracts are downloaded via `osrm/scripts/download.sh`.
-- Keep `postgres/init/01_schema.sql` a verbatim copy of `backend/app/schema.sql`.
+- The database has ONE owner: the FastAPI backend. Never add a second ORM/data owner (the old
+  Prisma camelCase family + `dbinit` service were removed for exactly this reason). New DDL goes
+  into `backend/app/schema.sql` (24 tables / 6 schemas per the team ERD — fully-qualified
+  names such as `core.admins`, `policy.lez_zones`, `trip.trips`); app SQL uses fully-qualified
+  names too. Legacy layouts are auto-migrated by `seed.py::migrate_legacy()`. See `postgres/README.md`.
 - All backend external calls (Nominatim/OSRM/Open-Meteo) set a descriptive `User-Agent` and
   timeout; keep it that way or providers will return 403/timeouts.

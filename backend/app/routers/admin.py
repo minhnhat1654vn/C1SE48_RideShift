@@ -1,12 +1,13 @@
 """Admin REST endpoints (cookie-authenticated, US-21..US-35).
 
 Includes the admin analytics aggregation implemented with pandas (proposal:
-data processing with Python + pandas) and the dataset reprocess endpoint.
+data processing with Python + pandas), the dataset reprocess endpoint and
+system_logs audit entries for every admin mutation.
 """
+import json
 import math
-import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Optional, Union
 
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
@@ -14,8 +15,16 @@ from pydantic import BaseModel, Field
 
 from .. import auth, config, db
 from ..dto import iso_z, mode_dto, rule_dto, trip_dto, weight_dto, zone_dto
+from ..geojson import polygon_geojson_from_pairs
 
 router = APIRouter()
+
+
+def _client_ip(request: Request) -> Optional[str]:
+    try:
+        return request.client.host if request.client else None
+    except Exception:
+        return None
 
 
 # ---------------------------------------------------------------- auth
@@ -26,20 +35,23 @@ class LoginBody(BaseModel):
 
 
 @router.post("/api/admin/login")
-def login(body: LoginBody, response: Response):
+def login(body: LoginBody, request: Request, response: Response):
     username = body.username.strip()
     password = body.password
     if not username or not password:
         raise HTTPException(status_code=400, detail="Vui lòng nhập tên đăng nhập và mật khẩu.")
     with db.get_conn() as conn:
         user = conn.execute(
-            "SELECT * FROM admin_user WHERE username = %s", (username,)
+            "SELECT * FROM core.admins WHERE username = %s", (username,)
         ).fetchone()
     if not user or not auth.verify_password(password, user["password_hash"]):
+        db.log_action("LOGIN_FAILED", entity_type="admin", description=username, ip=_client_ip(request), level="warn")
         raise HTTPException(status_code=401, detail="Tên đăng nhập hoặc mật khẩu không đúng.")
     with db.get_conn() as conn:
-        token, expires_at = auth.create_session(conn, user["id"])
+        token, expires_at = auth.create_session(conn, user["admin_id"])
     auth.set_session_cookie(response, token)
+    db.log_action("LOGIN", admin_id=user["admin_id"], entity_type="admin",
+                  entity_id=user["admin_id"], description=username, ip=_client_ip(request))
     return {
         "user": {"username": user["username"], "fullName": user["full_name"]},
         "expiresAt": expires_at.isoformat().replace("+00:00", "Z"),
@@ -51,8 +63,12 @@ def logout(request: Request, response: Response):
     token = request.cookies.get(config.SESSION_COOKIE)
     if token:
         try:
+            admin = auth.get_admin(request)
             with db.get_conn() as conn:
                 auth.destroy_session(conn, token)
+            if admin:
+                db.log_action("LOGOUT", admin_id=admin["id"], entity_type="admin",
+                              entity_id=admin["id"], ip=_client_ip(request))
         except Exception:
             pass
     auth.clear_session_cookie(response)
@@ -120,41 +136,62 @@ def _validate_zone_points(points: list) -> None:
 @router.get("/api/admin/zones")
 def admin_zones(admin: dict = Depends(auth.require_admin)):
     with db.get_conn() as conn:
-        rows = conn.execute("SELECT * FROM lez_zone ORDER BY created_at ASC").fetchall()
+        rows = conn.execute(
+            f"""
+            SELECT lez_zone_id, name, description, status, effective_from,
+                   created_at, updated_at, {db.geom_read('geometry', 'geometry_json')}
+            FROM policy.lez_zones ORDER BY created_at ASC
+            """
+        ).fetchall()
     # historical contract: admin list keeps coordinates as the raw JSON string
-    return {"zones": [{**zone_dto(r), "coordinates": r["coordinates"]} for r in rows]}
+    return {"zones": [zone_dto(r) for r in rows]}
 
 
 @router.post("/api/admin/zones")
-def create_zone(body: ZoneBody, admin: dict = Depends(auth.require_admin)):
+def create_zone(body: ZoneBody, request: Request, admin: dict = Depends(auth.require_admin)):
     _validate_zone_points(body.coordinates)
-    import json as _json
 
-    zone_id = uuid.uuid4().hex
-    coords_json = _json.dumps(body.coordinates)
+    ring_geojson = polygon_geojson_from_pairs(body.coordinates)
     with db.get_conn() as conn:
-        conn.execute(
-            """
-            INSERT INTO lez_zone (id, name, description, coordinates, active)
-            VALUES (%s, %s, %s, %s, %s)
-            """,
-            (zone_id, body.name, body.description, coords_json, body.active),
+        study_id = db.study_area_id(conn)
+        zone_id = int(
+            conn.execute(
+                f"""
+                INSERT INTO policy.lez_zones (study_area_id, name, description,
+                    geometry, status)
+                VALUES (%s, %s, %s, {db.geom_write(multi=True)}, %s)
+                RETURNING lez_zone_id
+                """,
+                (study_id, body.name, body.description, ring_geojson,
+                 "active" if body.active else "inactive"),
+            ).fetchone()["lez_zone_id"]
         )
-        db.sync_zone_geom(conn, zone_id, coords_json)
-        row = conn.execute("SELECT * FROM lez_zone WHERE id = %s", (zone_id,)).fetchone()
+        row = conn.execute(
+            f"""
+            SELECT lez_zone_id, name, description, status, effective_from,
+                   created_at, updated_at, {db.geom_read('geometry', 'geometry_json')}
+            FROM policy.lez_zones WHERE lez_zone_id = %s
+            """,
+            (zone_id,),
+        ).fetchone()
+    db.log_action("ZONE_CREATE", admin_id=admin["id"], entity_type="lez_zone",
+                  entity_id=zone_id, description=body.name, ip=_client_ip(request))
     return {"zone": zone_dto(row)}
 
 
 @router.put("/api/admin/zones/{zone_id}")
-def update_zone(zone_id: str, body: ZonePatch, admin: dict = Depends(auth.require_admin)):
-    import json as _json
-
+def update_zone(zone_id: str, body: ZonePatch, request: Request, admin: dict = Depends(auth.require_admin)):
+    try:
+        zid = int(zone_id)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=404, detail="Không tìm thấy vùng.")
     data = body.model_dump(exclude_unset=True, exclude_none=False)
     if not data:
         raise HTTPException(status_code=400, detail="Dữ liệu vùng không hợp lệ.")
-    coords_json = None
     with db.get_conn() as conn:
-        existing = conn.execute("SELECT id FROM lez_zone WHERE id = %s", (zone_id,)).fetchone()
+        existing = conn.execute(
+            "SELECT lez_zone_id FROM policy.lez_zones WHERE lez_zone_id = %s", (zid,)
+        ).fetchone()
         if not existing:
             raise HTTPException(status_code=404, detail="Không tìm thấy vùng.")
         sets, vals = [], []
@@ -162,40 +199,69 @@ def update_zone(zone_id: str, body: ZonePatch, admin: dict = Depends(auth.requir
             if k == "coordinates":
                 if v is not None:
                     _validate_zone_points(v)  # US-22: same checks as create
-                    coords_json = _json.dumps(v)
-                    sets.append("coordinates = %s")
-                    vals.append(coords_json)
-                    sets.append("updated_at = now()")
+                    sets.append(f"geometry = {db.geom_write(multi=True)}")
+                    vals.append(polygon_geojson_from_pairs(v))
             elif k == "description":
                 sets.append("description = %s")
                 vals.append(v)
-                sets.append("updated_at = now()")
-            else:
-                col = {"name": "name", "active": "active"}[k]
-                sets.append(f"{col} = %s")
+            elif k == "active":
+                sets.append("status = %s")
+                vals.append("active" if v else "inactive")
+            else:  # name
+                sets.append("name = %s")
                 vals.append(v)
-                sets.append("updated_at = now()")
-        vals.append(zone_id)
-        conn.execute(f"UPDATE lez_zone SET {', '.join(sets)} WHERE id = %s", vals)
-        if coords_json:
-            db.sync_zone_geom(conn, zone_id, coords_json)
-        row = conn.execute("SELECT * FROM lez_zone WHERE id = %s", (zone_id,)).fetchone()
+        sets.append("updated_at = now()")
+        vals.append(zid)
+        conn.execute(f"UPDATE policy.lez_zones SET {', '.join(sets)} WHERE lez_zone_id = %s", vals)
+        row = conn.execute(
+            f"""
+            SELECT lez_zone_id, name, description, status, effective_from,
+                   created_at, updated_at, {db.geom_read('geometry', 'geometry_json')}
+            FROM policy.lez_zones WHERE lez_zone_id = %s
+            """,
+            (zid,),
+        ).fetchone()
+    db.log_action("ZONE_UPDATE", admin_id=admin["id"], entity_type="lez_zone",
+                  entity_id=zid, description=row["name"], ip=_client_ip(request))
     return {"zone": zone_dto(row)}
 
 
 @router.delete("/api/admin/zones/{zone_id}")
-def delete_zone(zone_id: str, admin: dict = Depends(auth.require_admin)):
+def delete_zone(zone_id: str, request: Request, admin: dict = Depends(auth.require_admin)):
+    try:
+        zid = int(zone_id)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=404, detail="Không tìm thấy vùng.")
     with db.get_conn() as conn:
-        res = conn.execute("DELETE FROM lez_zone WHERE id = %s RETURNING id", (zone_id,)).fetchone()
+        res = conn.execute(
+            "DELETE FROM policy.lez_zones WHERE lez_zone_id = %s RETURNING lez_zone_id, name",
+            (zid,),
+        ).fetchone()
     if not res:
         raise HTTPException(status_code=404, detail="Không tìm thấy vùng.")
+    db.log_action("ZONE_DELETE", admin_id=admin["id"], entity_type="lez_zone",
+                  entity_id=zid, description=res["name"], ip=_client_ip(request))
     return {"ok": True}
 
 
 # ---------------------------------------------------------------- rules
 
+_RULE_JOIN = """
+    SELECT lr.lez_rule_id, lr.lez_zone_id, lr.start_time, lr.end_time,
+           lr.days_of_week, lr.status,
+           vr.restriction_type,
+           COALESCE(vr.restriction_reason, lr.description) AS condition,
+           tm.code AS mode_code, tm.name AS mode_name
+    FROM policy.lez_rules lr
+    LEFT JOIN policy.vehicle_restrictions vr ON vr.lez_rule_id = lr.lez_rule_id
+    LEFT JOIN policy.vehicle_types vt ON vt.vehicle_type_id = vr.vehicle_type_id
+    LEFT JOIN transportation.transportation_modes tm
+      ON tm.transportation_mode_id = vt.transportation_mode_id
+"""
+
+
 class RuleBody(BaseModel):
-    zoneId: str = Field(min_length=1)
+    zoneId: Union[int, str]
     modeId: str = Field(min_length=1)
     restrictionType: str = Field(pattern="^(banned|conditional)$")
     condition: Optional[str] = Field(default=None, max_length=600)
@@ -214,70 +280,142 @@ class RulePatch(BaseModel):
     active: Optional[bool] = None
 
 
+def _rule_id_of(raw) -> Optional[int]:
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return None
+
+
 @router.get("/api/admin/rules")
 def admin_rules(admin: dict = Depends(auth.require_admin)):
     with db.get_conn() as conn:
-        rows = conn.execute("SELECT * FROM policy_rule ORDER BY created_at ASC").fetchall()
+        rows = conn.execute(f"{_RULE_JOIN} ORDER BY lr.created_at ASC").fetchall()
     return {"rules": [rule_dto(r) for r in rows]}
 
 
 @router.post("/api/admin/rules")
-def create_rule(body: RuleBody, admin: dict = Depends(auth.require_admin)):
-    rule_id = uuid.uuid4().hex
+def create_rule(body: RuleBody, request: Request, admin: dict = Depends(auth.require_admin)):
+    zone_id = _rule_id_of(body.zoneId)
+    if not zone_id:
+        raise HTTPException(status_code=400, detail="Không tạo được quy định. Kiểm tra lại vùng và phương tiện.")
     try:
         with db.get_conn() as conn:
-            conn.execute(
-                """
-                INSERT INTO policy_rule (id, zone_id, mode_id, restriction_type,
-                    condition, start_time, end_time, days, active)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                """,
-                (
-                    rule_id, body.zoneId, body.modeId, body.restrictionType,
-                    body.condition, body.startTime, body.endTime, body.days, body.active,
-                ),
+            mode = conn.execute(
+                "SELECT transportation_mode_id, name FROM transportation.transportation_modes WHERE code = %s",
+                (body.modeId,),
+            ).fetchone()
+            if not mode:
+                raise HTTPException(status_code=400, detail="Không tạo được quy định. Kiểm tra lại vùng và phương tiện.")
+            vt_id = db.vehicle_type_id_by_mode_code(conn, body.modeId)
+            rule_name = (
+                f"{'Cấm' if body.restrictionType == 'banned' else 'Hạn chế có điều kiện'} — {mode['name']}"
             )
-            row = conn.execute("SELECT * FROM policy_rule WHERE id = %s", (rule_id,)).fetchone()
+            rule_id = int(
+                conn.execute(
+                    """
+                    INSERT INTO policy.lez_rules (lez_zone_id, rule_name, description,
+                        start_time, end_time, days_of_week, status)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    RETURNING lez_rule_id
+                    """,
+                    (
+                        zone_id, rule_name, body.condition, body.startTime,
+                        body.endTime, body.days,
+                        "active" if body.active else "inactive",
+                    ),
+                ).fetchone()["lez_rule_id"]
+            )
+            if vt_id:
+                conn.execute(
+                    """
+                    INSERT INTO policy.vehicle_restrictions
+                        (lez_rule_id, vehicle_type_id, restriction_type,
+                         min_emission_level, restriction_reason)
+                    VALUES (%s, %s, %s, 0, %s)
+                    """,
+                    (rule_id, vt_id, body.restrictionType, body.condition),
+                )
+            row = conn.execute(f"{_RULE_JOIN} WHERE lr.lez_rule_id = %s", (rule_id,)).fetchone()
+    except HTTPException:
+        raise
     except Exception:
         raise HTTPException(
             status_code=400, detail="Không tạo được quy định. Kiểm tra lại vùng và phương tiện."
         )
+    db.log_action("RULE_CREATE", admin_id=admin["id"], entity_type="lez_rule",
+                  entity_id=rule_id, description=rule_name, ip=_client_ip(request))
     return {"rule": rule_dto(row)}
 
 
 @router.put("/api/admin/rules/{rule_id}")
-def update_rule(rule_id: str, body: RulePatch, admin: dict = Depends(auth.require_admin)):
-    mapping = {
-        "restrictionType": "restriction_type",
-        "condition": "condition",
-        "startTime": "start_time",
-        "endTime": "end_time",
-        "days": "days",
-        "active": "active",
-    }
+def update_rule(rule_id: str, body: RulePatch, request: Request, admin: dict = Depends(auth.require_admin)):
+    rid = _rule_id_of(rule_id)
+    if not rid:
+        raise HTTPException(status_code=404, detail="Không tìm thấy quy định.")
     data = body.model_dump(exclude_unset=True, exclude_none=True)
     data = {k: v for k, v in data.items() if v is not None}
     if not data:
         raise HTTPException(status_code=400, detail="Dữ liệu quy định không hợp lệ.")
-    sets = ", ".join(f"{mapping[k]} = %s" for k in data)
-    vals = list(data.values()) + [rule_id]
-    with db.get_conn() as conn:
-        row = conn.execute(
-            f"UPDATE policy_rule SET {sets} WHERE id = %s RETURNING *", vals
-        ).fetchone()
+    rule_sets, rule_vals = [], []
+    vr_sets, vr_vals = [], []
+    for k, v in data.items():
+        if k == "startTime":
+            rule_sets.append("start_time = %s")
+            rule_vals.append(v)
+        elif k == "endTime":
+            rule_sets.append("end_time = %s")
+            rule_vals.append(v)
+        elif k == "days":
+            rule_sets.append("days_of_week = %s")
+            rule_vals.append(v)
+        elif k == "active":
+            rule_sets.append("status = %s")
+            rule_vals.append("active" if v else "inactive")
+        elif k == "restrictionType":
+            vr_sets.append("restriction_type = %s")
+            vr_vals.append(v)
+        elif k == "condition":
+            vr_sets.append("restriction_reason = %s")
+            vr_vals.append(v)
+    try:
+        with db.get_conn() as conn:
+            if rule_sets:
+                rule_sets.append("updated_at = now()")
+                rule_vals.append(rid)
+                conn.execute(
+                    f"UPDATE policy.lez_rules SET {', '.join(rule_sets)} WHERE lez_rule_id = %s",
+                    rule_vals,
+                )
+            if vr_sets:
+                conn.execute(
+                    f"UPDATE policy.vehicle_restrictions SET {', '.join(vr_sets)} WHERE lez_rule_id = %s",
+                    vr_vals + [rid],
+                )
+            row = conn.execute(f"{_RULE_JOIN} WHERE lr.lez_rule_id = %s", (rid,)).fetchone()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Không cập nhật được quy định.")
     if not row:
         raise HTTPException(status_code=404, detail="Không tìm thấy quy định.")
+    db.log_action("RULE_UPDATE", admin_id=admin["id"], entity_type="lez_rule",
+                  entity_id=rid, ip=_client_ip(request))
     return {"rule": rule_dto(row)}
 
 
 @router.delete("/api/admin/rules/{rule_id}")
-def delete_rule(rule_id: str, admin: dict = Depends(auth.require_admin)):
+def delete_rule(rule_id: str, request: Request, admin: dict = Depends(auth.require_admin)):
+    rid = _rule_id_of(rule_id)
+    if not rid:
+        raise HTTPException(status_code=404, detail="Không tìm thấy quy định.")
     with db.get_conn() as conn:
         res = conn.execute(
-            "DELETE FROM policy_rule WHERE id = %s RETURNING id", (rule_id,)
+            "DELETE FROM policy.lez_rules WHERE lez_rule_id = %s RETURNING lez_rule_id",
+            (rid,),
         ).fetchone()
     if not res:
         raise HTTPException(status_code=404, detail="Không tìm thấy quy định.")
+    db.log_action("RULE_DELETE", admin_id=admin["id"], entity_type="lez_rule",
+                  entity_id=rid, ip=_client_ip(request))
     return {"ok": True}
 
 
@@ -299,60 +437,67 @@ class ModeBody(BaseModel):
 @router.get("/api/admin/modes")
 def admin_modes(admin: dict = Depends(auth.require_admin)):
     with db.get_conn() as conn:
-        rows = conn.execute("SELECT * FROM transport_mode ORDER BY sort_order ASC").fetchall()
+        rows = conn.execute(
+            "SELECT * FROM transportation.transportation_modes ORDER BY sort_order ASC"
+        ).fetchall()
     return {"modes": [mode_dto(r) for r in rows]}
 
 
 @router.put("/api/admin/modes")
-def update_mode(body: ModeBody, admin: dict = Depends(auth.require_admin)):
+def update_mode(body: ModeBody, request: Request, admin: dict = Depends(auth.require_admin)):
     colmap = {
         "name": "name",
-        "enabled": "enabled",
+        "enabled": "is_active",
         "avgSpeedKmh": "avg_speed_kmh",
-        "baseCostVnd": "base_cost_vnd",
-        "costPerKmVnd": "cost_per_km_vnd",
+        "baseCostVnd": "base_fare",
+        "costPerKmVnd": "cost_per_km",
         "co2PerKmG": "co2_per_km_g",
-        "baseAccessibility": "base_accessibility",
-        "baseConvenience": "base_convenience",
-        "waitMinutes": "wait_minutes",
+        "baseAccessibility": "accessibility_score",
+        "baseConvenience": "convenience_score",
+        "waitMinutes": "avg_wait_min",
     }
     data = body.model_dump(exclude_unset=True)
     updates = {colmap[k]: v for k, v in data.items() if k in colmap and v is not None}
     with db.get_conn() as conn:
         exists = conn.execute(
-            "SELECT id FROM transport_mode WHERE id = %s", (body.id,)
+            "SELECT transportation_mode_id FROM transportation.transportation_modes WHERE code = %s",
+            (body.id,),
         ).fetchone()
         if exists:
             if updates:
                 sets = ", ".join(f"{c} = %s" for c in updates)
                 conn.execute(
-                    f"UPDATE transport_mode SET {sets} WHERE id = %s",
+                    f"UPDATE transportation.transportation_modes SET {sets} WHERE code = %s",
                     list(updates.values()) + [body.id],
                 )
         else:
             conn.execute(
                 """
-                INSERT INTO transport_mode (id, name, description, icon, avg_speed_kmh,
-                    base_cost_vnd, cost_per_km_vnd, co2_per_km_g, base_accessibility,
-                    base_convenience, wait_minutes, enabled, sort_order)
+                INSERT INTO transportation.transportation_modes
+                    (code, name, description, icon, avg_speed_kmh,
+                     base_fare, cost_per_km, co2_per_km_g, accessibility_score,
+                     convenience_score, avg_wait_min, is_active, sort_order)
                 VALUES (%s,%s,'','circle-dot',%s,%s,%s,%s,%s,%s,%s,%s,99)
                 """,
                 (
                     body.id,
                     body.name,
                     updates.get("avg_speed_kmh", 20),
-                    updates.get("base_cost_vnd", 0),
-                    updates.get("cost_per_km_vnd", 0),
+                    updates.get("base_fare", 0),
+                    updates.get("cost_per_km", 0),
                     updates.get("co2_per_km_g", 0),
-                    updates.get("base_accessibility", 0.7),
-                    updates.get("base_convenience", 0.7),
-                    updates.get("wait_minutes", 0),
-                    updates.get("enabled", True),
+                    updates.get("accessibility_score", 0.7),
+                    updates.get("convenience_score", 0.7),
+                    updates.get("avg_wait_min", 0),
+                    updates.get("is_active", True),
                 ),
             )
         row = conn.execute(
-            "SELECT * FROM transport_mode WHERE id = %s", (body.id,)
+            "SELECT * FROM transportation.transportation_modes WHERE code = %s", (body.id,)
         ).fetchone()
+    db.log_action("MODE_UPDATE", admin_id=admin["id"], entity_type="transportation_mode",
+                  entity_id=row["transportation_mode_id"], description=body.id,
+                  ip=_client_ip(request))
     return {"mode": mode_dto(row)}
 
 
@@ -370,12 +515,12 @@ class WeightsBody(BaseModel):
 @router.get("/api/admin/weights")
 def admin_weights(admin: dict = Depends(auth.require_admin)):
     with db.get_conn() as conn:
-        rows = conn.execute("SELECT * FROM criteria_weight").fetchall()
+        rows = conn.execute("SELECT * FROM decision.recommendation_criteria").fetchall()
     return {"weights": [weight_dto(r) for r in rows]}
 
 
 @router.put("/api/admin/weights")
-def update_weights(body: WeightsBody, admin: dict = Depends(auth.require_admin)):
+def update_weights(body: WeightsBody, request: Request, admin: dict = Depends(auth.require_admin)):
     total = sum(w.weight for w in body.weights)
     if abs(total - 100) > 0.01:
         raise HTTPException(
@@ -386,13 +531,16 @@ def update_weights(body: WeightsBody, admin: dict = Depends(auth.require_admin))
         for w in body.weights:
             conn.execute(
                 """
-                INSERT INTO criteria_weight (id, criterion, weight, label)
-                VALUES (%s, %s, %s, %s)
-                ON CONFLICT (criterion) DO UPDATE SET weight = EXCLUDED.weight
+                INSERT INTO decision.recommendation_criteria (code, name, default_weight)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (code) DO UPDATE SET default_weight = EXCLUDED.default_weight
                 """,
-                (uuid.uuid4().hex, w.criterion, w.weight, w.criterion),
+                (w.criterion, w.criterion, w.weight),
             )
-        rows = conn.execute("SELECT * FROM criteria_weight").fetchall()
+        rows = conn.execute("SELECT * FROM decision.recommendation_criteria").fetchall()
+    db.log_action("WEIGHTS_UPDATE", admin_id=admin["id"], entity_type="recommendation_criteria",
+                  description=", ".join(f"{w.criterion}={w.weight}%" for w in body.weights),
+                  ip=_client_ip(request))
     return {"weights": [weight_dto(r) for r in rows]}
 
 
@@ -403,16 +551,19 @@ def update_weights(body: WeightsBody, admin: dict = Depends(auth.require_admin))
 def _dataset_section() -> dict:
     """US-25: survey-dataset surface for the analytics dashboard.
 
-    Latest dataset_run row +, for the latest month present in dataset_trend,
-    one row per mode with share / trend index / sample count (mode display
-    name resolved via transport_mode). share is stored 0..1 and reported
-    as a percentage (0..100).
+    Latest core.dataset_runs row + one row per mode with share / trend index /
+    sample count (mode display name resolved via transportation_modes).
+    share is stored 0..1 and reported as a percentage (0..100).
+
+    Period-aware: the Kaggle survey (dataHN.csv) has no date column, so its
+    period axis is AGE COHORTS — the dashboard then shows the OVERALL mode
+    shares of the whole sample instead of a single (oldest) cohort slice.
     """
     with db.get_conn() as conn:
         run = conn.execute(
             """
-            SELECT ran_at, source_file, rows_in, rows_clean
-            FROM dataset_run
+            SELECT ran_at, source_file, rows_in, rows_clean, notes
+            FROM core.dataset_runs
             ORDER BY ran_at DESC
             LIMIT 1
             """
@@ -428,36 +579,122 @@ def _dataset_section() -> dict:
             else None
         )
 
-        latest_month = conn.execute(
-            "SELECT max(month) AS latest_month FROM dataset_trend"
-        ).fetchone()["latest_month"]
+        try:
+            run_notes = json.loads(run["notes"]) if run and run["notes"] else {}
+        except (TypeError, ValueError):
+            run_notes = {}
+        period_kind = (
+            run_notes.get("periodKind", "month")
+            if isinstance(run_notes, dict)
+            else "month"
+        )
+        latest_period = (
+            run_notes.get("latestPeriod") if isinstance(run_notes, dict) else None
+        )
 
         mode_trend: list = []
-        if latest_month:
-            trend_rows = conn.execute(
+        latest_month = None
+        if period_kind == "cohort":
+            latest_month = latest_period
+            total = conn.execute(
                 """
-                SELECT t.mode_id,
-                       COALESCE(tm.name, t.mode_id) AS mode_name,
-                       t.share, t.trend_index, t.sample_count
-                FROM dataset_trend t
-                LEFT JOIN transport_mode tm ON tm.id = t.mode_id
-                WHERE t.month = %s
-                ORDER BY t.share DESC
-                """,
-                (latest_month,),
-            ).fetchall()
-            mode_trend = [
-                {
-                    "modeId": r["mode_id"],
-                    "modeName": r["mode_name"],
-                    "share": round(float(r["share"]) * 100, 2),
-                    "trendIndex": round(float(r["trend_index"]), 4),
-                    "sampleCount": int(r["sample_count"]),
-                }
-                for r in trend_rows
-            ]
+                SELECT count(*) AS c FROM decision.vehicle_survey_responses
+                WHERE current_mode_id IS NOT NULL
+                """
+            ).fetchone()["c"]
+            if total:
+                trend_rows = conn.execute(
+                    """
+                    SELECT tm.code AS mode_id,
+                           COALESCE(tm.name, tm.code) AS mode_name,
+                           counts.c,
+                           ti.trend_index
+                    FROM (
+                        SELECT current_mode_id, count(*) AS c
+                        FROM decision.vehicle_survey_responses
+                        WHERE current_mode_id IS NOT NULL
+                        GROUP BY current_mode_id
+                    ) counts
+                    JOIN transportation.transportation_modes tm
+                      ON tm.transportation_mode_id = counts.current_mode_id
+                    LEFT JOIN LATERAL (
+                        SELECT t2.trend_index
+                        FROM decision.dataset_trends t2
+                        WHERE t2.transportation_mode_id = counts.current_mode_id
+                        ORDER BY t2.month DESC
+                        LIMIT 1
+                    ) ti ON true
+                    ORDER BY counts.c DESC
+                    """
+                ).fetchall()
+                mode_trend = [
+                    {
+                        "modeId": r["mode_id"],
+                        "modeName": r["mode_name"],
+                        "share": round(float(r["c"]) / total * 100, 2),
+                        "trendIndex": (
+                            round(float(r["trend_index"]), 4)
+                            if r["trend_index"] is not None
+                            else None
+                        ),
+                        "sampleCount": int(r["c"]),
+                    }
+                    for r in trend_rows
+                ]
+        else:
+            latest_month = conn.execute(
+                "SELECT max(month) AS latest_month FROM decision.dataset_trends"
+            ).fetchone()["latest_month"]
 
-    return {"lastRun": last_run, "latestMonth": latest_month, "modeTrend": mode_trend}
+            if latest_month:
+                trend_rows = conn.execute(
+                    """
+                    SELECT t.transportation_mode_id,
+                           tm.code AS mode_id,
+                           COALESCE(tm.name, tm.code) AS mode_name,
+                           t.share, t.trend_index, t.sample_count
+                    FROM decision.dataset_trends t
+                    JOIN transportation.transportation_modes tm
+                      ON tm.transportation_mode_id = t.transportation_mode_id
+                    WHERE t.month = %s
+                    ORDER BY t.share DESC
+                    """,
+                    (latest_month,),
+                ).fetchall()
+                mode_trend = [
+                    {
+                        "modeId": r["mode_id"],
+                        "modeName": r["mode_name"],
+                        "share": round(float(r["share"]) * 100, 2),
+                        "trendIndex": round(float(r["trend_index"]), 4),
+                        "sampleCount": int(r["sample_count"]),
+                    }
+                    for r in trend_rows
+                ]
+
+    return {
+        "lastRun": last_run,
+        "latestMonth": latest_month,
+        "periodKind": period_kind,
+        "modeTrend": mode_trend,
+    }
+
+
+_TRIP_JOIN = """
+    SELECT t.*,
+           mv.code  AS vehicle_id,
+           mtc.code AS top_mode_id,
+           mcc.code AS chosen_mode_id
+    FROM trip.trips t
+    LEFT JOIN policy.vehicle_types vtv ON vtv.vehicle_type_id = t.vehicle_type_id
+    LEFT JOIN transportation.transportation_modes mv
+      ON mv.transportation_mode_id = vtv.transportation_mode_id
+    LEFT JOIN transportation.transportation_modes mtc
+      ON mtc.transportation_mode_id = t.top_mode_id
+    LEFT JOIN policy.vehicle_types vtc ON vtc.vehicle_type_id = t.chosen_vehicle_type_id
+    LEFT JOIN transportation.transportation_modes mcc
+      ON mcc.transportation_mode_id = vtc.transportation_mode_id
+"""
 
 
 @router.get("/api/admin/analytics")
@@ -482,19 +719,19 @@ def analytics(request: Request, admin=Depends(auth.require_admin), From: Optiona
 
     with db.get_conn() as conn:
         modes = conn.execute(
-            "SELECT * FROM transport_mode ORDER BY sort_order ASC"
+            "SELECT * FROM transportation.transportation_modes ORDER BY sort_order ASC"
         ).fetchall()
         # US-29/35: aggregate the WHOLE selected date range (no LIMIT).
         rows = conn.execute(
-            """
-            SELECT * FROM trip_record
-            WHERE created_at >= %s AND created_at <= %s
-            ORDER BY created_at DESC
+            f"""
+            {_TRIP_JOIN}
+            WHERE t.created_at >= %s AND t.created_at <= %s
+            ORDER BY t.created_at DESC
             """,
             (from_, to),
         ).fetchall()
 
-    mode_names = {m["id"]: m["name"] for m in modes}
+    mode_names = {m["code"]: m["name"] for m in modes}
     trips = pd.DataFrame([trip_dto(r) for r in rows])
     total = len(trips)
 
@@ -586,8 +823,15 @@ def analytics(request: Request, admin=Depends(auth.require_admin), From: Optiona
 # ---------------------------------------------------------------- dataset
 
 @router.post("/api/admin/dataset/reprocess")
-def reprocess_dataset(admin: dict = Depends(auth.require_admin)):
+def reprocess_dataset(request: Request, admin: dict = Depends(auth.require_admin)):
     """Re-run the pandas "Vehicle at Ha Noi Dataset" pipeline."""
     from ..services import trend
 
-    return trend.run_pipeline()
+    report = trend.run_pipeline()
+    db.log_action("DATASET_REPROCESS", admin_id=admin["id"], entity_type="dataset_run",
+                  description=(
+                      f"{report.get('sourceFile')}: rows_in={report.get('rowsIn')}, "
+                      f"rows_clean={report.get('rowsClean')}"
+                  ),
+                  ip=_client_ip(request))
+    return report
