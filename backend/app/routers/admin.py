@@ -835,3 +835,224 @@ def reprocess_dataset(request: Request, admin: dict = Depends(auth.require_admin
                   ),
                   ip=_client_ip(request))
     return report
+
+
+# ---------------------------------------------------------------- CN-40: phân tích tác động LEZ
+
+_LEZ_STATUS_VI = {"outside": "Ngoài vùng", "partial": "Đi ngang qua", "within": "Hoàn toàn trong"}
+_LEZ_COMPLIANCE_VI = {
+    "compliant": "Tuân thủ",
+    "not_permitted": "Không được phép",
+    "restricted": "Bị hạn chế",
+    "unknown": "Không rõ",
+}
+
+
+@router.get("/api/admin/lez-impact")
+def lez_impact(
+    request: Request,
+    admin: dict = Depends(auth.require_admin),
+    From: Optional[str] = Query(default=None, alias="from"),
+    To: Optional[str] = Query(default=None, alias="to"),
+):
+    """CN-40 — Phân tích tác động LEZ đối với chuyến đi.
+
+    Đọc-đọc trên trip.trips (cột lez_affected) và trip.trip_lez_analyses
+    (route_lez_status / compliance_*). Không ghi DB, không đụng mcdm/TOPSIS.
+    """
+    now = datetime.now(timezone.utc)
+    try:
+        to = datetime.fromisoformat(f"{To}T23:59:59+00:00") if To else now
+        from_ = (
+            datetime.fromisoformat(f"{From}T00:00:00+00:00")
+            if From
+            else now - timedelta(days=30)
+        )
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Khoảng thời gian không hợp lệ.")
+
+    with db.get_conn() as conn:
+        modes = conn.execute(
+            "SELECT code, name FROM transportation.transportation_modes ORDER BY sort_order ASC"
+        ).fetchall()
+        rows = conn.execute(
+            f"""
+            {_TRIP_JOIN}
+            WHERE t.created_at >= %s AND t.created_at <= %s
+            ORDER BY t.created_at ASC
+            """,
+            (from_, to),
+        ).fetchall()
+        # chi tiết phân tích LEZ từng tuyến (có thể rỗng nếu planner chưa chạy phân tích)
+        detail_rows = conn.execute(
+            """
+            SELECT a.route_lez_status,
+                   a.compliance_status,
+                   a.compliance_reason,
+                   a.intersection_percentage,
+                   a.intersection_length_m
+            FROM trip.trip_lez_analyses a
+            JOIN trip.trip_routes r ON r.route_id = a.route_id
+            JOIN trip.trips t ON t.trip_id = r.trip_id
+            WHERE t.created_at >= %s AND t.created_at <= %s
+            """,
+            (from_, to),
+        ).fetchall()
+
+    mode_names = {m["code"]: m["name"] for m in modes}
+    trips = pd.DataFrame([trip_dto(r) for r in rows])
+    total = len(trips)
+
+    def _pct(part: float, whole: float) -> float:
+        return round(part / whole * 100, 2) if whole else 0
+
+    # ---- chi tiết tuân thủ từ trip_lez_analyses
+    status_counts: dict = {}
+    compliance_counts: dict = {}
+    reason_counts: dict = {}
+    inter_pcts: list = []
+    inter_lens: list = []
+    for d in detail_rows:
+        s = d["route_lez_status"] or "outside"
+        c = d["compliance_status"] or "unknown"
+        status_counts[s] = status_counts.get(s, 0) + 1
+        compliance_counts[c] = compliance_counts.get(c, 0) + 1
+        if d["compliance_reason"]:
+            reason_counts[str(d["compliance_reason"])] = (
+                reason_counts.get(str(d["compliance_reason"]), 0) + 1
+            )
+        try:
+            inter_pcts.append(float(d["intersection_percentage"]))
+            inter_lens.append(float(d["intersection_length_m"]))
+        except (TypeError, ValueError):
+            pass
+    analyzed = sum(status_counts.values())
+
+    empty_detail = {
+        "analyzedTrips": 0,
+        "statusDistribution": [],
+        "compliance": [],
+        "avgIntersectionPct": 0,
+        "avgIntersectionLengthM": 0,
+        "topReasons": [],
+    }
+
+    if total == 0:
+        return {
+            "from": from_.isoformat().replace("+00:00", "Z"),
+            "to": to.isoformat().replace("+00:00", "Z"),
+            "kpis": {
+                "totalTrips": 0,
+                "lezAffectedTrips": 0,
+                "lezAffectedPct": 0,
+                "affectedDistanceKm": 0,
+                "totalDistanceKm": 0,
+                "avgDistanceAffectedKm": 0,
+                "avgDistanceNormalKm": 0,
+                "avgDurationAffectedMin": 0,
+                "avgDurationNormalMin": 0,
+                "compliantPct": 0,
+            },
+            "byMode": [],
+            "byDay": [],
+            "byDistrict": [],
+            "byPurpose": [],
+            "lezDetail": empty_detail,
+        }
+
+    affected_mask = trips["lezAffected"].astype(bool)
+    aff = trips[affected_mask]
+    normal = trips[~affected_mask]
+    affected_n = int(len(aff))
+
+    # ---- theo phương tiện định đi (vehicleId = code)
+    by_mode = []
+    for code, grp in trips.groupby("vehicleId", dropna=False):
+        key = code if isinstance(code, str) and code else "unknown"
+        g_aff = int(grp["lezAffected"].astype(bool).sum())
+        by_mode.append({
+            "code": key,
+            "name": mode_names.get(key, "Khác" if key == "unknown" else key),
+            "total": int(len(grp)),
+            "affected": g_aff,
+            "affectedPct": _pct(g_aff, len(grp)),
+            "affectedDistanceKm": round(float(grp.loc[grp["lezAffected"].astype(bool), "distanceKm"].sum()), 2),
+        })
+    by_mode.sort(key=lambda x: x["affected"], reverse=True)
+
+    # ---- theo ngày (giờ địa phương Hà Nội, UTC+7)
+    def _hn_date(iso: str) -> str:
+        return (datetime.fromisoformat(iso.replace("Z", "+00:00")) + timedelta(hours=7)).date().isoformat()
+
+    day_map: dict = {}
+    for day, grp in trips.assign(_day=trips["createdAt"].map(_hn_date)).groupby("_day"):
+        day_map[day] = {
+            "date": day,
+            "total": int(len(grp)),
+            "affected": int(grp["lezAffected"].astype(bool).sum()),
+        }
+    by_day = [day_map[k] for k in sorted(day_map)]
+
+    # ---- theo quận xuất phát (top 10 theo số chuyến qua LEZ)
+    by_district = []
+    for district, grp in trips.groupby("originDistrict"):
+        g_aff = int(grp["lezAffected"].astype(bool).sum())
+        by_district.append({
+            "district": district,
+            "total": int(len(grp)),
+            "affected": g_aff,
+            "affectedPct": _pct(g_aff, len(grp)),
+        })
+    by_district.sort(key=lambda x: x["affected"], reverse=True)
+    by_district = by_district[:10]
+
+    # ---- theo mục đích chuyến đi
+    by_purpose = []
+    for purpose, grp in trips.groupby("purpose"):
+        g_aff = int(grp["lezAffected"].astype(bool).sum())
+        by_purpose.append({
+            "purpose": purpose,
+            "total": int(len(grp)),
+            "affected": g_aff,
+            "affectedPct": _pct(g_aff, len(grp)),
+        })
+    by_purpose.sort(key=lambda x: x["affected"], reverse=True)
+
+    return {
+        "from": from_.isoformat().replace("+00:00", "Z"),
+        "to": to.isoformat().replace("+00:00", "Z"),
+        "kpis": {
+            "totalTrips": total,
+            "lezAffectedTrips": affected_n,
+            "lezAffectedPct": _pct(affected_n, total),
+            "affectedDistanceKm": round(float(aff["distanceKm"].sum()), 2),
+            "totalDistanceKm": round(float(trips["distanceKm"].sum()), 2),
+            "avgDistanceAffectedKm": round(float(aff["distanceKm"].mean()), 2) if affected_n else 0,
+            "avgDistanceNormalKm": round(float(normal["distanceKm"].mean()), 2) if len(normal) else 0,
+            "avgDurationAffectedMin": round(float(aff["durationMin"].mean()), 2) if affected_n else 0,
+            "avgDurationNormalMin": round(float(normal["durationMin"].mean()), 2) if len(normal) else 0,
+            "compliantPct": _pct(compliance_counts.get("compliant", 0), analyzed),
+        },
+        "byMode": by_mode,
+        "byDay": by_day,
+        "byDistrict": by_district,
+        "byPurpose": by_purpose,
+        "lezDetail": {
+            "analyzedTrips": analyzed,
+            "statusDistribution": [
+                {"status": s, "label": _LEZ_STATUS_VI.get(s, s), "count": c}
+                for s, c in sorted(status_counts.items())
+            ],
+            "compliance": [
+                {"status": s, "label": _LEZ_COMPLIANCE_VI.get(s, s), "count": c}
+                for s, c in sorted(compliance_counts.items())
+            ],
+            "avgIntersectionPct": round(sum(inter_pcts) / len(inter_pcts), 2) if inter_pcts else 0,
+            "avgIntersectionLengthM": round(sum(inter_lens) / len(inter_lens), 2) if inter_lens else 0,
+            "topReasons": sorted(
+                [{"reason": r, "count": c} for r, c in reason_counts.items()],
+                key=lambda x: x["count"],
+                reverse=True,
+            )[:5],
+        },
+    }

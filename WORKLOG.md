@@ -865,3 +865,25 @@ Work Log:
 Stage Summary:
 - docker compose up --build giờ build OK và geocode số nhà chính xác NGAY với .env đã bake key (không cần tự đăng ký)
 - Frontend gọn hơn: không còn Prisma/SQLite/dual-flow — đúng 1 luồng apiFetch → FastAPI như proposal
+
+---
+Task ID: 67
+Agent: Z.ai Code (main)
+Task: CN-40 — Phân tích tác động LEZ (tab "Tác động LEZ" mới trong Admin)
+
+Work Log:
+- Backend (backend/app/routers/admin.py): endpoint GET /api/admin/lez-impact?from&to (require_admin, cùng chuẩn ngày YYYY-MM-DD như /api/admin/analytics)
+  - Đọc trip.trips (cột lez_affected) qua _TRIP_JOIN + trip_dto; chi tiết tuân thủ từ trip.trip_lez_analyses (route_lez_status, compliance_status/reason, intersection_%)
+  - Trả về: kpis (tổng chuyến, số/% chuyến qua LEZ, quãng đường bị ảnh hưởng, TB quãng đường/thời gian trong vs ngoài LEZ, % tuân thủ), byMode (theo phương tiện định đi), byDay (giờ Hà Nội UTC+7), byDistrict (top 10), byPurpose, lezDetail (status/compliance distribution + topReasons)
+  - Edge case: 401 chưa login, 400 ngày sai, from>to / khoảng rỗng trả shape đủ với totalTrips=0
+- Frontend: tab "Tác động LEZ" mới trong nhóm "Theo dõi" (icon Leaf)
+  - components/rideshift/admin/lez-impact-tab.tsx (mới): date filter + 4 KPI card + 2 CompareChip (TB quãng đường/thời gian qua LEZ vs ngoài) + stacked bar theo phương tiện + ComposedChart theo ngày (bar tổng + line qua LEZ) + bar top quận + pie mục đích + thẻ chi tiết tuân thủ (status/compliance chips + lý do) + bảng theo phương tiện; Skeleton loading + validate from>to
+  - admin/types.ts: thêm LezImpactKpis/ByMode/ByDay/ByDistrict/ByPurpose/Detail/Response
+  - admin-dashboard.tsx: thêm 'lez' vào TabKey, NAV_GROUPS, import LezImpactTab, TabsContent — không sửa logic cũ
+- TEST: py_compile OK; curl: KPI 144 chuyến/71 qua LEZ (49,31%)/685,9 km, 4 edge case chuẩn (401/400/from>to/rỗng); tsc --noEmit — 0 lỗi mới (các lỗi cũ có sẵn trên main: prisma scripts + admin-dashboard trendIndex, không đụng); browser E2E: KPI render đúng, 4 biểu đồ + bảng 7 phương tiện hiển thị, 0 page error
+- Ảnh minh chứng: download/cn40_lez_top.png, cn40_lez_charts1.png, cn40_lez_charts2.png, cn40_lez_detail.png
+
+Stage Summary:
+- CN-40 hoàn tất: Admin xem chuyến đi nào bị ảnh hưởng bởi vùng LEZ, ảnh hưởng theo phương tiện/quận/mục đích/ngày và mức độ tuân thủ quy định LEZ
+- Nhánh feat/cn40-lez-impact tách từ main, KHÔNG đụng main/PR CN-39; chỉ thêm endpoint + type mới, giữ nguyên contract cũ
+- Lưu ý reviewer: WORKLOG entry này đánh số 67 (kế tiếp Task 66 = CN-39 ở PR #6); nếu PR #6 merge sau thì cần resolve nhẹ phần cuối WORKLOG.md (giữ cả 2 entry theo thứ tự 66 → 67)

@@ -49,3 +49,72 @@ export type DatasetSection = {
 export type AnalyticsWithDataset = AnalyticsResponse & {
   dataset?: DatasetSection | null
 }
+
+// ---------------------------------------------------------------------------
+// CN-40 — Phân tích tác động LEZ (GET /api/admin/lez-impact)
+// ---------------------------------------------------------------------------
+
+/** KPI tổng quan của phân tích tác động LEZ. */
+export type LezImpactKpis = {
+  totalTrips: number
+  lezAffectedTrips: number
+  lezAffectedPct: number
+  affectedDistanceKm: number
+  totalDistanceKm: number
+  avgDistanceAffectedKm: number
+  avgDistanceNormalKm: number
+  avgDurationAffectedMin: number
+  avgDurationNormalMin: number
+  compliantPct: number
+}
+
+/** Tác động theo loại phương tiện định đi. */
+export type LezImpactByMode = {
+  code: string
+  name: string
+  total: number
+  affected: number
+  affectedPct: number
+  affectedDistanceKm: number
+}
+
+/** Xu hướng theo ngày (giờ địa phương Hà Nội, UTC+7). */
+export type LezImpactByDay = { date: string; total: number; affected: number }
+
+/** Tác động theo quận xuất phát. */
+export type LezImpactByDistrict = {
+  district: string
+  total: number
+  affected: number
+  affectedPct: number
+}
+
+/** Tác động theo mục đích chuyến đi. */
+export type LezImpactByPurpose = {
+  purpose: string
+  total: number
+  affected: number
+  affectedPct: number
+}
+
+/** Chi tiết tuân thủ từ bảng trip.trip_lez_analyses (có thể rỗng). */
+export type LezImpactDetail = {
+  analyzedTrips: number
+  statusDistribution: { status: string; label: string; count: number }[]
+  compliance: { status: string; label: string; count: number }[]
+  avgIntersectionPct: number
+  avgIntersectionLengthM: number
+  topReasons: { reason: string; count: number }[]
+}
+
+/** Response của GET /api/admin/lez-impact. */
+export type LezImpactResponse = {
+  from: string
+  to: string
+  kpis: LezImpactKpis
+  byMode: LezImpactByMode[]
+  byDay: LezImpactByDay[]
+  byDistrict: LezImpactByDistrict[]
+  byPurpose: LezImpactByPurpose[]
+  lezDetail: LezImpactDetail
+}

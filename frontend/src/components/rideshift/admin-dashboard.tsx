@@ -91,6 +91,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import ZonesTab from '@/components/rideshift/admin/zones-tab'
+import LezImpactTab from '@/components/rideshift/admin/lez-impact-tab'
 import { ModesWeightsTab, RulesTab } from '@/components/rideshift/admin/rules-modes-tabs'
 
 // Point type for the US-25 survey trend chart (share % + tooltip extras).
@@ -119,7 +120,7 @@ const SCROLLBAR_CLASS =
 const CHART_COLORS = ['#16a34a', '#22c55e', '#0d9488', '#84cc16', '#eab308', '#f97316', '#dc2626']
 
 type AdminUser = { username: string; fullName: string }
-type TabKey = 'overview' | 'zones' | 'rules' | 'modes'
+type TabKey = 'overview' | 'lez' | 'zones' | 'rules' | 'modes'
 
 // Phase A — nhóm điều hướng sidebar (demo phương án A): nhóm theo bản chất
 // công việc, kèm mô tả (title) và số đếm trực tiếp trên mục.
@@ -137,6 +138,7 @@ const NAV_GROUPS: {
     label: 'Theo dõi',
     items: [
       { key: 'overview', label: 'Tổng quan', icon: Activity, desc: 'Số liệu vận hành tổng thể của hệ thống' },
+      { key: 'lez', label: 'Tác động LEZ', icon: Leaf, desc: 'Phân tích chuyến đi bị ảnh hưởng bởi vùng phát thải thấp' },
     ],
   },
   {
@@ -429,6 +431,9 @@ export default function AdminDashboard({
                 rules={rules}
                 onNavigate={(tab) => setActiveTab(tab)}
               />
+            </TabsContent>
+            <TabsContent value="lez" className="mt-0">
+              <LezImpactTab />
             </TabsContent>
             <TabsContent value="zones" className="mt-0">
               <ZonesTab zones={zones} onZonesChanged={onZonesChanged} />
