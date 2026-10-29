@@ -49,3 +49,66 @@ export type DatasetSection = {
 export type AnalyticsWithDataset = AnalyticsResponse & {
   dataset?: DatasetSection | null
 }
+
+/* ------------------------------------------------------------------ */
+/* CN-39 — thống kê thời gian / khoảng cách (GET /api/admin/stats/trips) */
+/* ------------------------------------------------------------------ */
+
+/** Một bin của histogram khoảng cách/thời gian (bin cuối dạng "≥ X" gom ngoại lai). */
+export type StatsBin = {
+  from: number
+  to: number
+  label: string
+  count: number
+}
+
+/** Thống kê mô tả một đại lượng (km hoặc phút); avg/median/percentile đã lọc ngoại lai IQR. */
+export type MetricStats = {
+  count: number
+  sum: number
+  avg: number
+  median: number
+  p85: number
+  p95: number
+  min: number
+  max: number
+  q1: number
+  q3: number
+  outliers: number
+}
+
+/** Histogram của một đại lượng kèm số ngoại lai đã gộp vào bin cuối. */
+export type StatsHistogram = {
+  bins: StatsBin[]
+  outliers: number
+}
+
+/** Response của GET /api/admin/stats/trips (CN-39). */
+export type TripStatsResponse = {
+  from: string
+  to: string
+  trips: number
+  summary: { distance: MetricStats; duration: MetricStats }
+  distanceHistogram: StatsHistogram
+  durationHistogram: StatsHistogram
+  byMode: {
+    modeId: string
+    name: string
+    trips: number
+    avgDistanceKm: number
+    avgDurationMin: number
+    totalDistanceKm: number
+  }[]
+  byDay: {
+    date: string
+    trips: number
+    avgDistanceKm: number
+    avgDurationMin: number
+  }[]
+  byHour: {
+    hour: number
+    trips: number
+    /** null khi không có chuyến nào khởi hành trong giờ đó. */
+    avgDurationMin: number | null
+  }[]
+}
