@@ -867,6 +867,26 @@ Stage Summary:
 - Frontend gọn hơn: không còn Prisma/SQLite/dual-flow — đúng 1 luồng apiFetch → FastAPI như proposal
 
 ---
+Task ID: 66
+Agent: Z.ai Code (main)
+Task: CN-39 — Thống kê thời gian/khoảng cách chuyến đi (tab "Thống kê" mới trong Admin)
+
+Work Log:
+- Backend (backend/app/routers/admin.py): endpoint GET /api/admin/stats/trips?from&to (require_admin, cùng chuẩn ngày dạng YYYY-MM-DD như /api/admin/analytics)
+  - Thuật toán: thống kê mô tả (mean/median/P85/P95), lọc ngoại lai hàng rào Tukey IQR (Q1−1.5·IQR ~ Q3+1.5·IQR — avg/median/percentile tính trên tập inlier để chuyến bất thường không kéo lệch), histogram chia bin theo quy tắc Sturges (log2(n)+1, clamp 4..10), bin cuối dạng "≥ X" gom ngoại lai
+  - Trả về: summary{distance,duration}, distanceHistogram/durationHistogram, byMode (topModeId: số chuyến, TB km/phút, tổng km), byDay (nhóm theo ngày giờ địa phương Hà Nội UTC+7), byHour (24 giờ theo departure_hour người dùng chọn, giờ trống trả null)
+  - Tái dùng _TRIP_JOIN + trip_dto; KHÔNG đụng mcdm.py/TOPSIS — chỉ aggregation đọc-đọc trên trip.trips
+- Frontend: tab "Thống kê" mới trong nhóm điều hướng "Theo dõi" (icon BarChart3)
+  - components/rideshift/admin/stats-tab.tsx (mới): bộ lọc from/to + 6 KPI card (tổng chuyến, TB + trung vị km/phút, P95, tổng quãng đường), 2 histogram (recharts BarChart), ComposedChart theo ngày (cột số chuyến + đường TB phút), BarChart 24h giờ khởi hành, bảng theo phương tiện; empty state +Skeleton loading + lỗi validate from>to
+  - admin/types.ts: thêm StatsBin/MetricStats/StatsHistogram/TripStatsResponse
+  - admin-dashboard.tsx: thêm 'stats' vào TabKey, NAV_GROUPS, import StatsTab, TabsContent — không sửa logic cũ
+- TEST: py_compile + import OK; curl 5/5 edge case (401 chưa login, 400 ngày sai, 400 from>to, trips=0 trả shape đủ 24 giờ, dữ liệu 144 chuyến hợp lệ); tsc --noEmit sạch (còn đúng 1 lỗi cũ có sẵn trên main: admin-dashboard 'p.trendIndex' possibly null — không đụng để tránh xung đột); browser E2E: KPI 144 chuyến/9,39km/31,7 phút, lọc 20→29/10 ra 56 khớp API, validate hiển thị đúng, 0 page error
+- Ảnh minh chứng: download/cn39_1_stats_top.png, cn39_2_byday.png, cn39_3_byhour_mode.png, cn39_4_filtered.png, cn39_5_validation.png
+
+Stage Summary:
+- CN-39 hoàn tất: tab Thống kê trong Admin xem phân bố khoảng cách/thời gian, diễn biến theo ngày, giờ cao điểm và tổng hợp theo phương tiện — có lọc ngoại lai IQR nên số liệu không bị chuyến lỗi geocode kéo lệch
+- Nhánh feat/cn39-trip-stats, KHÔNG đụng main; contract DTO cũ giữ nguyên (chỉ thêm endpoint + type mới)
+---
 Task ID: 67
 Agent: Z.ai Code (main)
 Task: CN-40 — Phân tích tác động LEZ (tab "Tác động LEZ" mới trong Admin)
