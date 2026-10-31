@@ -907,3 +907,22 @@ Stage Summary:
 - CN-40 hoàn tất: Admin xem chuyến đi nào bị ảnh hưởng bởi vùng LEZ, ảnh hưởng theo phương tiện/quận/mục đích/ngày và mức độ tuân thủ quy định LEZ
 - Nhánh feat/cn40-lez-impact tách từ main, KHÔNG đụng main/PR CN-39; chỉ thêm endpoint + type mới, giữ nguyên contract cũ
 - Lưu ý reviewer: WORKLOG entry này đánh số 67 (kế tiếp Task 66 = CN-39 ở PR #6); nếu PR #6 merge sau thì cần resolve nhẹ phần cuối WORKLOG.md (giữ cả 2 entry theo thứ tự 66 → 67)
+
+---
+Task ID: 68
+Agent: Z.ai Code (main)
+Task: Đồng bộ demo sandbox → repo git (chuỗi 5 PR) — multi-city, mạng trạm AQI thật, lớp trường AQI, bảng tin chính sách, thông báo, phản hồi, open-data; dọn dead code v2
+
+Work Log:
+- Đánh số US mới ngoài phạm vi User Story v2.0 (US-01..41): US-42 mạng trạm AQI thật đa nguồn (moitruongthudo.vn → WAQI → CAMS), US-43 lớp trường AQI nội suy IDW, US-44 đa thành phố HN/ĐN/HCM + 388 phường, US-45 bảng tin chính sách, US-46 thông báo người dùng, US-47 phản hồi người dùng, US-48 Open Data API (lez/facilities/aqi/modes)
+- PR #8 (sync/01-db-config): 3 bảng decision.user_feedback/notification_prefs/user_notifications + WAQI_TOKEN env + deprecate postgres/init schema v1
+- PR #9 (sync/02-backend-api): public.py 7→19 endpoint; airquality_sources.py 728 dòng (chuỗi nguồn AQI thật); citygeom/wardimport mới; geoimport 3 thành phố; external.py MERGE 2 chiều (semantics cache Task 73 + chuỗi Goong AutoComplete Task 65); main.py _boot_step độc lập; seed multi-city; data/cities 6 geojson 18.6MB
+- PR #10 (sync/03-frontend): page.tsx 3 tab + CityGate; 4 component mới (city-gate/notification-bell/policy-bulletin/feedback-widget); map-view 2031 dòng (trường AQI + trạm thật); lib mới (aqi-field/aqi-visual/city-fallback/city-store); external.ts merge 2 chiều; admin/types.ts fix } thiếu sau merge US-40; docs-viewer bản review 28/10 + aqi-color
+- PR #11 (chore/remove-dead-v2): xóa 13 file ~2.900 dòng không mount/không import (admin_v2, trip_v2, compliance_v2, recommendation_v2, seed_v2, auth_v2, db_v2, v2map, geojson.py, planner-v2, admin-v2, lib/admin-v2, lib/api-v2)
+- PR này (docs/sync-mapping): WORKLOG + README + ảnh verify E2E
+
+TEST: import OK 46 routes sau xóa dead code; chạy thật port 8001: /api/cities 3 TP, stations trạm thật MTD AQI 66, open-data 200×4, bulletin 200, feedback {ok:true}, notif prefs POST→GET khớp; browser E2E sandbox (code đồng nhất): CityGate → geocode '120 Yên Lãng' dropdown Goong chính xác, 6 tab Admin (CN-39/40 port ở Task 105 sandbox) KPI thật, 0 page error
+- Ảnh minh chứng: docs/verify-sync-1-citygate-live.png (cổng thành phố + planner), docs/verify-sync-2-geocode-merge.png (Goong AutoComplete sau merge), docs/verify-sync-3-stats-tab.png (US-39), docs/verify-sync-4-lez-tab.png (US-40)
+
+Stage Summary:
+- Repo git sau chuỗi 5 PR = demo sandbox (đã E2E verify) + CN-39/40 + Goong AutoComplete; một luồng code duy nhất, không còn dead code v2; đóng gói Docker chuẩn với WAQI_TOKEN tùy chọn

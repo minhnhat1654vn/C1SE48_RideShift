@@ -10,8 +10,14 @@ RideShift giúp người dân tra cứu hành trình, kiểm tra **tuân thủ q
 ## ✨ Tính năng chính
 
 **Người dùng (Bảng lập kế hoạch chuyến đi)**
-- 🔎 Tra cứu điểm đi/đến với gợi ý địa chỉ (Nominatim) + "dùng vị trí của tôi"
-- 🗺️ Bản đồ OSM: tuyến đường thực tế (OSRM), đa giác LEZ, dựng 3D 126 phường/xã
+- 🏙️ **Đa thành phố (US-44)**: cổng chọn Hà Nội / Đà Nẵng / TP.HCM — bản đồ, tìm kiếm, trạm AQI, vùng LEZ khoá theo thành phố (388 phường/xã)
+- 🔎 Tra cứu điểm đi/đến với gợi ý địa chỉ số nhà (Goong AutoComplete → Detail → classic; Nominatim bounded theo thành phố) + "dùng vị trí của tôi"
+- 🗺️ Bản đồ OSM: tuyến đường thực tế (OSRM), đa giác LEZ, dựng 3D phường/xã 3 thành phố
+- 🌫️ **Mạng trạm AQI thật (US-42)**: 4 trạm Sở NN&MT Hà Nội + WAQI (3 thành phố) + CAMS lấp lỗ — modal chi tiết trạm, lịch sử theo giờ
+- 🎨 **Lớp trường AQI nội suy động (US-43)**: mây màu AQI mượt theo zoom, nội suy IDW từ các trạm thật
+- 📰 **Bảng tin chính sách (US-45)**: bản tin LEZ theo quận, nhảy tới vùng trên bản đồ
+- 🔔 **Thông báo người dùng (US-46)**: chuông lez_published / lez_active / aqi_alert, opt-in theo khu vực
+- 💬 **Phản hồi (US-47)**: widget "vì sao không chọn phương tiện được đề xuất"
 - 🚫 Kiểm tra LEZ: phương tiện của bạn luôn đứng đầu kèm kết quả **BỊ CẤM / Có thể bị hạn chế / Đạt**
 - 🏆 Gợi ý phương tiện xếp hạng theo **TOPSIS 7 tiêu chí** (thời gian, chi phí, CO₂, tuân thủ LEZ, tiện nghi, khả năng tiếp cận, chất lượng không khí) — giải thích điểm số từng tiêu chí
 - 🌫️ Chất lượng không khí (Open-Meteo, cache 30 phút, có phương án dự phòng mô phỏng)
@@ -144,6 +150,7 @@ NEXT_PUBLIC_API_BASE=http://localhost:8000 bun run dev   # → http://localhost:
 | `CORS_ORIGINS` | backend | `http://localhost:3000,http://127.0.0.1:3000` | Origin frontend được gọi backend (cookie phiên cần origin tường minh) |
 | `NOMINATIM_URL` | backend | Nominatim công cộng | Geocoding dự phòng — đổi khi bị chậm/chặn/rate-limit |
 | `GOONG_API_KEY` | backend + frontend | *(trống = tắt)* | **Khuyến nghị**: key goong.io (miễn phí) — geocoding VN có số nhà, là lựa chọn đầu của chuỗi tra cứu khi được đặt |
+| `WAQI_TOKEN` | backend | *(token demo builtin)* | **US-42**: token riêng api.waqi.info (aqicn.org) — nâng rate-limit mạng trạm AQI thật |
 | `BACKEND_PORT` | backend | `8000` | Cổng HTTP backend |
 | `NEXT_PUBLIC_API_BASE` | frontend | *(rỗng = chế độ gateway)* | Origin backend trình duyệt gọi trực tiếp |
 
