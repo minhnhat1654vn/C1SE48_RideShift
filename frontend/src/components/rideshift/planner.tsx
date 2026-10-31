@@ -39,15 +39,22 @@ import {
   ArrowUpDown,
   Check,
   ChevronDown,
+  ChevronUp,
   Crosshair,
+  Layers,
   Loader2,
   MapPin,
+  Minus,
   RotateCcw,
   Route as RouteIcon,
   Search,
   TriangleAlert,
 } from 'lucide-react'
-import type { AnalyzeResponse, LezZoneDto, ModeInfo, TripPurpose } from '@/lib/types'
+import FeedbackWidget from './feedback-widget'
+import type { AirQualityStationDto, AnalyzeResponse, LezZoneDto, ModeInfo, TripPurpose } from '@/lib/types'
+import { isStationAvailable } from '@/lib/types'
+import { AQI_LEGEND, aqiCategory, formatAqiTime } from '@/lib/aqi-visual'
+import type { CityDto } from '@/lib/types'
 import { TRIP_PURPOSES, CRITERION_LABELS } from '@/lib/types'
 import type { MapMarker } from '@/components/rideshift/map-view'
 import {
@@ -158,58 +165,6 @@ function StepperNav({
   )
 }
 
-/**
- * Dropdown gợi ý địa chỉ (geocode autocomplete).
- *
- * Wheel-scroll được điều khiển TƯỜNG MINH bằng JS qua listener non-passive:
- * một số trình duyệt/Chromium builds không thực hiện default wheel-scroll
- * bên trong các scroll container lồng nhau (dropdown nằm trong panel cuộn),
- * khiến danh sách gợi ý không cuộn được bằng chuột. Cuộn chủ động bằng JS
- * hoạt động ở mọi môi trường; preventDefault khi đã cuộn để trang phía dưới
- * không cuộn theo (chặn scroll-chaining thủ công).
- */
-function SuggestList({
-  items,
-  onPick,
-  iconClass,
-}: {
-  items: GeocodeResult[]
-  onPick: (s: GeocodeResult) => void
-  iconClass: string
-}) {
-  const listRef = useRef<HTMLUListElement | null>(null)
-  useEffect(() => {
-    const el = listRef.current
-    if (!el) return
-    const onWheel = (e: WheelEvent) => {
-      const before = el.scrollTop
-      el.scrollTop = before + e.deltaY
-      if (el.scrollTop !== before) e.preventDefault()
-    }
-    el.addEventListener('wheel', onWheel, { passive: false })
-    return () => el.removeEventListener('wheel', onWheel)
-  }, [])
-  return (
-    <ul
-      ref={listRef}
-      className="absolute z-30 mt-1 max-h-56 w-full overflow-y-auto overscroll-contain rounded-md border bg-popover shadow-md"
-    >
-      {items.map((s, i) => (
-        <li key={`${s.lat}-${s.lng}-${i}`}>
-          <button
-            type="button"
-            className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
-            onMouseDown={() => onPick(s)}
-          >
-            <MapPin className={`mr-1.5 inline h-3.5 w-3.5 ${iconClass}`} />
-            {s.name}
-          </button>
-        </li>
-      ))}
-    </ul>
-  )
-}
-
 function StepCard({
   n,
   title,
@@ -228,12 +183,16 @@ function StepCard({
   children: React.ReactNode
 }) {
   return (
-    <section className={`overflow-hidden rounded-xl border ${active ? 'border-emerald-300 shadow-sm' : ''}`}>
+    // Task 74: KHÔNG dùng overflow-hidden ở đây — dropdown gợi ý địa chỉ
+    // (absolute, xổ xuống dưới input) nằm trong section, overflow-hidden cắt
+    // cụp phần list tràn xuống → "có kết quả nhưng list không xổ hết".
+    // Góc bo giữ riêng: header bo trên bằng rounded-t-xl.
+    <section className={`rounded-xl border ${active ? 'border-emerald-300 shadow-sm' : ''}`}>
       <button
         type="button"
         onClick={onOpen}
         aria-expanded={active}
-        className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-accent/50"
+        className="flex w-full items-center gap-2.5 rounded-t-xl px-3 py-2.5 text-left transition-colors hover:bg-accent/50"
       >
         <span
           className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
@@ -266,11 +225,18 @@ function StepCard({
 // -------------------------------------------------------------- main export
 
 export default function TripPlanner({
+  city,
   zones,
   onZonesChanged,
+  focusZone,
 }: {
+  city: CityDto
   zones: LezZoneDto[]
   onZonesChanged?: () => void
+  /** Task 79: ranh giới vùng LEZ cần fitBounds khi chưa có tuyến/điểm — truyền
+   *  từ tab Chính sách (nút "Xem trên bản đồ"); khi user chọn điểm đi/đến thì
+   *  fitPoints của user được ưu tiên */
+  focusZone?: [number, number][] | null
 }) {
   // ---------------- form state ----------------
   const [originText, setOriginText] = useState('')
@@ -293,6 +259,15 @@ export default function TripPlanner({
 
   const [showTransportPoints, setShowTransportPoints] = useState(true)
   const [locations, setLocations] = useState<{ id: string; name: string; type: string; lat: number; lng: number }[]>([])
+  // Task 63: trạm đo thật + lớp AQI mượt + thu gọn panel (yêu cầu 9)
+  // Phản hồi user 21/10: AQI chỉ mở cho Hà Nội — Đà Nẵng/TP.HCM chỉ demo
+  // tính scalability của DB/API, không có lớp AQI.
+  const citySupportsAqi = city.id === 'hanoi'
+  const [aqiStations, setAqiStations] = useState<AirQualityStationDto[]>([])
+  const [showAqi, setShowAqi] = useState(true)
+  // Task 67 — chú giải gập/mở (thiết kế lại footer theo phản hồi user); gập mặc định để form không bị chật
+  const [legendOpen, setLegendOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
 
   const [analyzing, setAnalyzing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -327,6 +302,9 @@ export default function TripPlanner({
 
   const origTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const destTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Task 73: truy vấn mới nhất theo ô — retry geocode chỉ áp kết quả khi
+  // người dùng vẫn đang ở đúng truy vấn đó (không ghi đè kết quả mới hơn)
+  const latestQuery = useRef<{ origin: string; dest: string }>({ origin: '', dest: '' })
 
   // ---------------- data loading ----------------
   useEffect(() => {
@@ -340,48 +318,75 @@ export default function TripPlanner({
         if (enabled.length > 0) setVehicleId(enabled[0].id)
       })
       .catch(() => setError('Không tải được loại phương tiện. Vui lòng tải lại trang.'))
-    apiFetch('/api/locations')
+    apiFetch(`/api/locations?city=${encodeURIComponent(city.id)}`)
       .then((r) => r.json())
       .then((d) => setLocations(d.locations ?? []))
       .catch(() => null)
-  }, [])
+    if (citySupportsAqi) {
+      apiFetch(`/api/airquality/stations?city=${encodeURIComponent(city.id)}`)
+        .then((r) => r.json())
+        .then((d) => setAqiStations(d.stations ?? []))
+        .catch(() => null)
+    } else {
+      setAqiStations([])
+    }
+  }, [city.id, citySupportsAqi])
 
   // ---------------- geocode debounce ----------------
-  const fetchSuggestions = useCallback(async (q: string, target: 'origin' | 'dest') => {
-    if (q.trim().length < 2) {
-      if (target === 'origin') setOrigSugs([])
-      else setDestSugs([])
-      return
-    }
-    setGeoLoading(target)
-    try {
-      const res = await apiFetch(`/api/geocode?q=${encodeURIComponent(q)}`)
-      const data = await res.json()
-      const sugs: GeocodeResult[] = data.results ?? []
-      if (target === 'origin') {
-        setOrigSugs(sugs)
-        setShowOrigSug(true)
-      } else {
-        setDestSugs(sugs)
-        setShowDestSug(true)
+  // Task 73: useCallback phải phụ thuộc city.id — trước đây deps [] tạo stale
+  // closure: sau khi đổi thành phố, request geocode vẫn gửi city cũ → sai
+  // viewbox/lọc vùng
+  const fetchSuggestions = useCallback(
+    async (q: string, target: 'origin' | 'dest', isRetry = false) => {
+      if (q.trim().length < 2) {
+        if (target === 'origin') setOrigSugs([])
+        else setDestSugs([])
+        return
       }
-    } catch {
-      if (target === 'origin') setOrigSugs([])
-      else setDestSugs([])
-    } finally {
-      setGeoLoading(null)
-    }
-  }, [])
+      setGeoLoading(target)
+      try {
+        const res = await apiFetch(`/api/geocode?q=${encodeURIComponent(q)}&city=${encodeURIComponent(city.id)}`)
+        const data = await res.json()
+        const sugs: GeocodeResult[] = data.results ?? []
+        // retry: chỉ áp kết quả nếu người dùng vẫn đang ở đúng truy vấn này
+        const stale = latestQuery.current[target] !== q
+        if (!stale) {
+          if (target === 'origin') {
+            setOrigSugs(sugs)
+            setShowOrigSug(true)
+          } else {
+            setDestSugs(sugs)
+            setShowDestSug(true)
+          }
+        }
+        // Task 73: 0 kết quả → tự thử lại 1 lần sau 700ms. Backend KHÔNG cache
+        // kết quả rỗng do lỗi mạng (timeout Nominatim tạm thời) nên retry hồi
+        // phục được; với 0 kết quả THẬT backend đã cache → retry hầu như miễn phí
+        if (!isRetry && sugs.length === 0 && !stale) {
+          setTimeout(() => void fetchSuggestions(q, target, true), 700)
+        }
+      } catch {
+        if (!isRetry) setTimeout(() => void fetchSuggestions(q, target, true), 700)
+        else if (target === 'origin') setOrigSugs([])
+        else setDestSugs([])
+      } finally {
+        setGeoLoading(null)
+      }
+    },
+    [city.id],
+  )
 
   const onOriginChange = (v: string) => {
     setOriginText(v)
     setOrigin(null)
+    latestQuery.current.origin = v
     if (origTimer.current) clearTimeout(origTimer.current)
     origTimer.current = setTimeout(() => fetchSuggestions(v, 'origin'), 350)
   }
   const onDestChange = (v: string) => {
     setDestText(v)
     setDestination(null)
+    latestQuery.current.dest = v
     if (destTimer.current) clearTimeout(destTimer.current)
     destTimer.current = setTimeout(() => fetchSuggestions(v, 'dest'), 350)
   }
@@ -525,6 +530,7 @@ export default function TripPlanner({
           destination: destSel,
           vehicleId,
           purpose,
+          city: city.id,
           departureTime: departure ? new Date(departure).toISOString() : undefined,
           preferences: prefs,
           saveTrip: true,
@@ -618,9 +624,12 @@ export default function TripPlanner({
         )}
         <MapView
           zones={zones.filter((z) => z.active)}
+          city={city}
+          aqiStations={aqiStations}
+          showAqi={showAqi && citySupportsAqi}
           routeCoords={result?.route.coords ?? null}
           markers={markers}
-          fitBoundsTo={fitPoints}
+          fitBoundsTo={fitPoints.length > 0 ? fitPoints : (focusZone ?? [])}
           fitPadding={fitPadding}
           pickMode={pickTarget !== null}
           onMapClick={pickTarget ? handleMapPick : undefined}
@@ -628,16 +637,48 @@ export default function TripPlanner({
         />
       </div>
 
+      {/* nút mở lại khi panel đã thu gọn (yêu cầu 9 — thấy toàn bộ map) */}
+      {collapsed && (
+        <button
+          type="button"
+          onClick={() => setCollapsed(false)}
+          className="absolute bottom-3 left-3 z-[1000] inline-flex items-center gap-2 rounded-full border bg-card/95 px-4 py-2.5 text-sm font-semibold shadow-lg backdrop-blur transition-colors hover:bg-accent"
+          aria-label="Mở lại bảng lập kế hoạch"
+        >
+          <RouteIcon className="h-4 w-4 text-emerald-600" /> Lập kế hoạch chuyến đi
+          {result && <span className="rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] text-white">có kết quả</span>}
+        </button>
+      )}
+
       {/* ================= FLOATING PANEL: form / results ================= */}
-      <div className="pointer-events-none absolute inset-x-2 bottom-2 z-[1000] flex max-h-[64dvh] flex-col lg:inset-y-3 lg:left-3 lg:right-auto lg:w-[404px] lg:max-h-none">
+      <div
+        className={`pointer-events-none absolute inset-x-2 bottom-2 z-[1000] flex max-h-[64dvh] flex-col lg:inset-y-3 lg:left-3 lg:right-auto lg:w-[404px] lg:max-h-none ${
+          collapsed ? 'hidden' : ''
+        }`}
+      >
         <Card className="pointer-events-auto flex max-h-full min-h-0 flex-col overflow-hidden rounded-2xl border bg-card/95 shadow-xl backdrop-blur">
         {panelView === 'form' ? (
           <>
             <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <RouteIcon className="h-4 w-4" /> Lập kế hoạch chuyến đi
-              </CardTitle>
-              <CardDescription>Tìm tuyến &amp; so sánh phương án theo quy định LEZ</CardDescription>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <RouteIcon className="h-4 w-4" /> Lập kế hoạch chuyến đi
+                  </CardTitle>
+                  <CardDescription className="truncate">
+                    {city.name} · tìm tuyến &amp; so sánh theo quy định LEZ
+                  </CardDescription>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCollapsed(true)}
+                  title="Thu gọn — xem toàn bộ bản đồ"
+                  aria-label="Thu gọn bảng lập kế hoạch"
+                  className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  <Minus className="h-4 w-4" aria-hidden />
+                </button>
+              </div>
               <StepperNav step={step} onGo={setStep} hasOrigin={!!origin} hasDest={!!destination} />
             </CardHeader>
             <CardContent className="min-h-0 space-y-2.5 overflow-y-auto p-4 pt-0">
@@ -655,7 +696,7 @@ export default function TripPlanner({
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="origin"
-                      placeholder="vd. Hồ Hoàn Kiếm"
+                      placeholder={city.id === 'hanoi' ? 'vd. Hồ Hoàn Kiếm' : `vd. địa danh tại ${city.name}`}
                       value={originText}
                       onChange={(e) => onOriginChange(e.target.value)}
                       onFocus={() => setShowOrigSug(true)}
@@ -666,11 +707,30 @@ export default function TripPlanner({
                       <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
                     )}
                     {showOrigSug && origSugs.length > 0 && (
-                      <SuggestList items={origSugs} onPick={(s) => pick(s, 'origin')} iconClass="text-emerald-600" />
+                      <ul
+                        className="absolute z-30 mt-1 max-h-72 w-full overflow-y-auto rounded-md border bg-popover shadow-md"
+                        // Task 73: preventDefault giữ focus trong Input — bấm vào
+                        // item/cuộn scrollbar không kích blur → list không tự gập
+                        // trước khi người dùng kịp xem/xổ hết các kết quả
+                        onMouseDown={(e) => e.preventDefault()}
+                      >
+                        {origSugs.map((s, i) => (
+                          <li key={`${s.lat}-${s.lng}-${i}`}>
+                            <button
+                              type="button"
+                              className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
+                              onMouseDown={() => pick(s, 'origin')}
+                            >
+                              <MapPin className="mr-1.5 inline h-3.5 w-3.5 text-emerald-600" />
+                              {s.name}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
                     )}
                     {originText.trim().length >= 3 && geoLoading !== 'origin' && !origin && origSugs.length === 0 && (
                       <p className="mt-1 text-[11px] text-muted-foreground">
-                        Không tìm thấy trong Hà Nội — khu vực hỗ trợ chỉ giới hạn tại Hà Nội.
+                        Không tìm thấy trong {city.name} — khu vực hỗ trợ chỉ giới hạn tại thành phố bạn chọn.
                       </p>
                     )}
                   </div>
@@ -726,7 +786,7 @@ export default function TripPlanner({
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="destination"
-                      placeholder="vd. Mỹ Đình"
+                      placeholder={city.id === 'hanoi' ? 'vd. Mỹ Đình' : 'vd. địa điểm đến'}
                       value={destText}
                       onChange={(e) => onDestChange(e.target.value)}
                       onFocus={() => setShowDestSug(true)}
@@ -737,11 +797,29 @@ export default function TripPlanner({
                       <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
                     )}
                     {showDestSug && destSugs.length > 0 && (
-                      <SuggestList items={destSugs} onPick={(s) => pick(s, 'dest')} iconClass="text-orange-500" />
+                      <ul
+                        className="absolute z-30 mt-1 max-h-72 w-full overflow-y-auto rounded-md border bg-popover shadow-md"
+                        // Task 73: giữ focus như điểm đi — list không tự gập khi
+                        // bấm item hoặc kéo scrollbar xem hết kết quả
+                        onMouseDown={(e) => e.preventDefault()}
+                      >
+                        {destSugs.map((s, i) => (
+                          <li key={`${s.lat}-${s.lng}-${i}`}>
+                            <button
+                              type="button"
+                              className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
+                              onMouseDown={() => pick(s, 'dest')}
+                            >
+                              <MapPin className="mr-1.5 inline h-3.5 w-3.5 text-orange-500" />
+                              {s.name}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
                     )}
                     {destText.trim().length >= 3 && geoLoading !== 'dest' && !destination && destSugs.length === 0 && (
                       <p className="mt-1 text-[11px] text-muted-foreground">
-                        Không tìm thấy trong Hà Nội — khu vực hỗ trợ chỉ giới hạn tại Hà Nội.
+                        Không tìm thấy trong {city.name} — khu vực hỗ trợ chỉ giới hạn tại thành phố bạn chọn.
                       </p>
                     )}
                   </div>
@@ -940,6 +1018,16 @@ export default function TripPlanner({
                   >
                     <RotateCcw className="h-3.5 w-3.5" />
                   </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    title="Thu gọn — xem toàn bộ bản đồ"
+                    aria-label="Thu gọn bảng kết quả"
+                    onClick={() => setCollapsed(true)}
+                  >
+                    <Minus className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
               </div>
               <CardDescription className="truncate">
@@ -951,12 +1039,20 @@ export default function TripPlanner({
               {result && (
                 <>
                   {result.airQuality?.aqi != null && (
-                    <div className="flex items-center justify-between rounded-xl border bg-muted/30 px-3 py-2 text-xs">
-                      <span className="font-medium">🌤 Chất lượng không khí</span>
-                      <span className="font-semibold">
-                        AQI {result.airQuality.aqi}
-                        {result.airQuality.category ? ` · ${result.airQuality.category}` : ''}
-                      </span>
+                    <div className="rounded-xl border bg-muted/30 px-3 py-2 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">🌤 Chất lượng không khí</span>
+                        <span className="font-semibold">
+                          AQI {result.airQuality.aqi}
+                          {result.airQuality.category ? ` · ${result.airQuality.category}` : ''}
+                        </span>
+                      </div>
+                      {result.airQuality.locationLabel && (
+                        <p className="mt-1 text-[10px] leading-snug text-muted-foreground">
+                          Nguồn: {result.airQuality.locationLabel}
+                          {result.airQuality.source === 'interpolated' ? ' (nội suy)' : ''}
+                        </p>
+                      )}
                     </div>
                   )}
 
@@ -966,6 +1062,17 @@ export default function TripPlanner({
                     decided={decided}
                     deciding={deciding}
                   />
+
+                  {/* Task 3-c: phản hồi nhanh về phương tiện được đề xuất (chỉ khi có kết quả phân tích) */}
+                  {(result.tripId || result.recommendations.length > 0) && (
+                    <div className="mt-3 border-t pt-3">
+                      <FeedbackWidget
+                        tripId={result.tripId}
+                        topModeId={result.recommendations[0]?.modeId}
+                        topModeName={result.recommendations[0]?.modeName}
+                      />
+                    </div>
+                  )}
 
                   <Accordion type="multiple" defaultValue={['trip-ov']}>
                     <AccordionItem value="trip-ov">
@@ -1092,25 +1199,163 @@ export default function TripPlanner({
         )}
         </Card>
 
-        {/* ---- footer panel: chú giải + bật/tắt điểm giao thông ---- */}
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-b-2xl border-t bg-card/95 px-3 py-2 text-[11px] text-muted-foreground">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <span className="inline-flex items-center gap-1">
-              <span className="h-2 w-3.5 rounded-sm border border-red-500 bg-red-400/60" /> LEZ
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="h-1 w-3.5 rounded-full bg-emerald-600" /> Tuyến
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-teal-600" /> Buýt / metro
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Label htmlFor="transport-toggle" className="text-[11px] text-muted-foreground">
-              Điểm giao thông
-            </Label>
-            <Switch id="transport-toggle" checked={showTransportPoints} onCheckedChange={setShowTransportPoints} />
-          </div>
+        {/* ---- footer: Chú giải & lớp bản đồ (thiết kế lại Task 67 — hàng điều khiển mỏng + chi tiết gập/mở, minh bạch nguồn trạm) ---- */}
+        {/* pointer-events-auto: wrapper ngoài đang none (map-first), footer là sibling của Card nên phải tự bật lại */}
+        <div className="pointer-events-auto shrink-0 border-t bg-card/95 px-3 py-1.5 text-[11px] text-muted-foreground">
+          <Collapsible open={legendOpen} onOpenChange={setLegendOpen}>
+            {/* hàng điều khiển: mở/gập chú giải + 2 công tắc lớp (luôn bấm được kể cả khi gập) */}
+            <div className="flex items-center justify-between gap-2">
+              <CollapsibleTrigger className="flex min-w-0 items-center gap-1.5 rounded-md py-0.5 text-left transition-colors hover:text-foreground">
+                <Layers className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                <span className="truncate text-[11px] font-semibold uppercase tracking-wide text-foreground/80">
+                  Chú giải &amp; lớp bản đồ
+                </span>
+                {legendOpen ? (
+                  <ChevronUp className="h-4 w-4 shrink-0" aria-hidden />
+                ) : (
+                  <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />
+                )}
+              </CollapsibleTrigger>
+              <span className="flex shrink-0 items-center gap-2.5">
+                {citySupportsAqi && (
+                  <span
+                    className="inline-flex items-center gap-1"
+                    title={`Trường AQI nội suy từ ${aqiStations.filter(isStationAvailable).length} trạm còn số liệu${aqiStations.some((s) => !isStationAvailable(s)) ? ` (ngoài ra ${aqiStations.length - aqiStations.filter(isStationAvailable).length} trạm tạm ngừng không đóng góp)` : ''}`}
+                  >
+                    <span
+                      aria-hidden
+                      className="h-2.5 w-4 rounded-full border border-black/10"
+                      style={{ background: 'linear-gradient(90deg,#22c55e,#facc15,#f97316,#ef4444,#a855f7)' }}
+                    />
+                    <Switch
+                      id="aqi-toggle"
+                      checked={showAqi}
+                      onCheckedChange={setShowAqi}
+                      aria-label="Bật tắt trường AQI trên bản đồ"
+                    />
+                  </span>
+                )}
+                <span className="inline-flex items-center gap-1" title="Bật tắt điểm giao thông">
+                  <span aria-hidden className="h-2.5 w-2.5 rounded-full bg-teal-600" />
+                  <Switch
+                    id="transport-toggle"
+                    checked={showTransportPoints}
+                    onCheckedChange={setShowTransportPoints}
+                    aria-label="Bật tắt điểm giao thông trên bản đồ"
+                  />
+                </span>
+              </span>
+            </div>
+            <CollapsibleContent>
+              <div className="space-y-3 pb-1.5 pt-2.5">
+                {/* --- thang màu VN-AQI liên tục (đồng bộ với trường AQI mượt trên map) + nguồn từng trạm --- */}
+                {citySupportsAqi && (
+                  <div>
+                    <p className="mb-1.5 font-medium text-foreground/70">Chất lượng không khí · VN-AQI</p>
+                    <div
+                      aria-hidden
+                      className="h-2.5 w-full rounded-full border border-black/10"
+                      style={{
+                        background:
+                          'linear-gradient(90deg,#22c55e 0%,#facc15 20%,#f97316 40%,#ef4444 60%,#a855f7 80%,#7f1d1d 100%)',
+                      }}
+                    />
+                    <div className="mt-1 flex justify-between text-[9px] leading-none tabular-nums" aria-hidden>
+                      <span>0</span>
+                      <span>50</span>
+                      <span>100</span>
+                      <span>150</span>
+                      <span>200</span>
+                      <span>300</span>
+                      <span>300+</span>
+                    </div>
+                    <div className="mt-1.5 grid grid-cols-6 gap-0.5" aria-hidden>
+                      {AQI_LEGEND.map((b) => (
+                        <span key={b.label} className="flex items-center justify-center gap-1 text-[9px] leading-tight">
+                          <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: b.color }} />
+                          {b.label}
+                        </span>
+                      ))}
+                    </div>
+                    {/* minh bạch nguồn: từng trạm đo thật — tên, nguồn, giá trị (bấm trạm trên bản đồ để xem chi tiết) */}
+                    {aqiStations.length > 0 && (
+                      <ul
+                        className="mt-2.5 max-h-60 space-y-1 overflow-y-auto border-t border-border/60 pr-1 pt-2 rs-scroll"
+                        aria-label="Trạm đo thật và nguồn dữ liệu"
+                      >
+                        {aqiStations.length > 8 && (
+                          <li className="text-[10px] leading-snug text-muted-foreground">
+                            {aqiStations.filter(isStationAvailable).length} trạm còn số liệu ·{' '}
+                            {aqiStations.length - aqiStations.filter(isStationAvailable).length} trạm tạm ngừng (danh sách cuộn)
+                          </li>
+                        )}
+                        {aqiStations.map((st) => {
+                          const ok = isStationAvailable(st)
+                          return (
+                            <li
+                              key={st.id}
+                              className={`flex items-center gap-1.5 ${ok ? '' : 'opacity-60'}`}
+                              title={`${st.name} — ${st.sourceLabel} · ${ok ? `đo lúc ${formatAqiTime(st.measuredAt)}` : 'tạm ngừng cập nhật số liệu'}`}
+                            >
+                              <span
+                                aria-hidden
+                                className="h-2.5 w-2.5 shrink-0 rounded-full border border-black/10"
+                                style={{ background: ok ? aqiCategory(st.aqi as number).color : '#94a3b8' }}
+                              />
+                              <span className="min-w-0 flex-1 truncate">{st.name}</span>
+                              <span className="shrink-0 rounded border border-border bg-background px-1 py-px text-[9px] leading-tight">
+                                {st.source === 'moitruongthudo' ? 'Sở NN&MT' : 'WAQI'}
+                              </span>
+                              <span
+                                className={`w-7 shrink-0 text-right text-[11px] font-semibold tabular-nums ${ok ? 'text-foreground/80' : 'text-muted-foreground/70'}`}
+                                aria-label={ok ? `AQI ${st.aqi}` : 'AQI không khả dụng'}
+                              >
+                                {ok ? st.aqi : '—'}
+                              </span>
+                            </li>
+                          )
+                        })}
+                        {aqiStations.some((s) => !isStationAvailable(s)) && (
+                          <li className="pt-0.5 text-[10px] leading-snug text-muted-foreground">
+                            — Trạm xám: tạm ngừng cập nhật số liệu (không đóng góp vào lớp AQI)
+                          </li>
+                        )}
+                      </ul>
+                    )}
+                  </div>
+                )}
+
+                {/* --- ý nghĩa màu của từng phần tử trên map --- */}
+                <div>
+                  <p className="mb-1.5 font-medium text-foreground/70">Phần tử trên bản đồ</p>
+                  <div className="space-y-1.5">
+                    <span className="flex items-center gap-1.5">
+                      <span aria-hidden className="h-2.5 w-4 shrink-0 rounded-sm border border-red-500 bg-red-400/60" />
+                      Vùng LEZ — hạn chế xe cá nhân phát thải cao
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span aria-hidden className="h-1 w-4 shrink-0 rounded-full bg-emerald-600" />
+                      Tuyến buýt / metro
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-full bg-teal-600" />
+                      Điểm giao thông — bến xe, metro, BRT, bãi đỗ xe
+                    </span>
+                    {citySupportsAqi && (
+                      <span className="flex items-center gap-1.5">
+                        <span
+                          aria-hidden
+                          className="h-3 w-4 shrink-0 rounded-full border border-black/10"
+                          style={{ background: 'linear-gradient(90deg,#22c55e,#facc15,#f97316,#ef4444,#a855f7)' }}
+                        />
+                        Trường AQI — màu theo chất lượng không khí khu vực
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         </div>
       </div>
     </div>

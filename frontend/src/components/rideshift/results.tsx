@@ -258,6 +258,17 @@ export function ComplianceCard({
 
 // ------------------------------------------------------------ Air quality (US-08/19)
 
+
+/** "2026-10-22T11:00:00+07:00" | "21-10-2026" → chuỗi hiển thị an toàn (không Invalid Date) */
+function formatMeasuredAt(iso: string): string {
+  const d = new Date(iso)
+  if (!Number.isNaN(d.getTime())) return d.toLocaleString('vi-VN')
+  // MTD chỉ trả "dd-MM-yyyy"
+  const m = /^(\d{1,2})-(\d{1,2})-(\d{4})$/.exec(iso)
+  if (m) return `ngày ${Number(m[1])}/${Number(m[2])}/${m[3]}`
+  return iso
+}
+
 export function AirQualityCard({ air }: { air: AnalyzeResponse['airQuality'] }) {
   const tone =
     air.aqi == null
@@ -281,14 +292,21 @@ export function AirQualityCard({ air }: { air: AnalyzeResponse['airQuality'] }) 
             : air.aqi <= 200
               ? 'Không tốt cho sức khỏe'
               : 'Nguy hại'
+  // Task 63: chuỗi nguồn mới — trạm thật → nội suy → mô hình → cache → estimate
   const sourceLabel =
-    air.source === 'live'
-      ? 'Open-Meteo API (trực tiếp)'
-      : air.source === 'cache'
-        ? 'Dữ liệu cache'
-        : air.source === 'estimate'
-          ? 'Mô hình ước tính'
-          : 'Không khả dụng'
+    air.source === 'station'
+      ? 'Trạm đo thật'
+      : air.source === 'interpolated'
+        ? 'Nội suy từ trạm đo thật'
+        : air.source === 'open-meteo'
+          ? 'Mô hình Open-Meteo (CAMS)'
+          : air.source === 'live'
+            ? 'Open-Meteo API (trực tiếp)'
+            : air.source === 'cache'
+              ? 'Dữ liệu cache'
+              : air.source === 'estimate'
+                ? 'Mô hình ước tính'
+                : 'Không khả dụng'
   // US-19: with neither live data nor a cache/estimate the backend reports
   // source 'unavailable' (or null numbers) — show a notice, never fake tiles.
   const unavailable = air.source === 'unavailable' || air.aqi == null
@@ -319,7 +337,7 @@ export function AirQualityCard({ air }: { air: AnalyzeResponse['airQuality'] }) 
                 </div>
                 {air.measuredAt && (
                   <div className="text-xs text-muted-foreground">
-                    Cập nhật {new Date(air.measuredAt).toLocaleString('vi-VN')}
+                    Cập nhật {formatMeasuredAt(air.measuredAt)}
                   </div>
                 )}
               </div>

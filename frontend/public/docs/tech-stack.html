@@ -51,7 +51,7 @@
 <tr>
 <td>2</td>
 <td>Backend: Python + FastAPI</td>
-<td><strong>FastAPI (Python 3.12)</strong> — <code>mini-services/fastapi-backend</code>, toàn bộ 16+ REST endpoints, UVicorn</td>
+<td><strong>FastAPI (Python 3.12)</strong> — <code>mini-services/fastapi-backend</code>, REST API (40 endpoint mounted = 17 admin + 20 public + 3 trip; frontend sử dụng 37: 33 fetch + 4 liên kết dữ liệu mở, cộng <code>/health</code> vận hành; 2 endpoint legacy giữ nguyên contract theo repo gốc: <code>GET /api/admin/zones</code>, <code>GET /api/dataset/summary</code>), UVicorn</td>
 <td>✅ (đã port từ Next.js API routes)</td>
 </tr>
 <tr>
@@ -63,7 +63,7 @@
 <tr>
 <td>4</td>
 <td>PostgreSQL + PostGIS (Deliverable #10, NFR-02)</td>
-<td>docker-compose dùng image <strong>postgis/postgis:16-3.4</strong>; schema sẵn cột <code>geometry(Polygon,4326)</code> + GIST; trong sandbox không có root → spatial chạy Shapely (fallback tự động)</td>
+<td>docker-compose dùng image <strong>postgis/postgis:16-3.4</strong>; <code>policy.lez_zones.geometry</code> đúng DB FINAL là <code>GEOMETRY(MULTIPOLYGON,4326)</code> + GIST; trong sandbox không có root → spatial chạy Shapely (fallback tự động, cùng kết quả)</td>
 <td>✅ deploy / ⚠️ sandbox (hạn chế môi trường)</td>
 </tr>
 <tr>
@@ -81,7 +81,7 @@
 <tr>
 <td>7</td>
 <td>Leaflet / MapLibre</td>
-<td>Leaflet 1.9.4 + react-leaflet 5</td>
+<td>Leaflet 1.9.4 dùng trực tiếp qua API JS (canvas layer tự viết cho trường AQI) — không cần lớp react-leaflet</td>
 <td>✅</td>
 </tr>
 <tr>
@@ -99,7 +99,7 @@
 <tr>
 <td>10</td>
 <td>Open-Meteo Air Quality</td>
-<td>Open-Meteo + DB cache 30' + mô phỏng dự phòng</td>
+<td>Open-Meteo CAMS (<strong>lớp nền</strong> bản đồ khi không có trạm sống + <strong>fallback lịch sử 24h</strong> trong panel chi tiết trạm khi chuỗi giờ của Sở chưa có dữ liệu) + <strong>trạm đo thật</strong>: Sở NN&amp;MT Hà Nội (moitruongthudo.vn) &amp; WAQI (aqicn.org) — trạm còn số liệu đóng góp lớp AQI (nội suy IDW), trạm tạm ngừng hiển thị xám, không có lịch sử/min-max; DB cache 30'</td>
 <td>✅</td>
 </tr>
 <tr>
@@ -148,7 +148,7 @@
 </code></pre>
 <ul>
 <li>Toàn bộ business logic (analyze pipeline, TOPSIS, LEZ spatial, compliance, AQI cache, auth, admin CRUD, analytics) nằm ở <strong>Python</strong>.</li>
-<li>Next.js chỉ còn là presentation layer — <strong>không còn</strong> API routes (<code>src/app/api</code> đã xóa), không còn Prisma runtime (<code>src/lib/db.ts</code> đã xóa; prisma/ chỉ còn lại dưới dạng tư liệu tham khảo, vô hiệu).</li>
+<li>Next.js chỉ còn là presentation layer — <strong>không còn</strong> API routes (<code>src/app/api</code> đã xóa, chỉ còn <code>backend-keepalive</code> giữ backend sống trong sandbox demo), Prisma runtime + <code>prisma/</code> đã loại bỏ hoàn toàn (schema SQLite cũ đã xóa).</li>
 </ul>
 <h2 id="ghi-chu-ky-thuat">Ghi chú kỹ thuật</h2>
 <ul>

@@ -117,6 +117,8 @@ export type LezImpactResponse = {
   byDistrict: LezImpactByDistrict[]
   byPurpose: LezImpactByPurpose[]
   lezDetail: LezImpactDetail
+}
+
 /* ------------------------------------------------------------------ */
 /* CN-39 — thống kê thời gian / khoảng cách (GET /api/admin/stats/trips) */
 /* ------------------------------------------------------------------ */
