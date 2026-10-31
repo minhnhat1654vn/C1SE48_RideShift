@@ -20,12 +20,68 @@ from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from app import config, db, seed  # noqa: E402
 from app.routers import admin, public, trip  # noqa: E402
 
+# Phiên bản đóng gói — định nghĩa ở app/config.py (đồng bộ tag image
+# docker-compose.yml + /health) để backend/FE/compose dùng MỘT nguồn.
+from app.config import APP_VERSION  # noqa: E402
+
+
+def _boot_step(label: str, fn) -> None:
+    """Chạy MỘT bước boot độc lập — bước trước lỗi KHÔNG được giết bước sau.
+
+    (Fix gốc rễ Task 90): trước đây toàn bộ lifespan nằm trong một try duy
+    nhất, nên một exception ở seed làm geoimport/wardimport/pipeline không
+    bao giờ chạy → app vẫn 200 nhưng mất phường/xã + bulletin — đúng hiện
+    tượng "chỉ có Hà Nội, không có phường, mất tab Chính sách"."""
+    try:
+        fn()
+    except Exception as e:  # noqa: BLE001
+        import traceback
+
+        print(f"[boot] {label} THẤT BẠI: {e!r}")
+        traceback.print_exc()
+
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
-    try:
-        db.init_db()
-        seed.seed()
+    _boot_step("schema (db.init_db)", db.init_db)
+    _boot_step("seed (seed.seed)", seed.seed)
+
+    def _geoimport():
+        # Task 65 — gis.administrative_regions: 3 thành phố (HN/DN/HCM),
+        # idempotent theo (study_area_id, code); self-heal sau khi DB bị reset
+        from app.services import geoimport
+
+        geo_report = geoimport.import_admin_regions()
+        if geo_report.get("imported"):
+            print(
+                f"gis.administrative_regions: +{geo_report['imported']} phường/xã "
+                f"({', '.join(c['city'] for c in geo_report.get('cities', []))})"
+            )
+        else:
+            for c in geo_report.get("cities", []):
+                if c.get("skipped") and c.get("reason"):
+                    print(f"gis.administrative_regions/{c['city']}: bỏ qua — {c['reason']}")
+                else:
+                    print(
+                        f"gis.administrative_regions/{c['city']}: đã có "
+                        f"{c.get('existing', 0)} phường/xã (idempotent)"
+                    )
+
+    _boot_step("geoimport (phường/xã 3 thành phố)", _geoimport)
+
+    def _wardimport():
+        # governance pack: nạp phường/xã bộ máy 2025 (bổ sung mã còn thiếu) +
+        # gán phường cho chuyến cũ — geoimport phía trên là nguồn chính thức,
+        # ensure_wards chỉ lấp lỗ idempotent theo mã.
+        from app.services import wardimport
+
+        with db.get_conn() as conn:
+            wardimport.ensure_wards(conn)
+            wardimport.backfill_trip_wards(conn)
+
+    _boot_step("wardimport (bổ sung phường bộ máy)", _wardimport)
+
+    def _trend():
         from app.services import trend
 
         with db.get_conn() as conn:
@@ -39,15 +95,10 @@ async def lifespan(application: FastAPI):
         if n == 0 or n_survey == 0:
             trend.run_pipeline()
         trend.latest_trend_map()
-        print("RideShift backend ready: schema ensured, seed ensured, dataset pipeline OK")
-    except Exception as e:
-        # Never swallow silently: an empty dataset_trend / missing seed shows
-        # up in the UI as "no data" warnings — make the cause searchable in
-        # `docker compose logs backend`.
-        import traceback
 
-        print(f"startup warning: {e!r}")
-        traceback.print_exc()
+    _boot_step("dataset pipeline (Kaggle dataHN.csv)", _trend)
+
+    print(f"RideShift backend ready v{APP_VERSION}: boot xong (bước lỗi xem log [boot] phía trên)")
     yield
 
 
@@ -75,6 +126,11 @@ app.add_middleware(
 app.include_router(public.router)
 app.include_router(trip.router)
 app.include_router(admin.router)
+
+# Task 99 — 2 router gov_ops + gov_policy ĐÃ XOÁ theo duyệt user 28/10:
+# 40/46 endpoint gov FE không bao giờ gọi, 19 endpoint 500 vì 8 bảng gov đã
+# DROP theo DB FINAL. 9 endpoint FE đang dùng (bulletin, notifications ×4,
+# open-data ×4, trip/feedback) đã được migrate sang public.py + trip.py.
 
 
 @app.exception_handler(Exception)

@@ -29,8 +29,7 @@ from ..constants import (
     fmt_vi_vnd,
     guess_district,
 )
-from ..dto import _hhmm
-from ..geojson import geojson_to_pairs, linestring_geojson, point_geojson
+from ..dto import _hhmm, zone_pairs_from_row
 from ..services import airquality, external, geo, mcdm, trend
 
 router = APIRouter()
@@ -133,17 +132,14 @@ def analyze(body: AnalyzeRequest):
                 "SELECT code, default_weight FROM decision.recommendation_criteria"
             ).fetchall()
             zones = conn.execute(
-                f"""
-                SELECT lez_zone_id, name, {db.geom_read('geometry', 'geometry_json')}
-                FROM policy.lez_zones
+                """
+                SELECT * FROM policy.lez_zones
                 WHERE status = 'active' ORDER BY created_at ASC
                 """
             ).fetchall()
             locations = conn.execute(
                 """
-                SELECT transportation_location_id, name, location_type, lat, lng,
-                       address, source, status
-                FROM transportation.transportation_locations WHERE status = 'active'
+                SELECT * FROM transportation.transportation_locations WHERE status = 'active'
                 """
             ).fetchall()
 
@@ -159,11 +155,15 @@ def analyze(body: AnalyzeRequest):
         )
 
         # ---------- LEZ spatial analysis (outside / partial / within) ----------
-        zone_polys = [
-            {"id": z["lez_zone_id"], "name": z["name"],
-             "polygon": geojson_to_pairs(z["geometry_json"])}
-            for z in zones
-        ]
+        # Task 93 — zone_pairs_from_row: ưu tiên coordinates, fallback geometry
+        # (volume cũ) — một dòng hỏng bị bỏ qua thay vì làm chết cả phân tích.
+        zone_polys = []
+        for z in zones:
+            pairs = zone_pairs_from_row(z)
+            if pairs:
+                zone_polys.append(
+                    {"id": z["lez_zone_id"], "name": z["name"], "polygon": pairs}
+                )
         zone_checks = geo.analyze_route_vs_zones(route["coords"], zone_polys)
         affected_zones = [z for z in zone_checks if z["status"] != "outside"]
         affected_zone_ids = [z["zoneId"] for z in affected_zones]
@@ -419,7 +419,7 @@ def analyze(body: AnalyzeRequest):
 
                 trip_id = int(
                     conn.execute(
-                        f"""
+                        """
                         INSERT INTO trip.trips
                             (study_area_id, origin_name, destination_name, origin, destination,
                              origin_lat, origin_lng, dest_lat, dest_lng,
@@ -428,15 +428,15 @@ def analyze(body: AnalyzeRequest):
                              travel_time, departure_hour, trip_purpose, preferences,
                              distance_km, duration_min, lez_affected,
                              avg_cost_vnd, avg_time_min)
-                        VALUES (%s,%s,%s,{db.geom_write()},{db.geom_write()},%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                         RETURNING trip_id
                         """,
                         (
                             study_id,
                             origin.name or f"{origin.lat:.4f}, {origin.lng:.4f}",
                             destination.name or f"{destination.lat:.4f}, {destination.lng:.4f}",
-                            point_geojson(origin.lat, origin.lng),
-                            point_geojson(destination.lat, destination.lng),
+                            json.dumps({"type": "Point", "coordinates": [origin.lng, origin.lat]}),
+                            json.dumps({"type": "Point", "coordinates": [destination.lng, destination.lat]}),
                             origin.lat, origin.lng, destination.lat, destination.lng,
                             origin_region, dest_region, origin_district,
                             vt_id, False,
@@ -452,13 +452,32 @@ def analyze(body: AnalyzeRequest):
                     ).fetchone()["trip_id"]
                 )
 
+                # governance pack: gán phường/xã (bộ máy 2025) cho điểm đi/đến —
+                # best-effort, không bao giờ làm hỏng phân tích chính.
+                try:
+                    from ..services import wardimport as _wi
+
+                    _ow = _wi.ward_of_point(origin.lat, origin.lng)
+                    _dw = _wi.ward_of_point(destination.lat, destination.lng)
+                    if _ow or _dw:
+                        conn.execute(
+                            """
+                            UPDATE trip.trips
+                            SET origin_ward_code = %s, destination_ward_code = %s
+                            WHERE trip_id = %s
+                            """,
+                            (_ow["code"] if _ow else None, _dw["code"] if _dw else None, trip_id),
+                        )
+                except Exception:  # noqa: BLE001,S110
+                    pass
+
                 route_id = int(
                     conn.execute(
-                        f"""
+                        """
                         INSERT INTO trip.trip_routes
                             (trip_id, routing_profile, route_index, provider,
                              distance_m, duration_sec, geometry)
-                        VALUES (%s, 'driving', 0, %s, %s, %s, {db.geom_write()})
+                        VALUES (%s, 'driving', 0, %s, %s, %s, %s)
                         RETURNING route_id
                         """,
                         (
@@ -466,7 +485,12 @@ def analyze(body: AnalyzeRequest):
                             "osrm" if route["source"] == "osrm" else "estimate",
                             round(route["distanceKm"] * 1000, 2),
                             round(route["durationMin"] * 60),
-                            linestring_geojson(route["coords"]),
+                            json.dumps(
+                                {
+                                    "type": "LineString",
+                                    "coordinates": [[c[1], c[0]] for c in route["coords"]],
+                                }
+                            ),
                         ),
                     ).fetchone()["route_id"]
                 )
@@ -641,3 +665,44 @@ def record_choice(trip_id: str, body: ChoiceRequest):
             (chosen_vt, switched, tid),
         )
     return {"ok": True, "trip": {"id": tid, "switched": switched}}
+
+
+# ---------------------------------------------------------------------------
+# Task 99 — migrated từ routers/gov_ops.py (router gov đã xoá theo duyệt user
+# 28/10). FE feedback-widget.tsx gọi endpoint này; path + response không đổi.
+# ---------------------------------------------------------------------------
+
+FEEDBACK_REASONS = ("cost", "time", "safety", "weather", "infrastructure", "habit", "other")
+
+
+class FeedbackBody(BaseModel):
+    userKey: Optional[str] = Field(default=None, max_length=64)
+    tripId: Optional[int] = None
+    topModeId: Optional[int] = None
+    reason: str
+    detail: Optional[str] = Field(default=None, max_length=1000)
+
+
+@router.post("/api/trip/feedback")
+def submit_feedback(body: FeedbackBody):
+    """(Public) Ghi nhận phản hồi 'vì sao không chọn phương tiện được đề xuất'."""
+    reason = (body.reason or "").strip().lower()
+    if reason not in FEEDBACK_REASONS:
+        raise HTTPException(status_code=400, detail="Lý do không hợp lệ.")
+    try:
+        with db.get_conn() as conn:
+            conn.execute(
+                """
+                INSERT INTO decision.user_feedback (user_key, trip_id, top_mode_id, reason, detail)
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (body.userKey or None, body.tripId, body.topModeId, reason, body.detail or None),
+            )
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(
+            status_code=400,
+            detail="Ghi nhận phản hồi thất bại. Vui lòng kiểm tra lại tripId/topModeId.",
+        )
+    return {"ok": True}
