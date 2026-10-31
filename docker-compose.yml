@@ -59,6 +59,9 @@ services:
       # KHUYẾN NGHỊ: key goong.io (miễn phí) — geocoding VN có số nhà,
       # trở thành lựa chọn đầu của chuỗi tra cứu khi được đặt.
       GOONG_API_KEY: ${GOONG_API_KEY:-}
+      # US-42: WAQI token cho mạng trạm AQI thật (api.waqi.info) — bỏ trống vẫn chạy
+      # (config.py có token demo mặc định; token riêng nâng rate-limit).
+      WAQI_TOKEN: ${WAQI_TOKEN:-}
     ports:
       - "8000:8000"
     depends_on:
@@ -75,6 +78,9 @@ services:
       # trình duyệt gọi Next thay vì FastAPI). Luồng Docker chuẩn: browser gọi
       # thẳng FastAPI — key của backend ở khối environment phía trên.
       GOONG_API_KEY: ${GOONG_API_KEY:-}
+      # US-42: WAQI token cho mạng trạm AQI thật (api.waqi.info) — bỏ trống vẫn chạy
+      # (config.py có token demo mặc định; token riêng nâng rate-limit).
+      WAQI_TOKEN: ${WAQI_TOKEN:-}
     ports:
       - "3000:3000"
     depends_on:
