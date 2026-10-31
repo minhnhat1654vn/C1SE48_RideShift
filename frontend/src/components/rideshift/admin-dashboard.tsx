@@ -19,6 +19,7 @@ import type { FormEvent, ReactNode } from 'react'
 import { apiFetch } from '@/lib/api'
 import {
   Activity,
+  BarChart3,
   BookLock,
   CheckCircle2,
   ChevronRight,
@@ -92,6 +93,7 @@ import {
 } from '@/components/ui/table'
 import ZonesTab from '@/components/rideshift/admin/zones-tab'
 import { ModesWeightsTab, RulesTab } from '@/components/rideshift/admin/rules-modes-tabs'
+import StatsTab from '@/components/rideshift/admin/stats-tab'
 
 // Point type for the US-25 survey trend chart (share % + tooltip extras).
 type TrendPoint = DatasetTrendRow & { name: string; sharePct: number }
@@ -119,7 +121,7 @@ const SCROLLBAR_CLASS =
 const CHART_COLORS = ['#16a34a', '#22c55e', '#0d9488', '#84cc16', '#eab308', '#f97316', '#dc2626']
 
 type AdminUser = { username: string; fullName: string }
-type TabKey = 'overview' | 'zones' | 'rules' | 'modes'
+type TabKey = 'overview' | 'stats' | 'zones' | 'rules' | 'modes'
 
 // Phase A — nhóm điều hướng sidebar (demo phương án A): nhóm theo bản chất
 // công việc, kèm mô tả (title) và số đếm trực tiếp trên mục.
@@ -137,6 +139,7 @@ const NAV_GROUPS: {
     label: 'Theo dõi',
     items: [
       { key: 'overview', label: 'Tổng quan', icon: Activity, desc: 'Số liệu vận hành tổng thể của hệ thống' },
+      { key: 'stats', label: 'Thống kê', icon: BarChart3, desc: 'Thống kê thời gian và khoảng cách chuyến đi (CN-39)' },
     ],
   },
   {
@@ -429,6 +432,9 @@ export default function AdminDashboard({
                 rules={rules}
                 onNavigate={(tab) => setActiveTab(tab)}
               />
+            </TabsContent>
+            <TabsContent value="stats" className="mt-0">
+              <StatsTab />
             </TabsContent>
             <TabsContent value="zones" className="mt-0">
               <ZonesTab zones={zones} onZonesChanged={onZonesChanged} />

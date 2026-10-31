@@ -9,6 +9,7 @@ import math
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Union
 
+import numpy as np
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field
@@ -817,6 +818,244 @@ def analytics(request: Request, admin=Depends(auth.require_admin), From: Optiona
         "switching": switching,
         "dataset": dataset_section,
         "trips": trips.to_dict(orient="records"),
+    }
+
+
+# ---------------------------------------------------------------- trip stats
+# CN-39: thống kê thời gian / khoảng cách trên các chuyến đã lưu.
+# Thuật toán dùng: thống kê mô tả (mean/median/percentile), lọc ngoại lai
+# theo hàng rào Tukey IQR (Q1 − 1.5·IQR ~ Q3 + 1.5·IQR) và chia bin
+# histogram theo quy tắc Sturges. KHÔNG liên quan tới TOPSIS — chỉ đọc
+# kết quả đã lưu trong trip.trips, không chạy lại MCDM.
+
+
+def _sturges_bins(n: int) -> int:
+    """Số bin histogram theo quy tắc Sturges (log2(n) + 1), giới hạn 4..10."""
+    if n <= 1:
+        return 1
+    return max(4, min(10, math.ceil(math.log2(n)) + 1))
+
+
+def _metric_series(series: pd.Series) -> pd.Series:
+    """Chuỗi số hợp lệ cho một đại lượng: bỏ NaN và giá trị âm."""
+    s = pd.to_numeric(series, errors="coerce").dropna()
+    return s[s >= 0]
+
+
+def _metric_stats(series: pd.Series) -> dict:
+    """Thống kê mô tả một đại lượng (km hoặc phút) có lọc ngoại lai IQR.
+
+    - avg/median/p85/p95 tính trên tập INLIER (nằm trong hàng rào Tukey)
+      để vài chuyến bất thường (vd 300 km do geocode sai) không kéo lệch.
+    - sum/min/max/q1/q3/outliers mô tả TOÀN BỘ dữ liệu thật.
+    """
+    s = _metric_series(series)
+    total = int(len(s))
+    if total == 0:
+        return {
+            "count": 0, "sum": 0.0, "avg": 0.0, "median": 0.0,
+            "p85": 0.0, "p95": 0.0, "min": 0.0, "max": 0.0,
+            "q1": 0.0, "q3": 0.0, "outliers": 0,
+        }
+    q1 = float(s.quantile(0.25))
+    q3 = float(s.quantile(0.75))
+    iqr = q3 - q1
+    lo, hi = q1 - 1.5 * iqr, q3 + 1.5 * iqr
+    inliers = s[(s >= lo) & (s <= hi)]
+    # tập inlier rỗng (dữ liệu quá lệch) → lùi lại toàn bộ để không chia 0
+    base = inliers if len(inliers) else s
+    return {
+        "count": total,
+        "sum": round(float(s.sum()), 1),
+        "avg": round(float(base.mean()), 2),
+        "median": round(float(base.median()), 2),
+        "p85": round(float(base.quantile(0.85)), 2),
+        "p95": round(float(base.quantile(0.95)), 2),
+        "min": round(float(s.min()), 2),
+        "max": round(float(s.max()), 2),
+        "q1": round(q1, 2),
+        "q3": round(q3, 2),
+        "outliers": int(total - len(inliers)),
+    }
+
+
+def _histogram(series: pd.Series) -> dict:
+    """Histogram một đại lượng; bin cuối dạng "≥ X" gom cả ngoại lai.
+
+    Số bin theo quy tắc Sturges trên tập inlier; khoảng bin trải từ min
+    đến max của inlier để ngoại lai không làm vỡ trục ngang biểu đồ.
+    """
+    s = _metric_series(series)
+    if len(s) == 0:
+        return {"bins": [], "outliers": 0}
+    q1 = float(s.quantile(0.25))
+    q3 = float(s.quantile(0.75))
+    iqr = q3 - q1
+    lo, hi = q1 - 1.5 * iqr, q3 + 1.5 * iqr
+    inliers = s[(s >= lo) & (s <= hi)]
+    if len(inliers) == 0:
+        inliers = s
+    outliers = int(len(s) - len(inliers))
+    vmin, vmax = float(inliers.min()), float(inliers.max())
+    if vmax <= vmin:
+        # mọi giá trị trùng nhau → một bin duy nhất
+        return {
+            "bins": [{"from": vmin, "to": vmax, "label": f"= {vmin:g}", "count": int(len(s))}],
+            "outliers": outliers,
+        }
+    n_bins = _sturges_bins(len(inliers))
+    width = (vmax - vmin) / n_bins
+    fmt = "{:.0f}–{:.0f}" if width >= 1 else "{:.1f}–{:.1f}"
+    counts, edges = np.histogram(inliers, bins=n_bins, range=(vmin, vmax))
+    bins = [
+        {
+            "from": round(float(edges[i]), 2),
+            "to": round(float(edges[i + 1]), 2),
+            "label": fmt.format(edges[i], edges[i + 1]),
+            "count": int(c),
+        }
+        for i, c in enumerate(counts)
+    ]
+    if outliers:
+        # gộp ngoại lai vào bin cuối, đánh dấu "≥" để người đọc hiểu trục bị co
+        bins[-1]["count"] += outliers
+        bins[-1]["label"] = f"≥ {bins[-1]['from']:g}"
+    return {"bins": bins, "outliers": outliers}
+
+
+def _avg_round(series: pd.Series, digits: int) -> float:
+    s = _metric_series(series)
+    return round(float(s.mean()), digits) if len(s) else 0.0
+
+
+@router.get("/api/admin/stats/trips")
+def trip_stats(
+    request: Request,
+    admin: dict = Depends(auth.require_admin),
+    From: Optional[str] = Query(default=None, alias="from"),
+    To: Optional[str] = Query(default=None, alias="to"),
+):
+    """CN-39: thống kê thời gian/khoảng cách của các chuyến đi đã lưu.
+
+    Trả về: tổng quan có lọc ngoại lai IQR, histogram khoảng cách & thời gian
+    (bin theo Sturges), thống kê theo ngày (giờ địa phương Hà Nội), theo giờ
+    khởi hành (cột departure_hour do người dùng chọn) và theo phương tiện
+    được đề xuất. Toàn bộ là aggregation đọc-đọc, không đụng MCDM.
+    """
+    now = datetime.now(timezone.utc)
+    try:
+        to = datetime.fromisoformat(f"{To}T23:59:59+00:00") if To else now
+        from_ = (
+            datetime.fromisoformat(f"{From}T00:00:00+00:00")
+            if From
+            else now - timedelta(days=30)
+        )
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Khoảng thời gian không hợp lệ.")
+    if from_ > to:
+        raise HTTPException(status_code=400, detail="Khoảng thời gian không hợp lệ.")
+
+    with db.get_conn() as conn:
+        modes = conn.execute(
+            "SELECT code, name FROM transportation.transportation_modes"
+        ).fetchall()
+        rows = conn.execute(
+            f"""
+            {_TRIP_JOIN}
+            WHERE t.created_at >= %s AND t.created_at <= %s
+            """,
+            (from_, to),
+        ).fetchall()
+
+    mode_names = {m["code"]: m["name"] for m in modes}
+    total = len(rows)
+
+    if total == 0:
+        empty_metric = _metric_stats(pd.Series(dtype=float))
+        empty_hist = {"bins": [], "outliers": 0}
+        return {
+            "from": from_.isoformat().replace("+00:00", "Z"),
+            "to": to.isoformat().replace("+00:00", "Z"),
+            "trips": 0,
+            "summary": {"distance": empty_metric, "duration": empty_metric},
+            "distanceHistogram": empty_hist,
+            "durationHistogram": empty_hist,
+            "byMode": [],
+            "byDay": [],
+            "byHour": [
+                {"hour": h, "trips": 0, "avgDurationMin": None} for h in range(24)
+            ],
+        }
+
+    trips = pd.DataFrame([trip_dto(r) for r in rows])
+
+    # ---- tổng quan (lọc ngoại lai IQR cho avg/median/percentile) ----
+    distance_stats = _metric_stats(trips["distanceKm"])
+    duration_stats = _metric_stats(trips["durationMin"])
+
+    # ---- histogram khoảng cách / thời gian ----
+    distance_hist = _histogram(trips["distanceKm"])
+    duration_hist = _histogram(trips["durationMin"])
+
+    # ---- theo phương tiện được đề xuất (topModeId) ----
+    by_mode = []
+    for mid, grp in trips.groupby("topModeId"):
+        by_mode.append(
+            {
+                "modeId": str(mid),
+                "name": mode_names.get(mid, str(mid)),
+                "trips": int(len(grp)),
+                "avgDistanceKm": _avg_round(grp["distanceKm"], 2),
+                "avgDurationMin": _avg_round(grp["durationMin"], 1),
+                "totalDistanceKm": round(
+                    float(_metric_series(grp["distanceKm"]).sum()), 1
+                ),
+            }
+        )
+    by_mode.sort(key=lambda x: -x["trips"])
+
+    # ---- theo ngày (múi giờ địa phương Hà Nội, UTC+7) ----
+    created = pd.to_datetime(trips["createdAt"], utc=True, errors="coerce")
+    day_key = created.dt.tz_convert("Asia/Ho_Chi_Minh").dt.date
+    by_day = []
+    for day, grp in trips.assign(_day=day_key).groupby("_day"):
+        if day is None or pd.isna(day):
+            continue
+        by_day.append(
+            {
+                "date": str(day),
+                "trips": int(len(grp)),
+                "avgDistanceKm": _avg_round(grp["distanceKm"], 2),
+                "avgDurationMin": _avg_round(grp["durationMin"], 1),
+            }
+        )
+    by_day.sort(key=lambda x: x["date"])
+
+    # ---- theo giờ khởi hành (departure_hour do người dùng chọn) ----
+    by_hour_map: dict = {}
+    for hour, grp in trips.groupby("departureHour"):
+        h = int(hour)
+        dur = _metric_series(grp["durationMin"])
+        by_hour_map[h] = {
+            "hour": h,
+            "trips": int(len(grp)),
+            "avgDurationMin": round(float(dur.mean()), 1) if len(dur) else None,
+        }
+    by_hour = [
+        by_hour_map.get(h, {"hour": h, "trips": 0, "avgDurationMin": None})
+        for h in range(24)
+    ]
+
+    return {
+        "from": from_.isoformat().replace("+00:00", "Z"),
+        "to": to.isoformat().replace("+00:00", "Z"),
+        "trips": total,
+        "summary": {"distance": distance_stats, "duration": duration_stats},
+        "distanceHistogram": distance_hist,
+        "durationHistogram": duration_hist,
+        "byMode": by_mode,
+        "byDay": by_day,
+        "byHour": by_hour,
     }
 
 
