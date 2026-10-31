@@ -13,10 +13,10 @@ from pathlib import Path
 
 import markdown
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent  # frontend/scripts → repo root
 DOCS_DIR = ROOT / "docs"
-OUT_DIR = ROOT / "public" / "docs"
-DOCS = ["architecture", "db", "tech-stack"]
+OUT_DIR = ROOT / "frontend" / "public" / "docs"
+DOCS = ["db", "tech-stack", "topsis", "aqi-color"]
 
 STANDALONE_CSS = """
   :root { color-scheme: light dark; }
@@ -73,14 +73,16 @@ def main() -> None:
         json.dumps(fragments, ensure_ascii=False), encoding="utf-8"
     )
 
-    # downloadable assets
-    shutil.copyfile(DOCS_DIR / "db-erd.png", ROOT / "public" / "db-erd.png")
-    shutil.copyfile(
-        DOCS_DIR / "C1SE48_ProposalDocument_v1.0.docx",
-        OUT_DIR / "C1SE48_ProposalDocument_v1.0.docx",
-    )
+    # assets — ERD SVG sinh tự động từ schema.sql (scripts/gen_erd_svg.py)
+    # + DDL export cho ai cần xem nhanh
+    import subprocess
+    gen = ROOT / "scripts" / "gen_erd_svg.py"
+    if gen.exists():
+        subprocess.run(["python3", str(gen)], check=True)
+    else:
+        shutil.copyfile(DOCS_DIR / "db-erd.svg", OUT_DIR / "db-erd.svg")
     shutil.copyfile(DOCS_DIR / "db-schema.sql", OUT_DIR / "db-schema.sql")
-    print("assets copied: db-erd.png, proposal docx, db-schema.sql, 3 markdown sources")
+    print("assets: db-erd.svg (auto-gen), db-schema.sql")
 
 if __name__ == "__main__":
     main()

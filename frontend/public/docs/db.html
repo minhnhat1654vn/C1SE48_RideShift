@@ -31,8 +31,8 @@
 (PostgreSQL + PostGIS), Objective 3 (spatial qua PostgreSQL/PostGIS),
 NFR-02 (PostGIS indexes), Deliverable #10 (PostgreSQL + PostGIS Database),
 Deliverable #11 (Processed Survey Dataset), Deliverable #12 (Database design + ERD).
-Sơ đồ CSDL: <strong><code>docs/db-erd.png</code></strong> (24 bảng · 6 schema, theo thiết kế DB FINAL
-+ ERD nhóm trên dbdiagram).</p>
+Sơ đồ CSDL: <strong><code>public/docs/db-erd.svg</code></strong> — ERD 28 bảng · 6 schema + <code>public.City</code> sinh TỰ ĐỘNG từ <code>app/schema.sql</code> (chạy <code>python3 scripts/gen_erd_svg.py</code> — luôn đồng bộ DB thật), theo thiết kế DB FINAL <strong>v1.1</strong> — điều chỉnh đa thành phố
++ ERD nhóm trên dbdiagram.</p>
 </blockquote>
 <hr>
 <h2 id="1-ket-luan-audit-database-vs-proposal">1. Kết luận audit database vs proposal</h2>
@@ -52,22 +52,22 @@ Sơ đồ CSDL: <strong><code>docs/db-erd.png</code></strong> (24 bảng · 6 sc
 </tr>
 <tr>
 <td>§10 + Deliverable #10: <strong>PostGIS</strong> spatial database</td>
-<td><code>postgis/postgis:16-3.4</code> trong docker-compose; <code>schema.sql</code> định nghĩa trực tiếp <strong>10 cột <code>GEOMETRY(...)</code> thật</strong> (MULTIPOLYGON/LINESTRING/POINT, SRID 4326) + 10 GIST index; PostGIS là yêu cầu bắt buộc khi boot</td>
-<td>✅ DB đúng DB FINAL (volume TEXT cũ được upgrade in-place)</td>
+<td><code>postgis/postgis:16-3.4</code> trong docker-compose; <code>app/db.py</code> tự <code>CREATE EXTENSION postgis</code> + nâng cột <code>lez_zones.geometry</code> thành <code>GEOMETRY(MULTIPOLYGON,4326)</code> đúng DB FINAL (luôn có ở dạng GeoJSON TEXT trên sandbox)</td>
+<td>✅ deploy / ⚠️ sandbox fallback Shapely (không có root để cài extension — hạn chế môi trường)</td>
 </tr>
 <tr>
 <td>NFR-02: <strong>PostGIS indexes</strong> cho spatial query</td>
-<td>10 GIST index khai báo ngay trong <code>schema.sql</code> cho đủ 10 cột GEOMETRY (fresh install lẫn upgrade đều có)</td>
-<td>✅</td>
+<td><code>CREATE INDEX lez_zones_geometry_gist ON lez_zones USING gist (geometry)</code> tự tạo khi PostGIS bật</td>
+<td>✅ deploy / ⚠️ sandbox</td>
 </tr>
 <tr>
 <td>Objective 3: outside / partial / within bằng PostgreSQL/PostGIS</td>
-<td>Spatial data nằm trong PostGIS GEOMETRY; phân tích 3 trạng thái chạy Shapely trên GeoJSON đọc từ DB (<code>db.geom_read</code>) — PostGIS sẵn sàng cho truy vấn DB-level (ST_Intersects…)</td>
+<td>Dual-mode: PostGIS path (geom sync + DB-level) hoặc Shapely trong <code>services/geo.py</code> — cùng kết quả 3 trạng thái</td>
 <td>✅</td>
 </tr>
 <tr>
 <td>Deliverable #10: DB chứa structured + spatial data</td>
-<td><strong>24 bảng / 6 schema</strong> theo DB FINAL; spatial = 10 cột GEOMETRY (zones/regions/study areas MULTIPOLYGON, routes/roads LINESTRING, POI/locations/trip endpoints/AQ points)</td>
+<td><strong>28 bảng / 6 schema + <code>public.City</code></strong> theo DB FINAL v1.1; spatial = <code>lez_zones.geometry</code> (GEOMETRY(MULTIPOLYGON,4326) khi PostGIS / GeoJSON TEXT portable) + tọa độ GeoJSON trips/locations/regions</td>
 <td>✅</td>
 </tr>
 <tr>
@@ -77,7 +77,7 @@ Sơ đồ CSDL: <strong><code>docs/db-erd.png</code></strong> (24 bảng · 6 sc
 </tr>
 <tr>
 <td>Deliverable #12: Database design + ERD</td>
-<td>24 bảng đặt đúng 6 schema DB FINAL, tên bảng số nhiều + PK <code>BIGSERIAL</code> khớp ERD nhóm</td>
+<td>28 bảng (21 bảng DB FINAL gốc − users/vehicles + 9 bảng điều chỉnh v1.1 — xem mục "Điều chỉnh DB FINAL v1.1"), tên bảng số nhiều + PK <code>BIGSERIAL</code> khớp ERD nhóm</td>
 <td>✅</td>
 </tr>
 </tbody>
@@ -122,8 +122,8 @@ Runtime  : psycopg 3 (dict_row), connection-per-request; transactional context `
 tự fallback về DSN PostgreSQL ở trên khi URL không bắt đầu bằng <code>postgres</code>.</p>
 </blockquote>
 <hr>
-<h2 id="3-so-o-erd-24-bang-6-schema">3. Sơ đồ ERD — 24 bảng · 6 schema</h2>
-<p>Xem <strong><code>docs/db-erd.png</code></strong>. Thiết kế theo <strong>DB FINAL.pdf + ERD nhóm (dbdiagram)</strong>
+<h2 id="3-so-o-erd-28-bang-6-schema-publiccity">3. Sơ đồ ERD — 28 bảng · 6 schema + public.City</h2>
+<p>Xem <strong><code>public/docs/db-erd.svg</code></strong> (trong app: tab Tài liệu → Sơ đồ ERD) — sinh tự động từ <code>app/schema.sql</code> bằng <code>scripts/gen_erd_svg.py</code>. Thiết kế theo <strong>DB FINAL.pdf + ERD nhóm (dbdiagram)</strong>
 với các điều chỉnh đã chốt của Capstone:</p>
 <ul>
 <li><strong>Bỏ <code>core.users</code> / <code>core.vehicles</code></strong> — hệ thống chỉ có 2 role (guest/admin),
@@ -147,7 +147,7 @@ trip.trips ──▶ decision.impact_assessments
 core.admins ──▶ core.admin_sessions / core.system_logs
 </code></pre>
 <hr>
-<h2 id="4-bang-du-lieu-24-bang-6-schema-snake_case-so-nhieu">4. Bảng dữ liệu (24 bảng, 6 schema, snake_case số nhiều)</h2>
+<h2 id="4-bang-du-lieu-28-bang-6-schema-publiccity-snake_case-so-nhieu">4. Bảng dữ liệu (28 bảng, 6 schema + public.City, snake_case số nhiều)</h2>
 <h3 id="core-5">core (5)</h3>
 <ul>
 <li><strong><code>study_areas</code></strong> — khu vực nghiên cứu (Hà Nội, <code>code='HN'</code>): <code>code</code> UNIQUE,
@@ -175,15 +175,17 @@ core.admins ──▶ core.admin_sessions / core.system_logs
   <code>base_fare</code>, <code>cost_per_km</code>, <code>co2_per_km_g</code>, <code>avg_wait_min</code>,
   <code>accessibility_score</code>, <code>convenience_score</code>, <code>is_active</code>, <code>sort_order</code>
   (4 cột cuối là mở rộng app cho MCDM/UI — ghi nhận deviation).</li>
-<li><strong><code>transportation_locations</code></strong> — bến xe/metro/BRT: <code>location_type</code>, <code>lat/lng</code> (số thực tiện tra cứu),
-  <code>geometry</code> GEOMETRY(POINT,4326) — DB FINAL, <code>source</code>, <code>status</code>; FK mode (bus_stop → bus).</li>
+<li><strong><code>transportation_locations</code></strong> — bến xe/metro/BRT: <code>location_type</code>, <code>lat/lng</code>,
+  <code>geometry</code> (GeoJSON Point), <code>source</code>, <code>status</code>; FK mode (bus_stop → bus).</li>
 </ul>
 <h3 id="policy-4">policy (4)</h3>
 <ul>
-<li><strong><code>lez_zones</code></strong> — <code>study_area_id</code> FK, <code>geometry</code>
-  GEOMETRY(MULTIPOLYGON,4326) <strong>nguồn chuẩn theo DB FINAL</strong> (+ GIST index),
-  <code>effective_from/to</code>, <code>status</code> (<code>active</code>/<code>inactive</code>). API vẫn trả <code>coordinates</code>
-  <code>[[lat,lng]…]</code> — backend suy ra từ geometry qua <code>ST_AsGeoJSON</code> (xem §5).</li>
+<li><strong><code>lez_zones</code></strong> — <code>study_area_id</code> FK, <strong><code>geometry</code></strong> — ranh giới LEZ đúng DB
+  FINAL: <code>GEOMETRY(MULTIPOLYGON,4326)</code> khi PostGIS bật (bản Docker), GeoJSON
+  MultiPolygon TEXT trên sandbox (không cài được extension — cùng dữ liệu, cùng
+  kết quả phân tích qua lớp Shapely). <code>city_id</code> (đa thành phố) + 4 cột vòng đời
+  văn bản cho tab Chính sách (<code>decision_no</code>, <code>issued_by</code>, <code>published_at</code>,
+  <code>created_by</code>); <code>effective_from/to</code>, <code>status</code> (<code>active</code>/<code>inactive</code>).</li>
 <li><strong><code>lez_rules</code></strong> — quy định theo vùng: <code>rule_name</code>, <code>description</code>,
   <code>start_time</code>/<code>end_time</code> (TIME), <code>days_of_week</code> (<code>Mon,Tue,…</code>), <code>effective_from/to</code>,
   <code>status</code>.</li>
@@ -197,7 +199,7 @@ core.admins ──▶ core.admin_sessions / core.system_logs
 <h3 id="trip-3">trip (3)</h3>
 <ul>
 <li><strong><code>trips</code></strong> — mỗi lần phân tích + lựa chọn (nguồn liệu analytics):
-  <code>origin_name/destination_name</code> + <code>origin</code>/<code>destination</code> GEOMETRY(POINT,4326)
+  <code>origin_name/destination_name</code> + GeoJSON <code>origin/destination</code>,
   <code>origin_region_id/destination_region_id</code> FK, <code>origin_district</code>,
   <code>vehicle_type_id</code> FK (xe người dùng chọn), <code>chosen_vehicle_type_id</code> FK +
   <code>switched</code> (quyết định thực tế), <code>top_mode_id</code> FK + <code>top_score</code> (đề xuất
@@ -213,7 +215,7 @@ core.admins ──▶ core.admin_sessions / core.system_logs
   (outside/partial/within), <code>applicable_lez_rule_id</code>, <code>compliance_status</code>,
   <code>compliance_reason</code>, <code>analyzed_at</code>.</li>
 </ul>
-<h3 id="decision-7">decision (7)</h3>
+<h3 id="decision-10">decision (10)</h3>
 <ul>
 <li><strong><code>recommendation_criteria</code></strong> — 7 tiêu chí TOPSIS (admin sửa được, tổng = 100):
   <code>code</code> UNIQUE ∈ {<code>travelTime</code>, <code>cost</code>, <code>lezCompliance</code>, <code>accessibility</code>,
@@ -236,25 +238,40 @@ core.admins ──▶ core.admin_sessions / core.system_logs
   (đủ 58 cột gốc của dòng CSV).</li>
 <li><strong><code>dataset_trends</code></strong> — aggregate feed tiêu chí <code>trend</code> của TOPSIS + dashboard:
   UNIQUE(mode, month), <code>share</code> (0..1), <code>trend_index</code> (0..1), <code>sample_count</code>.</li>
+<li><strong><code>user_feedback</code></strong> — lý do khách không chọn phương tiện được đề xuất
+  (<code>user_key</code> ẩn danh, <code>reason</code> ∈ cost/time/safety/weather/infrastructure/
+  habit/other, FK trip + mode).</li>
+<li><strong><code>notification_prefs</code></strong> — opt-in nhận thông báo chính sách theo khu vực
+  quan tâm (<code>user_key</code> PK, <code>district</code>, <code>opt_in</code>).</li>
+<li><strong><code>user_notifications</code></strong> — thông báo đã sinh cho từng <code>user_key</code>
+  (<code>type</code> ∈ lez_published/lez_active/aqi_alert, UNIQUE(user_key, type, zone_id)).</li>
+</ul>
+<h3 id="public-1">public (1)</h3>
+<ul>
+<li><strong><code>City</code></strong> — cổng chọn thành phố (DB FINAL v1.1): <code>id</code> (<code>hanoi</code>/<code>danang</code>/<code>hcm</code>),
+  <code>name</code>, <code>studyAreaId</code> (liên kết <code>core.study_areas</code>), <code>bbox</code>, <code>centerLat/Lng</code>,
+  <code>defaultZoom</code>, <code>sortOrder</code>, <code>active</code>. Phường/xã đọc từ
+  <code>gis.administrative_regions</code> (1 nguồn duy nhất sau khi gộp bảng <code>Ward</code> cũ).</li>
 </ul>
 <hr>
-<h2 id="5-postgis-geometry-nfr-02">5. PostGIS geometry (NFR-02)</h2>
+<h2 id="5-postgis-dual-mode-nfr-02">5. PostGIS dual-mode (NFR-02)</h2>
 <pre><code>app/db.py
-├── geom_write(multi)  ← INSERT/UPDATE: GeoJSON → ST_SetSRID(ST_GeomFromGeoJSON(…),4326)
-├── geom_read(col)     ← SELECT: ST_AsGeoJSON(col) (GeoJSON trên wire, không hex EWKB)
-└── postgis_available() ← /health hiển thị trạng thái PostGIS
+├── enable_postgis_if_available()
+│     CREATE EXTENSION IF NOT EXISTS postgis          ← thất bại → return False (sandbox)
+│     ALTER TABLE lez_zones ALTER COLUMN geometry TYPE geometry(MultiPolygon,4326)
+│       USING ST_Multi(ST_SetSRID(ST_GeomFromGeoJSON(geometry),4326))
+│     CREATE INDEX lez_zones_geometry_gist USING gist(geometry)   ← NFR-02
+├── _migrate_lez_zone_geometry() ← volume cũ (coordinates/geom) tự chuyển
+│                                   dữ liệu sang geometry rồi DROP cột mirror
+├── sync_zone_geometry()  ← dual-mode TEXT/PostGIS cho mọi lệnh ghi vùng
+└── postgis_available() ← routers/services rẽ nhánh Shapely khi False
 </code></pre>
 <ul>
-<li><strong>10 cột hình học là GEOMETRY thật (PostGIS bắt buộc)</strong> — schema.sql định nghĩa
-  trực tiếp <code>GEOMETRY(MULTIPOLYGON/LINESTRING/POINT,4326)</code> + 10 GIST index
-  (đúng DB FINAL workflow "Import into PostGIS → Create spatial indexes").</li>
-<li><strong>Volume cũ layout TEXT được upgrade in-place</strong> bởi khối cuối schema.sql:
-  <code>lez_zones.coordinates</code> JSON → <code>geometry</code> (SET NOT NULL khi đủ ring, DROP
-  <code>coordinates</code>), 9 cột TEXT còn lại ALTER TYPE với <code>ST_GeomFromGeoJSON</code> —
-  exception-guarded từng cột, không mất dữ liệu, không cần re-seed.</li>
-<li>Chạy trên PostgreSQL thường (không PostGIS) → schema.sql từ chối boot với
-  thông báo rõ ràng; phân tích outside/partial/within vẫn chạy Shapely trong
-  <code>services/geo.py</code> (đọc GeoJSON từ DB, kết quả like-for-like).</li>
+<li><strong>Docker/deploy</strong>: PostGIS bật → spatial query chạy trong DB (đúng chữ "PostGIS
+  Spatial Query" của proposal §12) với GIST index.</li>
+<li><strong>Sandbox</strong>: PG user-space không kèm extension → <code>services/geo.py</code> dùng Shapely
+  trong app layer; outside/partial/within cho kết quả like-for-like.
+  Đây là rẽ nhánh tự động, không cần cấu hình tay.</li>
 </ul>
 <h2 id="6-seed-data-idempotent-appseedpy">6. Seed data (idempotent, <code>app/seed.py</code>)</h2>
 <p>1 study area (Hà Nội) · 1 admin (<code>admin</code>/<code>admin123</code>) · 7 modes · 7 vehicle
@@ -288,7 +305,7 @@ GET <code>/api/dataset/summary</code> là read-only (aggregate từ DB, không c
 <li>Họ bảng camelCase Prisma (<code>AdminUser</code>, <code>TripRecord</code>, …) — <strong>đã xoá hoàn toàn</strong>
   khỏi DB (schema.sql tự DROP) và khỏi code; frontend không giữ ORM nào.</li>
 <li>Các layout cũ (<code>public.admin_user</code>, <code>trip.trip_record</code>, tên số ít…) — tự
-  migrate sang 24 bảng mới bởi <code>seed.py::migrate_legacy()</code> rồi bị DROP.</li>
+  migrate sang 28 bảng mới bởi <code>seed.py::migrate_legacy()</code> rồi bị DROP.</li>
 <li><code>db/custom.db</code> (SQLite) — backup thời kỳ đầu, không còn được đọc.</li>
 </ul>
 <h2 id="9-oi-chieu-tai-lieu-chinh-thuc-v10-task-23-mapping-us-bang">9. Đối chiếu tài liệu chính thức v1.0 (Task 23) &amp; mapping US → bảng</h2>
@@ -320,7 +337,7 @@ Kết luận: <strong>schema khớp 100%</strong> với mọi data source ghi tr
 <tr>
 <td>US-04, US-22, US-31</td>
 <td>LezZone (admin-managed)</td>
-<td><code>lez_zones</code> (geometry MULTIPOLYGON PostGIS + GIST, status)</td>
+<td><code>lez_zones</code> (geometry DB FINAL — GeoJSON/PostGIS, status)</td>
 </tr>
 <tr>
 <td>US-05, US-17</td>
@@ -388,4 +405,180 @@ Kết luận: <strong>schema khớp 100%</strong> với mọi data source ghi tr
 liệu AQ; US-19 trạng thái <code>unavailable</code> thay cho số liệu ước lượng khi không có
 cache; US-25 dashboard bổ sung thẻ "Survey dataset" và nút Reprocess; US-22
 thêm validate phạm vi lat/lng; US-29/35 bỏ LIMIT 500 khi tổng hợp.</p>
-<p><strong>Export DDL:</strong> <code>docs/db-schema.sql</code> (bản export chuẩn của <code>app/schema.sql</code>).</p></article></body></html>
+<p><strong>Export DDL:</strong> <code>docs/db-schema.sql</code> (bản export chuẩn của <code>app/schema.sql</code>).</p>
+<hr>
+<h2 id="10-ieu-chinh-db-final-v11-ra-soat-oi-chieu-4-tai-lieu-goc">10. Điều chỉnh DB FINAL v1.1 (rà soát đối chiếu 4 tài liệu gốc)</h2>
+<p>Đối chiếu <strong>Proposal v1.0 · Project Plan v1.0 · User Story v1.0/v2.0 · DB FINAL
+(PDF gốc)</strong> với triển khai thực tế — mọi khác biệt đều được ghi nhận tại đây:</p>
+<h3 id="khop-db-final-goc-21-bang-bang-tong-hop-cuoi-pdf-anh-so-121">Khớp DB FINAL gốc (21 bảng — bảng "Tổng hợp" cuối PDF đánh số 1–21)</h3>
+<p><code>core</code> (4) · <code>gis</code> (3) · <code>transportation</code> (2) · <code>policy</code> (4) · <code>trip</code> (3) ·
+<code>decision</code> (5) — đúng tên bảng, đúng schema, PK <code>BIGSERIAL</code> (sequence
+<code>nextval()</code>), snake_case số nhiều, FK đúng hướng ERD.
+<code>policy.lez_zones.geometry</code> đúng kiểu <code>GEOMETRY(MULTIPOLYGON,4326)</code> khi triển
+khai PostGIS (docker-compose <code>postgis/postgis:16-3.4</code> + GIST index — NFR-02).</p>
+<h3 id="thay-the-bo-2-bang-goc">Thay thế / bỏ 2 bảng gốc</h3>
+<table>
+<thead>
+<tr>
+<th>DB FINAL v1.0</th>
+<th>Xử lý</th>
+<th>Lý do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>core.users</code></td>
+<td>→ <code>core.admins</code> + <code>core.admin_sessions</code></td>
+<td>Chính DB FINAL ghi chú trên bảng users: <em>"Xem lại có nên không, vì hiện tại đang publish"</em> — app publish/guest không lưu thông tin cá nhân; users thu nhỏ thành admins phục vụ tab Quản trị (chức năng 30–41)</td>
+</tr>
+<tr>
+<td><code>core.vehicles</code></td>
+<td>bỏ</td>
+<td>Guest không đăng ký xe — loại xe chọn trực tiếp từ <code>policy.vehicle_types</code> khi kiểm tra tuân thủ LEZ (hàm năng 11–13)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ieu-chinh-co-chu-ich-9-bang-28">Điều chỉnh có chủ đích (+9 bảng = 28)</h3>
+<table>
+<thead>
+<tr>
+<th>Thêm</th>
+<th>Lý do (tính năng đã được duyệt)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>public.City</code> + cột <code>city_id</code> (lez_zones, transportation_locations)</td>
+<td>Đa thành phố Hà Nội / Đà Nẵng / TP.HCM — mở rộng được duyệt; 422 phường/xã đọc từ <code>gis.administrative_regions</code> (1 nguồn)</td>
+</tr>
+<tr>
+<td><code>core.admins</code> + <code>core.admin_sessions</code></td>
+<td>Thay <code>core.users</code> (xem bảng trên) — đăng nhập tab Quản trị, cookie httpOnly 8h</td>
+</tr>
+<tr>
+<td><code>decision.user_feedback</code></td>
+<td>US phản hồi "vì sao không chọn phương tiện được đề xuất"</td>
+</tr>
+<tr>
+<td><code>decision.notification_prefs</code> + <code>user_notifications</code></td>
+<td>US đăng ký nhận thông báo chính sách (opt-in, ẩn danh)</td>
+</tr>
+<tr>
+<td><code>decision.vehicle_survey_responses</code></td>
+<td>US khảo sát nhanh phương tiện đang dùng để kiểm tra tuân thủ LEZ</td>
+</tr>
+<tr>
+<td><code>core.dataset_runs</code> + <code>decision.dataset_trends</code></td>
+<td>Audit pipeline Kaggle 25.586 chuyến + xu hướng cho tab Quản trị (chức năng 35–41)</td>
+</tr>
+<tr>
+<td>4 cột <code>lez_zones</code>: <code>decision_no</code>, <code>issued_by</code>, <code>published_at</code>, <code>created_by</code></td>
+<td>Vòng đời văn bản cho tab Chính sách (6 thành phần)</td>
+</tr>
+</tbody>
+</table>
+<p>Số học: <strong>21 (gốc) − 2 (users, vehicles) + 9 (mới) = 28 bảng</strong>.</p>
+<p>Cột <code>lez_zones.geometry</code> trên sandbox lưu GeoJSON TEXT (không cài được
+extension PostGIS — hạn chế môi trường, đã ghi rõ §5); bản Docker nâng đúng
+kiểu GEOMETRY của DB FINAL.</p>
+<h3 id="so-sanh-cot-chi-tiet-19-bang-chung-so-db-final-v10">So sánh cột chi tiết 19 bảng chung (so DB FINAL v1.0)</h3>
+<p>Khác biệt "môi trường" (không phải thiết kế):</p>
+<ul>
+<li><code>BIGSERIAL</code> ↔ <code>BIGINT</code>: information_schema hiển thị BIGINT, thực tế 26/26
+  cột PK đều có default <code>nextval()</code> ≡ BIGSERIAL.</li>
+<li><code>TIMESTAMP</code> ↔ <code>TIMESTAMP WITH TIME ZONE</code>: app dùng timestamptz (best
+  practice, dữ liệu AQI đa múi giờ).</li>
+<li><code>GEOMETRY(...)</code> ↔ <code>TEXT</code> GeoJSON: sandbox không cài extension PostGIS;
+  bản Docker nâng <code>lez_zones.geometry</code> đúng <code>GEOMETRY(MULTIPOLYGON,4326)</code> +
+  GIST. Các cột không gian khác (trips.origin/destination,
+  trip_routes.geometry, administrative_regions.geometry…) lưu GeoJSON TEXT
+  portable — đọc/ghi thống nhất qua <code>geojson_utils</code>.</li>
+</ul>
+<p>Khác biệt cột thật, theo bảng:</p>
+<table>
+<thead>
+<tr>
+<th>Bảng</th>
+<th>Khác so với DB FINAL v1.0</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>core.study_areas</code>, <code>gis.road_segments</code>, <code>gis.points_of_interest</code></td>
+<td><strong>Giữ nguyên 100% cột</strong></td>
+</tr>
+<tr>
+<td><code>core.system_logs</code></td>
+<td><code>user_id</code> → <code>admin_id</code> (app guest); + <code>level</code>, <code>created_at</code></td>
+</tr>
+<tr>
+<td><code>decision.air_quality_observations</code></td>
+<td>+ <code>cache_key</code>, <code>lat</code>, <code>lng</code> (cache 30 phút cho trạm AQI thật + nội suy IDW)</td>
+</tr>
+<tr>
+<td><code>decision.recommendation_criteria</code></td>
+<td>+ <code>default_weight</code></td>
+</tr>
+<tr>
+<td><code>decision.recommendation_runs</code></td>
+<td>+ <code>duration_ms</code>, <code>completed_at</code></td>
+</tr>
+<tr>
+<td><code>decision.recommendation_scores</code></td>
+<td>+ <code>rank_position</code></td>
+</tr>
+<tr>
+<td><code>decision.impact_assessments</code></td>
+<td><code>current/alternative_compliance</code> BOOLEAN → <code>*_compliance_status</code> VARCHAR(30) (4 trạng thái <code>permitted</code>/<code>not_permitted</code>/<code>partial</code>/<code>unknown</code> thay vì true/false); + <code>recommendation_run_id</code>, <code>current_score</code>, <code>alternative_score</code></td>
+</tr>
+<tr>
+<td><code>gis.administrative_regions</code></td>
+<td>+ <code>boundary_simple</code>, <code>area_km2</code>, <code>population</code>, <code>density_km2</code>, <code>merged_from</code> (tooltip phường/xã + hiệu năng render)</td>
+</tr>
+<tr>
+<td><code>policy.lez_rules</code></td>
+<td>+ <code>created_at</code>, <code>updated_at</code></td>
+</tr>
+<tr>
+<td><code>policy.lez_zones</code></td>
+<td>+ <code>decision_no</code>, <code>issued_by</code>, <code>published_at</code>, <code>created_by</code>, <code>city_id</code></td>
+</tr>
+<tr>
+<td><code>policy.vehicle_restrictions</code></td>
+<td><code>min_emission_standard</code> VARCHAR(50) → <code>min_emission_level</code> SMALLINT (bậc số so sánh được thay vì chuỗi); <code>allowed</code> BOOLEAN → <code>restriction_type</code> VARCHAR(20) (<code>banned</code>/<code>conditional</code> — mọi dòng đều là hạn chế, cột <code>allowed</code> luôn FALSE là dư)</td>
+</tr>
+<tr>
+<td><code>policy.vehicle_types</code></td>
+<td>+ <code>emission_level</code> (bậc số), <code>transportation_mode_id</code> (liên kết modes), <code>is_default</code></td>
+</tr>
+<tr>
+<td><code>transportation.transportation_modes</code></td>
+<td>+ 12 cột MCDM/UI: <code>code</code>, <code>icon</code>, <code>routing_profile</code>, <code>speed_factor</code>, <code>avg_speed_kmh</code>, <code>base_fare</code>, <code>cost_per_km</code>, <code>co2_per_km_g</code>, <code>avg_wait_min</code>, <code>accessibility_score</code>, <code>convenience_score</code>, <code>sort_order</code></td>
+</tr>
+<tr>
+<td><code>transportation.transportation_locations</code></td>
+<td>+ <code>lat</code>, <code>lng</code> (mirror số cho truy vấn khoảng cách nhanh), <code>city_id</code></td>
+</tr>
+<tr>
+<td><code>trip.trips</code></td>
+<td>− <code>user_id</code> (guest); + 18 cột phân tích + phục hồi Kaggle: <code>origin_lat/lng</code>, <code>dest_lat/lng</code>, <code>origin_region_id</code>, <code>destination_region_id</code>, <code>origin_district</code>, <code>chosen_vehicle_type_id</code>, <code>switched</code>, <code>top_mode_id</code>, <code>top_score</code>, <code>departure_hour</code>, <code>distance_km</code>, <code>duration_min</code>, <code>lez_affected</code>, <code>avg_cost_vnd</code>, <code>avg_time_min</code>, <code>origin_ward_code</code>, <code>destination_ward_code</code></td>
+</tr>
+<tr>
+<td><code>trip.trip_routes</code></td>
+<td>+ <code>routing_profile</code> (OSRM profile từng phương thức), <code>route_index</code></td>
+</tr>
+<tr>
+<td><code>trip.trip_lez_analyses</code></td>
+<td>+ <code>vehicle_type_id</code>, <code>applicable_lez_rule_id</code>, <code>route_lez_status</code>, <code>compliance_status</code>, <code>compliance_reason</code> (kết quả tuân thủ chi tiết thay vì chỉ boolean <code>intersects</code>)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="a-do-ua-ve-ung-tai-lieu">Đã dỡ (đưa về đúng tài liệu)</h3>
+<ul>
+<li><strong>8 bảng governance/audit</strong> (core.audit_details, core.data_source_checks,
+  core.dataset_snapshots, core.report_runs, core.warning_tasks,
+  decision.weight_presets, policy.lez_exemptions, policy.lez_zone_wards) —
+  không có trong DB FINAL/ERD, không endpoint giao diện nào sử dụng; schema tự
+  DROP khi boot để dọn cả volume cũ.</li>
+<li>Bảng <code>public.Ward</code> (đã gộp vào <code>gis.administrative_regions</code> — phương án A′).</li>
+</ul></article></body></html>

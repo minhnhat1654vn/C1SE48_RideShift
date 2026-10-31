@@ -29,6 +29,7 @@ type GoongResult = {
 
 const GOONG_API_KEY = process.env.GOONG_API_KEY ?? ''
 const GOONG_GEOCODE_URL = 'https://rsapi.goong.io/geocode'
+// Task 65 — chuỗi Goong 2 bước: AutoComplete (input mời có số nhà) → Place Detail
 const GOONG_AUTOCOMPLETE_URL = 'https://rsapi.goong.io/Place/AutoComplete'
 const GOONG_PLACE_DETAIL_URL = 'https://rsapi.goong.io/Place/Detail'
 
@@ -39,45 +40,50 @@ const GEO_CACHE_TTL_MS = 30 * 60 * 1000
 const GEO_CACHE_MAX = 300
 const geoCache = new Map<string, { at: number; results: GeocodeResult[] }>()
 
-/** Classic Goong Geocoding API — best for COMPLETE addresses. Parses the
- * response defensively against shape drift (the API returns the array under
- * "results"; older docs/Mapbox-style payloads use "geocoding_results" /
- * "features" + "center": [lng, lat]). */
 async function geocodeGoongClassic(q: string): Promise<GeocodeResult[]> {
-  const url =
-    `${GOONG_GEOCODE_URL}?address=${encodeURIComponent(q)}` +
-    `&api_key=${encodeURIComponent(GOONG_API_KEY)}`
-  const res = await rawHttpRequest(url, { timeoutMs: 5000 })
-  if (res.status < 200 || res.status >= 300) {
-    // 401/403: invalid key — 429: quota exhausted → degrade to Nominatim
-    console.warn(`geocode: goong-geocode HTTP ${res.status} for q="${q}" — falling through`)
+  if (!GOONG_API_KEY) return []
+  try {
+    const url =
+      `${GOONG_GEOCODE_URL}?address=${encodeURIComponent(q)}` +
+      `&api_key=${encodeURIComponent(GOONG_API_KEY)}`
+    const res = await rawHttpRequest(url, { timeoutMs: 5000 })
+    if (res.status < 200 || res.status >= 300) {
+      // 401/403: invalid key — 429: quota exhausted → degrade to Nominatim
+      console.warn(`geocode: goong HTTP ${res.status} for q="${q}" — falling through`)
+      return []
+    }
+    const payload = (typeof res.data === 'object' && res.data !== null ? res.data : {}) as {
+      geocoding_results?: GoongResult[]
+      features?: GoongResult[]
+    }
+    const items = payload.geocoding_results ?? payload.features ?? []
+    const results: GeocodeResult[] = []
+    for (const d of items.slice(0, 6)) {
+      const lat = d.geometry?.location?.lat
+      const lng = d.geometry?.location?.lng
+      const name = d.name || d.formatted_address || ''
+      if (lat == null || lng == null || !name) continue
+      results.push({ name, lat: Number(lat), lng: Number(lng), source: 'external' })
+    }
+    if (results.length === 0) {
+      console.warn(`geocode: goong 0 result for q="${q}" — falling through`)
+    }
+    return results
+  } catch (e) {
+    console.warn(
+      `geocode: goong unreachable (${e instanceof Error ? e.message : e}) — falling through`,
+    )
     return []
   }
-  const payload = (typeof res.data === 'object' && res.data !== null ? res.data : {}) as {
-    results?: GoongResult[]
-    geocoding_results?: GoongResult[]
-    features?: GoongResult[]
-  }
-  const items = payload.results ?? payload.geocoding_results ?? payload.features ?? []
-  const results: GeocodeResult[] = []
-  for (const d of items.slice(0, 6)) {
-    const lat = d.geometry?.location?.lat
-    const lng = d.geometry?.location?.lng
-    const name = d.name || d.formatted_address || ''
-    if (lat == null || lng == null || !name) continue
-    results.push({ name, lat: Number(lat), lng: Number(lng), source: 'external' })
-  }
-  return results
 }
 
 async function geocodeGoong(q: string): Promise<GeocodeResult[]> {
   if (!GOONG_API_KEY) return []
   try {
-    // 1) Place AutoComplete — VN text search WITH house numbers (the classic
-    //    /geocode endpoint only understands near-complete addresses and
-    //    mis-resolves partial input like "120 yên"). Predictions carry a
-    //    place_id but NO coordinates, so each one is resolved by a parallel
-    //    Place Detail call (step 2).
+    // Task 65 — 1) Place AutoComplete: VN text search CÓ số nhà (endpoint
+    // classic chỉ hiểu địa chỉ gần hoàn chỉnh và mis-resolve input mời kiểu
+    // "120 yên"). Predictions có place_id nhưng KHÔNG có toạ độ → mỗi cái
+    // được giải by parallel Place Detail (bước 2).
     const acUrl =
       `${GOONG_AUTOCOMPLETE_URL}?input=${encodeURIComponent(q)}` +
       `&limit=8&api_key=${encodeURIComponent(GOONG_API_KEY)}`
@@ -120,7 +126,7 @@ async function geocodeGoong(q: string): Promise<GeocodeResult[]> {
       console.warn(`geocode: goong autocomplete HTTP ${res.status} for q="${q}" — trying classic geocode`)
     }
 
-    // 1b) classic Geocoding API fallback (full addresses)
+    // 1b) classic Geocoding API fallback (địa chỉ hoàn chỉnh)
     if (results.length === 0) results = await geocodeGoongClassic(q)
     if (results.length === 0) {
       console.warn(`geocode: goong 0 result for q="${q}" — falling through`)
@@ -134,10 +140,13 @@ async function geocodeGoong(q: string): Promise<GeocodeResult[]> {
   }
 }
 
-async function geocodeNominatim(q: string): Promise<GeocodeResult[]> {
+async function geocodeNominatim(
+  q: string,
+  viewbox: string,
+): Promise<GeocodeResult[]> {
   const url =
-    'https://nominatim.openstreetmap.org/search?format=json&limit=6&countrycodes=vn' +
-    `&viewbox=105.60,21.18,106.05,20.70&bounded=1&q=${encodeURIComponent(q)}`
+    'https://nominatim.openstreetmap.org/search?format=json&limit=10&countrycodes=vn' +
+    `&viewbox=${encodeURIComponent(viewbox)}&bounded=1&q=${encodeURIComponent(q)}`
   const data = await fetchJson4<Array<{ display_name: string; lat: string; lon: string }>>(url, {
     timeoutMs: 5000,
   })
@@ -150,24 +159,46 @@ async function geocodeNominatim(q: string): Promise<GeocodeResult[]> {
         lng: parseFloat(d.lon),
         source: 'external' as const,
       }))
+      .slice(0, 10)
   }
   return []
 }
 
-export async function geocodeAddress(query: string): Promise<GeocodeResult[]> {
+/** Viewbox Nominatim mặc định (Hà Nội) — dùng khi route không truyền thành phố */
+const DEFAULT_VIEWBOX = '105.60,21.18,106.05,20.70'
+
+export async function geocodeAddress(
+  query: string,
+  viewbox: string = DEFAULT_VIEWBOX,
+): Promise<GeocodeResult[]> {
   const q = query.trim()
   if (!q) return []
 
-  const key = q.toLowerCase()
+  // Task 73: cache key GỐM viewbox — không thì 1 từ khoá tìm ở 2 thành phố
+  // bị dính kết quả cache của thành phố trước (lọc theo vùng sai bét)
+  const key = `${q.toLowerCase()}|${viewbox}`
   const hit = geoCache.get(key)
   if (hit) {
     const ttl = hit.results.length > 0 ? GEO_CACHE_TTL_MS : GEO_CACHE_TTL_MS / 6
     if (Date.now() - hit.at < ttl) return hit.results
   }
 
-  // 1) Goong (VN house numbers) → 2) Nominatim → 3) local landmarks
-  let results = await geocodeGoong(q)
-  if (results.length === 0) results = await geocodeNominatim(q)
+  // Task 73: gọi SONG SONG cả 2 nguồn rồi GỘP (trước đây Goong có kết quả
+  // thì Nominatim bị bỏ qua → danh sách ít ứng viên — phản hồi user "list
+  // không xổ ra toàn bộ"; Goong cho số nhà, Nominatim cho nhiều kết quả đường)
+  const [goong, nominatim] = await Promise.all([geocodeGoong(q), geocodeNominatim(q, viewbox)])
+  // gộp trùng: cùng toạ độ (≈11 m) hoặc cùng TÊN trong bán kính ≈110 m
+  const merged: GeocodeResult[] = []
+  const seen = new Set<string>()
+  for (const r of [...goong, ...nominatim]) {
+    const k = `${Math.round(r.lat * 10000)},${Math.round(r.lng * 10000)}`
+    const kn = `${r.name.toLowerCase().trim()}|${Math.round(r.lat * 1000)}|${Math.round(r.lng * 1000)}`
+    if (seen.has(k) || seen.has(kn)) continue
+    seen.add(k)
+    seen.add(kn)
+    merged.push(r)
+  }
+  let results = merged.slice(0, 10)
   if (results.length === 0) {
     const ql = q.toLowerCase()
     results = LOCAL_PLACES.filter((p) => p.name.toLowerCase().includes(ql)).slice(0, 6)

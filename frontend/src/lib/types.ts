@@ -10,15 +10,69 @@ export type { LatLng, Criterion, CriterionVector }
 // category and measuredAt fields are null when the upstream provider is
 // unreachable and no cache/estimate can be produced — the UI must degrade
 // to an "unavailable" notice instead of rendering numbers.
+export type AirQualitySource =
+  | 'station' // trạm đo thật (Sở NNN&MT / WAQI)
+  | 'interpolated' // nội suy IDW từ trạm thật
+  | 'open-meteo' // mô hình CAMS (Open-Meteo)
+  | 'live' // legacy
+  | 'cache' // cache cũ + notice
+  | 'estimate' // simulate (chỉ khi mọi nguồn chết)
+  | 'unavailable'
+
 export type AirQualityInfo = {
   aqi: number | null
   pm25: number | null
   pm10: number | null
   category: string | null
   measuredAt: string | null
-  source: 'live' | 'cache' | 'estimate' | 'unavailable'
+  source: AirQualitySource
   notice: string | null
   locationLabel: string | null
+}
+
+export type AirQualityStationDto = {
+  id: string
+  name: string
+  lat: number
+  lng: number
+  /** null khi trạm tạm ngừng cập nhật (hiển thị màu xám, không đóng góp lớp AQI) */
+  aqi: number | null
+  /** false = trạm không còn số liệu (WAQI trả '-'); mặc định true khi thiếu */
+  available?: boolean
+  source: 'moitruongthudo' | 'waqi'
+  sourceLabel: string
+  measuredAt: string
+  /** Task 99 — panel chi tiết trạm (kiểu PAM Air) */
+  address?: string | null
+  url?: string | null
+}
+
+export const isStationAvailable = (st: AirQualityStationDto): boolean =>
+  st.available !== false && st.aqi != null
+
+/** Task 99 — GET /api/airquality/stations/{id}: chi tiết trạm + lịch sử 24h */
+export type StationDetailDto = {
+  station: AirQualityStationDto
+  /** chuỗi điểm theo giờ ({time, aqi}) — Sở NN&MT khi có, fallback mô hình CAMS tại vị trí trạm; null = trạm tạm ngừng (không có lịch sử) */
+  history: { time: string; aqi: number }[] | null
+  lowest: number | null
+  highest: number | null
+  /** nguồn của chuỗi lịch sử (Sở đo thật / CAMS) — minh bạch trong API, UI không hiển thị */
+  historySource: string | null
+  /** thang của chuỗi lịch sử: 'vn' cho trạm Sở, 'us' cho WAQI */
+  aqiScale: 'vn' | 'us'
+  available: boolean
+  fetchedAt: string
+}
+
+export type CityDto = {
+  id: string
+  name: string
+  centerLat: number
+  centerLng: number
+  defaultZoom: number
+  bbox: [[number, number], [number, number]]
+  wardCount: number
 }
 
 export type ModeInfo = {

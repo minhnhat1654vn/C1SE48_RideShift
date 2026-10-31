@@ -1509,7 +1509,9 @@ function DatasetTrendTooltip({
       </p>
       <p className="text-muted-foreground">
         Chỉ số xu hướng:{' '}
-        <span className="font-medium text-foreground tabular-nums">{p.trendIndex.toFixed(2)}</span>
+        <span className="font-medium text-foreground tabular-nums">
+          {(p.trendIndex ?? 0).toFixed(2)}
+        </span>
       </p>
       <p className="text-muted-foreground">
         Số mẫu:{' '}
