@@ -1,4 +1,12 @@
 -- ============================================================================
+-- DEPRECATED — schema v1 (11 bảng flat, layout cũ trước DB FINAL v2).
+-- Schema CHÍNH thức của hệ thống là backend/app/schema.sql (multi-schema v2:
+-- core/gis/transportation/policy/trip/decision, 27 bảng) do FastAPI backend
+-- nắm và tự áp dụng lúc boot. File này chỉ giữ lại cho tham chiếu lịch sử
+-- và các volume Postgres cũ — KHÔNG dùng cho deployment mới.
+-- ============================================================================
+
+-- ============================================================================
 -- RideShift – Smart Transport Transition Advisor (C1SE.48)
 -- PostgreSQL schema — owned by the FastAPI backend (proposal technology stack)
 --

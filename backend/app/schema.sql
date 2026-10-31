@@ -492,6 +492,44 @@ CREATE TABLE IF NOT EXISTS decision.dataset_trends (
 );
 CREATE INDEX IF NOT EXISTS dataset_trends_month_idx ON decision.dataset_trends (month);
 
+-- 9b) decision — preset trọng số TOPSIS + phản hồi người dùng + thông báo
+-- ---------------------------------------------------------------------------
+-- Phản hồi "vì sao không chọn phương tiện được đề xuất" (guest, ẩn danh)
+CREATE TABLE IF NOT EXISTS decision.user_feedback (
+  feedback_id BIGSERIAL PRIMARY KEY,
+  user_key    VARCHAR(64),             -- khóa ẩn danh phía client (localStorage)
+  trip_id     BIGINT REFERENCES trip.trips(trip_id) ON DELETE SET NULL,
+  top_mode_id BIGINT REFERENCES transportation.transportation_modes(transportation_mode_id),
+  reason      VARCHAR(50)  NOT NULL,   -- cost|time|safety|weather|infrastructure|habit|other
+  detail      TEXT,
+  created_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS user_feedback_created_idx ON decision.user_feedback (created_at DESC);
+
+-- Opt-in thông báo chính sách cho guest (ẩn danh theo user_key)
+CREATE TABLE IF NOT EXISTS decision.notification_prefs (
+  user_key   VARCHAR(64) PRIMARY KEY,
+  district   VARCHAR(100),             -- khu vực quan tâm (hiển thị)
+  opt_in     BOOLEAN      NOT NULL DEFAULT true,
+  updated_at TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS decision.user_notifications (
+  notification_id BIGSERIAL PRIMARY KEY,
+  user_key        VARCHAR(64) NOT NULL,
+  type            VARCHAR(50) NOT NULL,   -- lez_published | lez_active | aqi_alert
+  zone_id         BIGINT REFERENCES policy.lez_zones(lez_zone_id) ON DELETE CASCADE,
+  title           VARCHAR(200) NOT NULL,
+  body            TEXT        NOT NULL,
+  read_at         TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_key, type, zone_id)
+);
+CREATE INDEX IF NOT EXISTS user_notifications_user_idx ON decision.user_notifications (user_key, created_at DESC);
+
+-- ---------------------------------------------------------------------------
+
+
 -- ---------------------------------------------------------------------------
 -- 10) Upgrade path for volumes created by the INTERIM layout (shape columns
 --     as TEXT GeoJSON / policy.lez_zones.coordinates JSON). No-op on fresh
