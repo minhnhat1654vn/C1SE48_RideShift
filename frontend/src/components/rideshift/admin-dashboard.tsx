@@ -437,6 +437,7 @@ export default function AdminDashboard({
             </TabsContent>
             <TabsContent value="lez" className="mt-0">
               <LezImpactTab />
+            </TabsContent>
             <TabsContent value="stats" className="mt-0">
               <StatsTab />
             </TabsContent>
