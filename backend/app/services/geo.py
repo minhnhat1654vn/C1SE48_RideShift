@@ -30,13 +30,6 @@ def haversine_km(a: LatLng, b: LatLng) -> float:
     return 2 * EARTH_RADIUS_KM * math.asin(math.sqrt(h))
 
 
-def route_length_km(coords: Sequence[LatLng]) -> float:
-    total = 0.0
-    for i in range(1, len(coords)):
-        total += haversine_km(coords[i - 1], coords[i])
-    return total
-
-
 def sample_route_points(coords: Sequence[LatLng], n: int) -> List[LatLng]:
     """Sample n points evenly along a polyline (distance-parameterized)."""
     if not coords:
@@ -68,10 +61,6 @@ def polygon_from_pairs(pairs: Sequence[Sequence[float]]) -> Polygon:
     """Shapely polygon from [[lat, lng], ...] (lng/lat order for Shapely)."""
     ring = [(float(p[1]), float(p[0])) for p in pairs]
     return Polygon(ring)
-
-
-def point_in_polygon(pt: LatLng, polygon_pairs: Sequence[Sequence[float]]) -> bool:
-    return polygon_from_pairs(polygon_pairs).contains(Point(pt[1], pt[0]))
 
 
 def nearest_distance_km(pt: LatLng, locations: Sequence[dict]) -> float:

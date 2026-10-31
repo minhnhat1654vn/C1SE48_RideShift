@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 
 from .. import auth, config, db
 from ..dto import iso_z, mode_dto, rule_dto, trip_dto, weight_dto, zone_dto
-from ..geojson import polygon_geojson_from_pairs
+from ..geojson_utils import zone_pairs_from_row
 
 router = APIRouter()
 
@@ -138,42 +138,44 @@ def _validate_zone_points(points: list) -> None:
 def admin_zones(admin: dict = Depends(auth.require_admin)):
     with db.get_conn() as conn:
         rows = conn.execute(
-            f"""
-            SELECT lez_zone_id, name, description, status, effective_from,
-                   created_at, updated_at, {db.geom_read('geometry', 'geometry_json')}
-            FROM policy.lez_zones ORDER BY created_at ASC
-            """
+            "SELECT * FROM policy.lez_zones ORDER BY created_at ASC"
         ).fetchall()
     # historical contract: admin list keeps coordinates as the raw JSON string
-    return {"zones": [zone_dto(r) for r in rows]}
+    # (cột DB là `geometry` DB FINAL — zone_pairs_from_row ưu tiên geometry,
+    # fallback coordinates với volume cũ chưa migrate)
+    zones_out = []
+    for r in rows:
+        raw = r.get("coordinates")
+        if raw is None:
+            pairs = zone_pairs_from_row(r)
+            raw = json.dumps(pairs) if pairs else None
+        zones_out.append({**zone_dto(r), "coordinates": raw})
+    return {"zones": zones_out}
 
 
 @router.post("/api/admin/zones")
 def create_zone(body: ZoneBody, request: Request, admin: dict = Depends(auth.require_admin)):
     _validate_zone_points(body.coordinates)
+    import json as _json
 
-    ring_geojson = polygon_geojson_from_pairs(body.coordinates)
+    coords_json = _json.dumps(body.coordinates)
     with db.get_conn() as conn:
         study_id = db.study_area_id(conn)
         zone_id = int(
             conn.execute(
-                f"""
+                """
                 INSERT INTO policy.lez_zones (study_area_id, name, description,
-                    geometry, status)
-                VALUES (%s, %s, %s, {db.geom_write(multi=True)}, %s)
+                    status)
+                VALUES (%s, %s, %s, %s)
                 RETURNING lez_zone_id
                 """,
-                (study_id, body.name, body.description, ring_geojson,
+                (study_id, body.name, body.description,
                  "active" if body.active else "inactive"),
             ).fetchone()["lez_zone_id"]
         )
+        db.sync_zone_geometry(conn, zone_id, coords_json)
         row = conn.execute(
-            f"""
-            SELECT lez_zone_id, name, description, status, effective_from,
-                   created_at, updated_at, {db.geom_read('geometry', 'geometry_json')}
-            FROM policy.lez_zones WHERE lez_zone_id = %s
-            """,
-            (zone_id,),
+            "SELECT * FROM policy.lez_zones WHERE lez_zone_id = %s", (zone_id,)
         ).fetchone()
     db.log_action("ZONE_CREATE", admin_id=admin["id"], entity_type="lez_zone",
                   entity_id=zone_id, description=body.name, ip=_client_ip(request))
@@ -182,6 +184,8 @@ def create_zone(body: ZoneBody, request: Request, admin: dict = Depends(auth.req
 
 @router.put("/api/admin/zones/{zone_id}")
 def update_zone(zone_id: str, body: ZonePatch, request: Request, admin: dict = Depends(auth.require_admin)):
+    import json as _json
+
     try:
         zid = int(zone_id)
     except (TypeError, ValueError):
@@ -189,6 +193,7 @@ def update_zone(zone_id: str, body: ZonePatch, request: Request, admin: dict = D
     data = body.model_dump(exclude_unset=True, exclude_none=False)
     if not data:
         raise HTTPException(status_code=400, detail="Dữ liệu vùng không hợp lệ.")
+    coords_json = None
     with db.get_conn() as conn:
         existing = conn.execute(
             "SELECT lez_zone_id FROM policy.lez_zones WHERE lez_zone_id = %s", (zid,)
@@ -200,8 +205,7 @@ def update_zone(zone_id: str, body: ZonePatch, request: Request, admin: dict = D
             if k == "coordinates":
                 if v is not None:
                     _validate_zone_points(v)  # US-22: same checks as create
-                    sets.append(f"geometry = {db.geom_write(multi=True)}")
-                    vals.append(polygon_geojson_from_pairs(v))
+                    coords_json = _json.dumps(v)  # ranh giới ghi vào cột geometry (DB FINAL)
             elif k == "description":
                 sets.append("description = %s")
                 vals.append(v)
@@ -214,13 +218,10 @@ def update_zone(zone_id: str, body: ZonePatch, request: Request, admin: dict = D
         sets.append("updated_at = now()")
         vals.append(zid)
         conn.execute(f"UPDATE policy.lez_zones SET {', '.join(sets)} WHERE lez_zone_id = %s", vals)
+        if coords_json:
+            db.sync_zone_geometry(conn, zid, coords_json)
         row = conn.execute(
-            f"""
-            SELECT lez_zone_id, name, description, status, effective_from,
-                   created_at, updated_at, {db.geom_read('geometry', 'geometry_json')}
-            FROM policy.lez_zones WHERE lez_zone_id = %s
-            """,
-            (zid,),
+            "SELECT * FROM policy.lez_zones WHERE lez_zone_id = %s", (zid,)
         ).fetchone()
     db.log_action("ZONE_UPDATE", admin_id=admin["id"], entity_type="lez_zone",
                   entity_id=zid, description=row["name"], ip=_client_ip(request))
@@ -1058,7 +1059,6 @@ def trip_stats(
         "byHour": by_hour,
     }
 
-
 # ---------------------------------------------------------------- dataset
 
 @router.post("/api/admin/dataset/reprocess")
@@ -1074,7 +1074,6 @@ def reprocess_dataset(request: Request, admin: dict = Depends(auth.require_admin
                   ),
                   ip=_client_ip(request))
     return report
-
 
 # ---------------------------------------------------------------- CN-40: phân tích tác động LEZ
 

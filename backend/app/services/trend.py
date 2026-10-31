@@ -156,17 +156,49 @@ def _select_source() -> tuple[Path, str]:
     return _ensure_dataset(), "month"
 
 
+def _detect_period_kind(csv_path: Path) -> str:
+    """Infer the period axis of an uploaded CSV from its header.
+
+    'vehic' column      -> Kaggle cohort format (age cohorts)
+    'survey_month'      -> monthly scaffold format
+    anything else       -> assume cohort (Kaggle-like)
+    """
+    try:
+        header = pd.read_csv(csv_path, nrows=0)
+        cols = {str(c).strip().lower() for c in header.columns}
+        if "vehic" in cols:
+            return "cohort"
+        if "survey_month" in cols:
+            return "month"
+    except Exception:  # noqa: BLE001
+        pass
+    return "cohort"
+
+
 # ---------------------------------------------------------------- pipeline
 
-def run_pipeline() -> dict:
-    """Process the dataset end-to-end; returns a run report."""
-    csv_path, period_kind = _select_source()
+def run_pipeline(csv_path: Path | None = None) -> dict:
+    """Process the dataset end-to-end; returns a run report.
+
+    `csv_path` defaults to the built-in Kaggle export (`_select_source` falls
+    back to the monthly scaffold CSV when the Kaggle file is missing).
+    """
+    if csv_path is None:
+        csv_path, period_kind = _select_source()
+    else:
+        period_kind = _detect_period_kind(csv_path)
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
     loader = load_kaggle if period_kind == "cohort" else load_and_clean
     df, rows_in = loader(csv_path)
     rows_clean = len(df)
 
     with db.get_conn() as conn:
+        # Task 86: chốt duy nhất 1 luồng pipeline mỗi lúc. Nguyên nhân bảng
+        # Kaggle phình 76.758 = 3 × 25.586: 3 boot song song cùng thấy bảng
+        # rỗng (guard ở main.py) rồi cùng insert. Session advisory lock tự
+        # nhả khi connection đóng (get_conn finally close) — boot đến sau
+        # sẽ chờ, chạy đè bằng DELETE+INSERT nên kết quả cuối luôn đúng số.
+        conn.execute("SELECT pg_advisory_lock(14876)")  # 0x3A1C 'RS'
         study_id = db.study_area_id(conn)
         mode_ids = _mode_ids(conn)
         region_ids = {

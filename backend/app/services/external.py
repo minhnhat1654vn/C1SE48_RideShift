@@ -114,13 +114,21 @@ LOCAL_PLACES: List[GeocodeResult] = [
 ]
 
 
-def _geocode_goong_classic(q: str) -> List[GeocodeResult]:
-    """Classic Goong Geocoding API — best for COMPLETE addresses.
+def _geocode_goong_classic(q: str) -> Optional[List[GeocodeResult]]:
+    """Goong.io Geocoding.
 
-    Response is parsed defensively against shape drift (the API returns the
-    array under "results"; older docs/Mapbox-style payloads use
-    "geocoding_results" / "features" + "center": [lng, lat]).
+    Trả về: None = lỗi mạng/key (KHÔNG phân biệt với "không có kết quả"),
+    [] = gọi OK nhưng 0 ứng viên. Task 73 tách 2 trạng thái để geocode_address
+    biết khi nào KHÔNG nên cache kết quả rỗng (mạng chớp n flash chỉ là tạm thời).
+
+    Response is parsed defensively against shape drift:
+      {"status": "OK", "geocoding_results": [
+          {"name": ..., "formatted_address": ...,
+           "geometry": {"location": {"lat": ..., "lng": ...}}}, ...]}
+    (a Mapbox-style "features" array + "center": [lng, lat] is also accepted)
     """
+    if not config.GOONG_API_KEY:
+        return None  # chưa bật key — coi như nguồn không tham gia, không phải lỗi
     try:
         resp = http().get(
             config.GOONG_GEOCODE_URL,
@@ -130,15 +138,10 @@ def _geocode_goong_classic(q: str) -> List[GeocodeResult]:
         if resp.status_code != 200:
             # 401/403: invalid key — 429: quota exhausted. Visible in
             # `docker compose logs backend`; the chain degrades to Nominatim.
-            print(f"geocode: goong-geocode HTTP {resp.status_code} for q={q!r} — falling through")
-            return []
+            print(f"geocode: goong HTTP {resp.status_code} for q={q!r} — falling through")
+            return None
         data = resp.json()
-        items = (
-            data.get("results")
-            or data.get("geocoding_results")
-            or data.get("features")
-            or []
-        )
+        items = data.get("geocoding_results") or data.get("features") or []
         results: List[GeocodeResult] = []
         for d in items[:6]:
             loc = (d.get("geometry") or {}).get("location") or {}
@@ -158,26 +161,30 @@ def _geocode_goong_classic(q: str) -> List[GeocodeResult]:
                 "source": "external",
                 "provider": "goong",
             })
+        if not results:
+            print(f"geocode: goong 0 result for q={q!r} — falling through")
         return results
     except Exception as e:
-        print(f"geocode: goong-geocode unreachable ({e.__class__.__name__}: {e}) — falling through")
-        return []
+        print(f"geocode: goong unreachable ({e.__class__.__name__}: {e}) — falling through")
+        return None
 
 
-def _geocode_goong(q: str) -> List[GeocodeResult]:
-    """Goong.io — returns [] when disabled / failed / zero hits.
+def _geocode_goong(q: str) -> Optional[List[GeocodeResult]]:
+    """Goong.io — chuỗi 2 bước (Task 65) + semantics cache Task 73.
 
-    Two-step chain (the Goong/Google Places pattern — a plain text query like
-    "120 yên" needs the AutoComplete endpoint; the classic /geocode endpoint
-    only understands near-complete addresses and mis-resolves partial input):
-      1) Place AutoComplete — VN text search WITH house numbers; predictions
-         carry a place_id but NO coordinates
-      2) Place Detail       — resolves each prediction to exact coordinates
-         (calls run in parallel, capped at 6)
-    Falls back to the classic Geocoding API when AutoComplete yields nothing.
+    1) Place AutoComplete — tìm VN text CÓ số nhà (input mời kiểu "120 yên");
+       predictions có place_id nhưng KHÔNG có toạ độ
+    2) Place Detail — giải từng prediction sang toạ độ chính xác
+       (gọi song song, tối đa 8)
+    3) Fallback: classic /geocode (đúng cho địa chỉ HOÀN CHỈNH) khi
+       AutoComplete không ra kết quả
+
+    Trả về: None = chưa bật key / nguồn lỗi mạng (KHÔNG cache rỗng),
+            [] = nguồn đã trả lời nhưng 0 ứng viên (cache được).
     """
     if not config.GOONG_API_KEY:
-        return []
+        return None  # chưa bật key — nguồn không tham gia, không phải lỗi
+    autocomplete_ok = False
     try:
         results: List[GeocodeResult] = []
         resp = http().get(
@@ -186,6 +193,7 @@ def _geocode_goong(q: str) -> List[GeocodeResult]:
             timeout=config.TIMEOUT_GEOCODE,
         )
         if resp.status_code == 200:
+            autocomplete_ok = True
             predictions = (resp.json() or {}).get("predictions") or []
             place_ids = [
                 p["place_id"] for p in predictions[:8] if p.get("place_id")
@@ -219,24 +227,44 @@ def _geocode_goong(q: str) -> List[GeocodeResult]:
             if place_ids:
                 with ThreadPoolExecutor(max_workers=8) as pool:
                     results = [r for r in pool.map(_detail, place_ids) if r]
-
-        if not results:
-            results = _geocode_goong_classic(q)
+        else:
+            print(f"geocode: goong-autocomplete HTTP {resp.status_code} for q={q!r} — falling through")
+        # AutoComplete đã trả lời OK nhưng 0 kết quả → thử classic /geocode
+        # (endpoint classic hiểu địa chỉ hoàn chỉnh, AutoComplete hiểu input mời)
+        if not results and autocomplete_ok:
+            classic = _geocode_goong_classic(q)
+            if classic:
+                results = classic
         if not results:
             print(f"geocode: goong 0 result for q={q!r} — falling through")
+            return [] if autocomplete_ok else None
         return results
     except Exception as e:
         print(f"geocode: goong unreachable ({e.__class__.__name__}: {e}) — falling through")
-        return []
+        return None
 
 
-def _geocode_nominatim(q: str) -> List[GeocodeResult]:
-    url = (
-        f"{config.NOMINATIM_URL}?format=json&limit=6&countrycodes=vn"
-        f"&viewbox=105.60,21.18,106.05,20.70&bounded=1&q={httpx.QueryParams({'q': q})['q']}"
-    )
+def _geocode_nominatim(
+    q: str, viewbox: str = "105.60,21.18,106.05,20.70"
+) -> Optional[List[GeocodeResult]]:
+    """Nominatim bounded-search trong viewbox thành phố — Task 73 tăng limit
+    6 → 10 (phản hồi user "list không xổ ra toàn bộ").
+
+    None = lỗi mạng/HTTP (không cache kết quả rỗng), [] = gọi OK, 0 ứng viên.
+    """
     try:
-        resp = http().get(url, timeout=config.TIMEOUT_GEOCODE)
+        resp = http().get(
+            config.NOMINATIM_URL,
+            params={
+                "format": "json",
+                "limit": "10",
+                "countrycodes": "vn",
+                "viewbox": viewbox,
+                "bounded": "1",
+                "q": q,
+            },
+            timeout=config.TIMEOUT_GEOCODE,
+        )
         if resp.status_code == 200:
             data = resp.json()
             if isinstance(data, list) and data:
@@ -250,27 +278,61 @@ def _geocode_nominatim(q: str) -> List[GeocodeResult]:
                     }
                     for d in data
                     if d.get("lat") and d.get("lon")
-                ][:6]
+                ][:10]
         else:
             # Visible in `docker compose logs backend` — a 403/429 here means
             # Nominatim is rate-limiting / blocking this network and the
             # address autocomplete degrades to the built-in LOCAL_PLACES list.
             print(f"geocode: nominatim HTTP {resp.status_code} for q={q!r}")
+            return None
     except Exception as e:
         print(f"geocode: nominatim unreachable ({e.__class__.__name__}: {e}) — falling back to LOCAL_PLACES")
+        return None
     return []
 
 
-def geocode_address(query: str) -> List[GeocodeResult]:
+def geocode_address(query: str, viewbox: str = "105.60,21.18,106.05,20.70") -> List[GeocodeResult]:
+    """Geocode với viewbox tuỳ chọn (bbox thành phố — Task 63 multi-city).
+
+    Task 73 (phản hồi user "có nhiều hơn 1 kết quả nhưng list không xổ ra
+    toàn bộ" + "tìm nhà/tên đường lại ra kết quả nhiều thành phố"):
+      - GỌI SONG SONG cả Goong lẫn Nominatim rồi GỘP kết quả (trước đây
+        Goong có kết quả thì Nominatim bị bỏ qua — danh sách ít ứng viên;
+        Goong cho số nhà, Nominatim cho nhiều kết quả đường/phố).
+      - Gộp trùng theo toạ độ (4 chữ số ≈ 11 m) — Nominatim hay trả 2 dòng
+        cùng 1 điểm (vd "Xóm Chùa, Tây Hồ" lặp).
+      - Cache key GỐM viewbox — trước đây key chỉ theo q nên tìm 1 từ khoá
+        ở 2 thành phố khác nhau bị dính kết quả cache của thành phố trước.
+    """
     q = (query or "").strip()
     if not q:
         return []
-    key = q.lower()
+    key = (q.lower(), viewbox)
     hit = _geo_cache_get(key)
     if hit is not None:
         return hit
-    # 1) Goong (VN house numbers) → 2) Nominatim → 3) local landmarks
-    results = _geocode_goong(q) or _geocode_nominatim(q)
+    # Goong (VN house numbers) ∥ Nominatim (bounded theo viewbox) — song song
+    # vì 2 nguồn độc lập; một nguồn lỗi không chặn nguồn còn lại
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        fg = ex.submit(_geocode_goong, q)
+        fn = ex.submit(_geocode_nominatim, q, viewbox)
+        goong = fg.result()
+        nomin = fn.result()
+    results = [r for r in (goong or []) + (nomin or [])]
+    # gộp trùng toạ độ (Goong đứng trước để ưu tiên số nhà) — 2 khoá:
+    #   toạ độ 4 chữ số (≈11 m) và cùng TÊN trong 3 chữ số (≈110 m — Nominatim
+    #   hay trả 2-3 dòng trùng tên cách nhau vài mét, vd "Xóm Chùa, Tây Hồ")
+    merged: List[GeocodeResult] = []
+    seen = set()
+    for r in results:
+        k = (round(r["lat"], 4), round(r["lng"], 4))
+        kn = (r["name"].lower().strip(), round(r["lat"], 3), round(r["lng"], 3))
+        if k in seen or kn in seen:
+            continue
+        seen.add(k)
+        seen.add(kn)
+        merged.append(r)
+    results = merged[:10]
     if not results:
         ql = q.lower()
         results = [
@@ -278,6 +340,11 @@ def geocode_address(query: str) -> List[GeocodeResult]:
             for p in LOCAL_PLACES
             if ql in p["name"].lower()
         ][:6]
+    if not results and (goong is None and nomin is None):
+        # CẢ HAI nguồn đều lỗi mạng (không phải 0 kết quả thật) → trả rỗng
+        # NHƯNG không cache: lần gõ tiếp theo thử lại (mạng chớp n là tạm thời)
+        print(f"geocode: cả goong lẫn nominatim lỗi mạng cho q={q!r} — bỏ qua cache")
+        return []
     _geo_cache_set(key, results)
     return results
 

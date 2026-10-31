@@ -4,13 +4,8 @@ The whole database schema is owned by this service (schema.sql + seed.py).
 Business tables live in the 6 schemas from the "DB FINAL" design document
 (core / gis / transportation / policy / trip / decision) — app SQL uses
 fully-qualified table names so the `search_path` is only a safety net.
-
-Per DB FINAL every shape column is a real PostGIS GEOMETRY type. The wire
-format between backend and frontend stays GeoJSON, so writes go through
-ST_SetSRID(ST_GeomFromGeoJSON(…),4326) and reads through ST_AsGeoJSON —
-use the geom_write()/geom_read() builders below instead of hand-writing
-the ST_* expressions.
 """
+import json
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -54,15 +49,113 @@ def tx():
 
 
 def init_db() -> None:
-    """Create/upgrade the schema (idempotent).
-
-    schema.sql now owns everything PostGIS-related: it requires the extension,
-    defines the DB FINAL GEOMETRY columns, upgrades interim TEXT volumes in
-    place and creates the GIST spatial indexes.
-    """
+    """Create schema (idempotent) and attempt PostGIS enablement."""
     sql = SCHEMA_FILE.read_text(encoding="utf-8")
     with get_conn() as conn:
         conn.execute(sql)
+        # Task 63 — multi-city: cột scope thành phố (idempotent, không đập bảng)
+        conn.execute("ALTER TABLE policy.lez_zones ADD COLUMN IF NOT EXISTS city_id TEXT")
+        conn.execute(
+            "ALTER TABLE transportation.transportation_locations "
+            "ADD COLUMN IF NOT EXISTS city_id TEXT"
+        )
+        # DB FINAL — policy.lez_zones.geometry là cột ranh giới chính thức;
+        # chuyển dữ liệu từ các cột mirror của bản triển khai cũ rồi dọn chúng.
+        _migrate_lez_zone_geometry(conn)
+    enable_postgis_if_available()
+
+
+def _lez_zone_geometry_is_postgis(conn) -> bool:
+    row = conn.execute(
+        "SELECT data_type FROM information_schema.columns "
+        "WHERE table_schema='policy' AND table_name='lez_zones' "
+        "AND column_name='geometry'"
+    ).fetchone()
+    return bool(row and row["data_type"] == "USER-DEFINED")
+
+
+def _write_zone_geometry(conn, zone_id: int, geojson: str) -> None:
+    """Ghi GeoJSON MultiPolygon vào policy.lez_zones.geometry — dual-mode:
+    cột GEOMETRY (PostGIS) dùng ST_GeomFromGeoJSON, cột TEXT ghi thẳng."""
+    if _lez_zone_geometry_is_postgis(conn):
+        conn.execute(
+            "UPDATE policy.lez_zones SET geometry = "
+            "ST_Multi(ST_SetSRID(ST_GeomFromGeoJSON(%s), 4326)) "
+            "WHERE lez_zone_id = %s",
+            (geojson, zone_id),
+        )
+    else:
+        conn.execute(
+            "UPDATE policy.lez_zones SET geometry = %s WHERE lez_zone_id = %s",
+            (geojson, zone_id),
+        )
+
+
+def _migrate_lez_zone_geometry(conn) -> int:
+    """Đưa policy.lez_zones về đúng DB FINAL: một cột `geometry` duy nhất.
+
+    Xử lý cả 3 dạng volume có thể gặp:
+      1. DB mới — schema.sql đã tạo cột geometry (TEXT), không làm gì thêm;
+      2. Volume cũ có `coordinates` (JSON [[lat,lng],…]) — chuyển sang geometry
+         (GeoJSON MultiPolygon) rồi DROP cột coordinates;
+      3. Volume 10/2026 có `geometry` (PostGIS GEOMETRY hoặc TEXT GeoJSON) —
+         giữ nguyên giá trị; chỉ DROP cột mirror dư (coordinates/geom).
+    Idempotent — chạy lại vô hại. Trả về số dòng đã phải chuyển đổi (để log).
+    """
+    from .geojson_utils import (
+        _pairs_from_geometry,
+        multipolygon_geojson_from_pairs,
+    )
+
+    cols = {
+        r["column_name"]
+        for r in conn.execute(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_schema = 'policy' AND table_name = 'lez_zones'"
+        ).fetchall()
+    }
+    if "geometry" not in cols:
+        conn.execute("ALTER TABLE policy.lez_zones ADD COLUMN geometry TEXT")
+        cols.add("geometry")
+
+    migrated = 0
+    # (a) các dòng còn thiếu geometry nhưng có coordinates/geom — chuyển đổi.
+    # Chỉ SELECT những cột mirror thực sự tồn tại (DB mới không có cột nào).
+    mirror_cols = [c for c in ("coordinates", "geom") if c in cols]
+    rows = []
+    if mirror_cols:
+        rows = conn.execute(
+            f"SELECT lez_zone_id, {', '.join(mirror_cols)} FROM policy.lez_zones "
+            "WHERE geometry IS NULL OR btrim(geometry::text) = ''"
+        ).fetchall()
+    for r in rows:
+        zid = int(r["lez_zone_id"])
+        try:
+            pairs = None
+            raw = r.get("coordinates")
+            if raw:
+                try:
+                    v = json.loads(raw) if isinstance(raw, str) else raw
+                    if isinstance(v, list) and len(v) >= 3:
+                        pairs = v
+                except Exception:
+                    pairs = None
+            if pairs is None and r.get("geom") is not None:
+                pairs = _pairs_from_geometry(r["geom"])
+            if pairs:
+                gj = multipolygon_geojson_from_pairs(pairs)
+                if gj:
+                    _write_zone_geometry(conn, zid, gj)
+                    migrated += 1
+        except Exception:
+            continue  # một vùng hỏng không được chặn boot
+
+    # (b) DROP cột mirror sau khi dữ liệu đã an toàn trong geometry
+    if "coordinates" in cols:
+        conn.execute("ALTER TABLE policy.lez_zones DROP COLUMN coordinates")
+    if "geom" in cols:
+        conn.execute("ALTER TABLE policy.lez_zones DROP COLUMN geom")
+    return migrated
 
 
 def postgis_available() -> bool:
@@ -73,36 +166,58 @@ def postgis_available() -> bool:
         return bool(row and row["ok"])
 
 
-# ---------------------------------------------------------------------------
-# Geometry column helpers (DB FINAL: GEOMETRY columns, GeoJSON on the wire)
-# ---------------------------------------------------------------------------
+def enable_postgis_if_available() -> bool:
+    """Try CREATE EXTENSION postgis; nâng cột lez_zones.geometry đúng DB FINAL.
 
-def geom_write(multi: bool = False) -> str:
-    """Value expression for INSERT/UPDATE of a geometry column.
-
-    The GeoJSON text travels in the NEXT %s parameter, e.g.::
-
-        sql = f"INSERT INTO policy.lez_zones (geometry) "
-              f"VALUES ({db.geom_write(multi=True)})"
-        conn.execute(sql, (geojson_text,))
-
-    multi=True wraps the parsed shape with ST_Multi so both Polygon and
-    MultiPolygon GeoJSON satisfy the geometry(MultiPolygon,4326) columns.
+    Sandbox PostgreSQL chạy không có extension PostGIS (không root để cài
+    libpostgis) nên phân tích không gian chạy ở lớp Python/Shapely và cột
+    geometry giữ dạng TEXT GeoJSON. Bản docker-compose dùng image postgis/
+    postgis — lúc đó cột được nâng thành GEOMETRY(MULTIPOLYGON,4326) + GIST
+    đúng DB FINAL, phục vụ truy vấn không gian ở mức DB.
     """
-    inner = "ST_GeomFromGeoJSON(%s)"
-    if multi:
-        inner = f"ST_Multi({inner})"
-    return f"ST_SetSRID({inner}, 4326)"
+    try:
+        with get_conn() as conn:
+            # PostGIS objects (spatial_ref_sys, ST_* functions) belong in
+            # `public` — pin the search path for the install connection.
+            conn.execute("SET search_path = public")
+            conn.execute("CREATE EXTENSION IF NOT EXISTS postgis")
+    except Exception:
+        return False
+    try:
+        with get_conn() as conn:
+            if not _lez_zone_geometry_is_postgis(conn):
+                # TEXT GeoJSON → GEOMETRY(MULTIPOLYGON,4326) (DB FINAL).
+                # Giá trị do chính hệ thống sinh ra nên parse được; nếu volume
+                # lạ có dòng hỏng thì bỏ qua nâng kiểu (giữ TEXT, mọi tính năng
+                # vẫn chạy qua lớp Python).
+                conn.execute(
+                    "ALTER TABLE policy.lez_zones ALTER COLUMN geometry "
+                    "TYPE geometry(MultiPolygon,4326) "
+                    "USING ST_Multi(ST_SetSRID(ST_GeomFromGeoJSON(geometry),4326))"
+                )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS lez_zones_geometry_gist "
+                "ON policy.lez_zones USING gist (geometry)"
+            )
+    except Exception:
+        return False
+    return True
 
 
-def geom_read(col: str, alias: str | None = None) -> str:
-    """SELECT expression returning a shape column as GeoJSON text.
+def sync_zone_geometry(conn, zone_id: int, coordinates_json: str) -> None:
+    """Ghi ranh giới vùng LEZ vào cột `geometry` (DB FINAL) khi tạo/cập nhật.
 
-    PostGIS would otherwise render the column as hex EWKB in text protocol.
-    Pass alias to bind the result to a named key, e.g. 'geometry_json'.
-    """
-    expr = f"ST_AsGeoJSON({col})"
-    return f"{expr} AS {alias}" if alias else expr
+    `coordinates_json` = JSON [[lat,lng],…]. Dual-mode TEXT/PostGIS — xem
+    _write_zone_geometry. Không bao giờ raise (đã validate trước đó)."""
+    from .geojson_utils import multipolygon_geojson_from_pairs
+
+    try:
+        gj = multipolygon_geojson_from_pairs(coordinates_json)
+        if gj is None:
+            return
+        _write_zone_geometry(conn, zone_id, gj)
+    except Exception:
+        pass
 
 
 # ---------------------------------------------------------------------------
@@ -114,14 +229,6 @@ def study_area_id(conn, code: str = "HN") -> int | None:
         "SELECT study_area_id FROM core.study_areas WHERE code = %s", (code,)
     ).fetchone()
     return int(row["study_area_id"]) if row else None
-
-
-def mode_id_by_code(conn, code: str) -> int | None:
-    row = conn.execute(
-        "SELECT transportation_mode_id FROM transportation.transportation_modes WHERE code = %s",
-        (code,),
-    ).fetchone()
-    return int(row["transportation_mode_id"]) if row else None
 
 
 def vehicle_type_id_by_mode_code(conn, code: str) -> int | None:

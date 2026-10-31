@@ -21,12 +21,7 @@ import random
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from . import db
-from .geojson import (
-    linestring_geojson,
-    point_geojson,
-    polygon_geojson_from_pairs,
-)
+from . import config, db
 
 SALT = "rideshift-c1se48"
 
@@ -240,10 +235,10 @@ def _ensure_vehicle_types(conn) -> None:
 
 def _ensure_study_area(conn) -> None:
     conn.execute(
-        f"""
+        """
         INSERT INTO core.study_areas (code, name, area_type, country_code,
             description, geometry, status)
-        VALUES (%s, %s, 'CITY', 'VN', %s, {db.geom_write(multi=True)}, 'active')
+        VALUES (%s, %s, 'CITY', 'VN', %s, %s, 'active')
         ON CONFLICT (code) DO UPDATE SET
             name = EXCLUDED.name, geometry = EXCLUDED.geometry,
             updated_at = now()
@@ -291,31 +286,33 @@ def _ensure_zone_and_rules(conn) -> None:
     row = conn.execute(
         "SELECT lez_zone_id FROM policy.lez_zones WHERE name = %s", (ZONE_RING1_NAME,)
     ).fetchone()
-    ring1_geojson = polygon_geojson_from_pairs(RING1)
+    coords_json = json.dumps(RING1)
     if row:
         zone_id = int(row["lez_zone_id"])
         conn.execute(
-            f"""
+            """
             UPDATE policy.lez_zones SET description = %s,
-                geometry = {db.geom_write(multi=True)},
-                effective_from = %s, status = 'active', updated_at = now()
+                effective_from = %s, status = 'active',
+                city_id = COALESCE(city_id, 'hanoi'), updated_at = now()
             WHERE lez_zone_id = %s
             """,
-            (RING1_ZONE_DESCRIPTION, ring1_geojson, RING1_EFFECTIVE_FROM, zone_id),
+            (RING1_ZONE_DESCRIPTION, RING1_EFFECTIVE_FROM, zone_id),
         )
+        db.sync_zone_geometry(conn, zone_id, coords_json)
     else:
         zone_id = int(
             conn.execute(
-                f"""
-                INSERT INTO policy.lez_zones (study_area_id, name, description,
-                    geometry, effective_from, status)
-                VALUES (%s, %s, %s, {db.geom_write(multi=True)}, %s, 'active')
+                """
+                INSERT INTO policy.lez_zones (study_area_id, name, description, city_id,
+                    effective_from, status)
+                VALUES (%s, %s, %s, 'hanoi', %s, 'active')
                 RETURNING lez_zone_id
                 """,
-                (study_id, ZONE_RING1_NAME, RING1_ZONE_DESCRIPTION, ring1_geojson,
+                (study_id, ZONE_RING1_NAME, RING1_ZONE_DESCRIPTION,
                  RING1_EFFECTIVE_FROM),
             ).fetchone()["lez_zone_id"]
         )
+        db.sync_zone_geometry(conn, zone_id, coords_json)
     # Xoá các vùng cũ không còn dùng (idempotent)
     conn.execute(
         "DELETE FROM policy.lez_zones WHERE name = ANY(%s)",
@@ -367,17 +364,69 @@ def _ensure_locations(conn) -> None:
         ).fetchone()
         if not row:
             conn.execute(
-                f"""
+                """
                 INSERT INTO transportation.transportation_locations
                     (study_area_id, transportation_mode_id, name, location_type,
-                     lat, lng, geometry, source, status)
-                VALUES (%s, %s, %s, %s, %s, %s, {db.geom_write()}, 'manual', 'active')
+                     lat, lng, geometry, source, status, city_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, 'manual', 'active', 'hanoi')
                 """,
                 (
                     study_id,
                     bus_mode if typ == "bus_stop" else None,
                     name, typ, lat, lng,
-                    point_geojson(lat, lng),
+                    json.dumps({"type": "Point", "coordinates": [lng, lat]}),
+                ),
+            )
+
+
+
+
+def _ensure_multi_city_locations(conn) -> None:
+    """Task 63 — điểm giao thông TP.HCM & Đà Nẵng (demo-grade, idempotent)."""
+    study_id = _study_area_id(conn)
+    bus_mode = conn.execute(
+        "SELECT transportation_mode_id FROM transportation.transportation_modes WHERE code = 'bus' LIMIT 1"
+    ).fetchone()
+    bus_mode = bus_mode["transportation_mode_id"] if bus_mode else None
+    items = [
+        # TP. Hồ Chí Minh
+        ("Ga Bến Thành (Metro số 1)", "metro", 10.7747, 106.7042, "hcm"),
+        ("Ga Ba Son (Metro số 1)", "metro", 10.7826, 106.7152, "hcm"),
+        ("Ga National University (Metro số 1)", "metro", 10.8482, 106.7901, "hcm"),
+        ("Bến xe Miền Đông (Mới)", "bus_stop", 10.8510, 106.7760, "hcm"),
+        ("Bến xe Miền Tây", "bus_stop", 10.7382, 106.6605, "hcm"),
+        ("Bến xe An Sương", "bus_stop", 10.7972, 106.6290, "hcm"),
+        ("Bến xe Chợ Lớn", "bus_stop", 10.7601, 106.6646, "hcm"),
+        ("Bến xe Ngã Tư Ga", "bus_stop", 10.8061, 106.6821, "hcm"),
+        # Đà Nẵng
+        ("Bến xe Trung tâm Đà Nẵng", "bus_stop", 16.0379, 108.2204, "danang"),
+        ("Bến xe Hội An", "bus_stop", 15.8795, 108.3353, "danang"),
+        ("Bến xe Điện Ngọc", "bus_stop", 15.9829, 108.2494, "danang"),
+        ("Bến xe An Sơn", "bus_stop", 15.9505, 108.2504, "danang"),
+        ("Bến xe Tam Kỳ", "bus_stop", 15.5453, 108.4745, "danang"),
+    ]
+    for name, typ, lat, lng, city_id in items:
+        row = conn.execute(
+            """
+            SELECT transportation_location_id FROM transportation.transportation_locations
+            WHERE name = %s
+            """,
+            (name,),
+        ).fetchone()
+        if not row:
+            conn.execute(
+                """
+                INSERT INTO transportation.transportation_locations
+                    (study_area_id, transportation_mode_id, name, location_type,
+                     lat, lng, geometry, source, status, city_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, 'manual', 'active', %s)
+                """,
+                (
+                    study_id,
+                    bus_mode if typ == "bus_stop" else None,
+                    name, typ, lat, lng,
+                    json.dumps({"type": "Point", "coordinates": [lng, lat]}),
+                    city_id,
                 ),
             )
 
@@ -459,7 +508,7 @@ def _ensure_demo_trips(conn) -> None:
         d_lng = 105.78 + rng.random() * 0.09
         district = rng.choice(DISTRICTS)
         conn.execute(
-            f"""
+            """
             INSERT INTO trip.trips
                 (study_area_id, origin_name, destination_name, origin, destination,
                  origin_lat, origin_lng, dest_lat, dest_lng,
@@ -468,13 +517,13 @@ def _ensure_demo_trips(conn) -> None:
                  top_mode_id, top_score, travel_time, departure_hour,
                  trip_purpose, preferences, distance_km, duration_min,
                  lez_affected, avg_cost_vnd, avg_time_min, created_at)
-            VALUES (%s,%s,%s,{db.geom_write()},{db.geom_write()},%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
             """,
             (
                 study_id,
                 rng.choice(PLACES), rng.choice(PLACES),
-                point_geojson(o_lat, o_lng),
-                point_geojson(d_lat, d_lng),
+                json.dumps({"type": "Point", "coordinates": [o_lng, o_lat]}),
+                json.dumps({"type": "Point", "coordinates": [d_lng, d_lat]}),
                 o_lat, o_lng, d_lat, d_lng,
                 region_by_name.get(district, central), None, district,
                 vt_by_mode.get(mode), vt_by_mode.get(rng.choice(mode_codes)) if switched else None,
@@ -577,14 +626,12 @@ def migrate_legacy(conn) -> None:
             f"""
             INSERT INTO transportation.transportation_locations
                 (study_area_id, transportation_mode_id, name, location_type,
-                 lat, lng, geometry, source, status)
+                 lat, lng, geometry, source, status, city_id)
             SELECT %s,
                    (SELECT transportation_mode_id FROM transportation.transportation_modes
                      WHERE code = 'bus' AND src.type = 'bus_stop'),
-                   src.name, src.type, src.lat, src.lng,
-                   ST_SetSRID(ST_MakePoint(src.lng, src.lat), 4326),
-                   'manual',
-                   CASE WHEN src.active THEN 'active' ELSE 'inactive' END
+                   src.name, src.type, src.lat, src.lng, NULL, 'manual',
+                   CASE WHEN src.active THEN 'active' ELSE 'inactive' END, 'hanoi' 
             FROM {loc_src} src
             WHERE NOT EXISTS (
                 SELECT 1 FROM transportation.transportation_locations l
@@ -595,39 +642,42 @@ def migrate_legacy(conn) -> None:
         )
 
     # ---- LEZ zones ----------------------------------------------------------
+    # Legacy lưu ranh giới dạng JSON [[lat,lng],…] ở cột `coordinates` — chuyển
+    # vào cột `geometry` (DB FINAL) qua sync_zone_geometry, từng dòng một.
     zone_src = "policy.lez_zone" if _exists(conn, "policy.lez_zone") else (
         "public.lez_zone" if _exists(conn, "public.lez_zone") else None
     )
     if zone_src:
-        # legacy rows carry the [[lat,lng],…] ring as JSON text — rebuild the
-        # DB FINAL geometry from it (Python-side so bad rows can be skipped).
-        # Legacy columns: id, name, description, coordinates, active(bool), …
+        from .geojson_utils import zone_pairs_from_row
+
         for z in conn.execute(f"SELECT * FROM {zone_src}").fetchall():
-            exists = conn.execute(
+            if conn.execute(
                 "SELECT 1 FROM policy.lez_zones WHERE name = %s", (z["name"],)
-            ).fetchone()
-            if exists:
+            ).fetchone():
                 continue
-            try:
-                pts = json.loads(z["coordinates"]) if z["coordinates"] else None
-                if not isinstance(pts, list) or len(pts) < 3:
-                    print(f"legacy zone skipped (bad ring): {z['name']}")
-                    continue
+            pairs = zone_pairs_from_row(z)
+            new_zone_id = int(
                 conn.execute(
-                    f"""
+                    """
                     INSERT INTO policy.lez_zones (study_area_id, name, description,
-                        geometry, status, created_at, updated_at)
-                    VALUES (%s, %s, %s, {db.geom_write(multi=True)}, %s, %s, %s)
+                        status, created_at, updated_at)
+                    VALUES (%s, %s, %s,
+                            CASE WHEN %s THEN 'active' ELSE 'inactive' END,
+                            COALESCE(%s, now()), COALESCE(%s, now()))
+                    RETURNING lez_zone_id
                     """,
                     (
-                        study_id, z["name"], z["description"],
-                        polygon_geojson_from_pairs(pts),
-                        "active" if z.get("active", True) else "inactive",
-                        z.get("created_at"), z.get("updated_at"),
+                        study_id,
+                        z["name"],
+                        z.get("description"),
+                        bool(z.get("active")),
+                        z.get("created_at"),
+                        z.get("updated_at"),
                     ),
-                )
-            except Exception as exc:
-                print(f"legacy zone migration warning ({z['name']}): {exc!r}")
+                ).fetchone()["lez_zone_id"]
+            )
+            if pairs:
+                db.sync_zone_geometry(conn, new_zone_id, json.dumps(pairs))
 
     # ---- policy rules -> lez_rules + vehicle_restrictions -------------------
     rule_src = "policy.policy_rule" if _exists(conn, "policy.policy_rule") else (
@@ -722,16 +772,16 @@ def migrate_legacy(conn) -> None:
             except Exception:
                 lat = lng = 0.0
             conn.execute(
-                f"""
+                """
                 INSERT INTO decision.air_quality_observations
                     (cache_key, study_area_id, source, lat, lng, location,
                      observed_at, aqi, pm25, pm10, raw_data)
-                VALUES (%s, %s, 'open-meteo', %s, %s, {db.geom_write()}, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, 'open-meteo', %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (cache_key) DO NOTHING
                 """,
                 (
                     r["cache_key"], study_id, lat, lng,
-                    point_geojson(lat, lng),
+                    json.dumps({"type": "Point", "coordinates": [lng, lat]}),
                     r["fetched_at"], payload.get("aqi"), payload.get("pm25"),
                     payload.get("pm10"), json.dumps(payload),
                 ),
@@ -779,7 +829,7 @@ def migrate_legacy(conn) -> None:
             o_lat, o_lng = float(t["origin_lat"]), float(t["origin_lng"])
             d_lat, d_lng = float(t["dest_lat"]), float(t["dest_lng"])
             conn.execute(
-                f"""
+                """
                 INSERT INTO trip.trips
                     (study_area_id, origin_name, destination_name, origin, destination,
                      origin_lat, origin_lng, dest_lat, dest_lng,
@@ -788,12 +838,12 @@ def migrate_legacy(conn) -> None:
                      top_mode_id, top_score, travel_time, departure_hour,
                      trip_purpose, preferences, distance_km, duration_min,
                      lez_affected, avg_cost_vnd, avg_time_min, created_at)
-                VALUES (%s,%s,%s,{db.geom_write()},{db.geom_write()},%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                 """,
                 (
                     study_id, t["origin_name"], t["dest_name"],
-                    point_geojson(o_lat, o_lng),
-                    point_geojson(d_lat, d_lng),
+                    json.dumps({"type": "Point", "coordinates": [o_lng, o_lat]}),
+                    json.dumps({"type": "Point", "coordinates": [d_lng, d_lat]}),
                     o_lat, o_lng, d_lat, d_lng,
                     region_by_name.get(district), None, district,
                     vt_by_mode.get(t["vehicle_id"]),
@@ -820,22 +870,130 @@ def migrate_legacy(conn) -> None:
 
 
 # --------------------------------------------------------------------------
+# public."City" — 3 thành phố của cổng chọn thành phố (Task 63/65)
+# --------------------------------------------------------------------------
+# Trước đây bảng này do Prisma tạo (cây demo) — từ bản đóng gói Docker backend
+# là chủ duy nhất (schema.sql tạo bảng, hàm này nạp dữ liệu). bbox dạng
+# [[south,west],[north,east]] dùng cho WAQI bounds + viewbox geocode.
+# "studyAreaId" được geoimport gắn sau khi tạo study area từng thành phố.
+
+CITY_SEEDS = [
+    {"id": "hanoi", "name": "Hà Nội", "center": (21.0278, 105.8342), "zoom": 12, "geo_file": "hanoi.geojson", "sort_order": 1, "study_code": "HN"},
+    {"id": "danang", "name": "Đà Nẵng", "center": (16.0544, 108.2022), "zoom": 12, "geo_file": "danang.geojson", "sort_order": 2, "study_code": "DN"},
+    {"id": "hcm", "name": "TP. Hồ Chí Minh", "center": (10.7757, 106.7004), "zoom": 12, "geo_file": "hcm.geojson", "sort_order": 3, "study_code": "SGN"},
+]
+
+
+def _city_bbox_from_geojson(city: dict) -> str:
+    """bbox [[s,w],[n,e]] từ geojson phường/xã (fallback: quanh tâm ±0.55°)."""
+    lat, lng = city["center"]
+    path = config.CITIES_GEO_DIR / city["geo_file"]
+    try:
+        fc = json.loads(path.read_text(encoding="utf-8"))
+        min_lat = max_lat = min_lng = max_lng = None
+        for f in fc.get("features", []):
+            g = (f.get("geometry") or {})
+            polys = (
+                [g.get("coordinates")]
+                if g.get("type") == "Polygon"
+                else g.get("coordinates", [])
+                if g.get("type") == "MultiPolygon"
+                else []
+            )
+            for poly in polys:
+                for ring in poly:
+                    for x, y in ring:
+                        min_lat = y if min_lat is None or y < min_lat else min_lat
+                        max_lat = y if max_lat is None or y > max_lat else max_lat
+                        min_lng = x if min_lng is None or x < min_lng else min_lng
+                        max_lng = x if max_lng is None or x > max_lng else max_lng
+        if min_lat is not None:
+            return json.dumps(
+                [[min_lat - 0.02, min_lng - 0.02], [max_lat + 0.02, max_lng + 0.02]]
+            )
+    except Exception:
+        pass
+    return json.dumps([[lat - 0.55, lng - 0.55], [lat + 0.55, lng + 0.55]])
+
+
+def _ensure_cities(conn) -> None:
+    """Nạp 3 thành phố vào public."City" — idempotent upsert theo id.
+
+    Chạy trước geoimport trong lifespan: geoimport tạo study area (HN/DN/SGN)
+    rồi gắn ngược "studyAreaId"; ở đây đã link sẵn study area tồn tại từ lần
+    boot trước để /api/cities có wardCount ngay cả khi geojson thiếu.
+    """
+    for city in CITY_SEEDS:
+        lat, lng = city["center"]
+        link = conn.execute(
+            "SELECT study_area_id FROM core.study_areas WHERE code = %s",
+            (city["study_code"],),
+        ).fetchone()
+        conn.execute(
+            """
+            INSERT INTO public."City"
+                (id, name, "centerLat", "centerLng", "defaultZoom", bbox,
+                 active, "sortOrder", "studyAreaId", "updatedAt")
+            VALUES (%s, %s, %s, %s, %s, %s, TRUE, %s, %s, now())
+            ON CONFLICT (id) DO UPDATE SET
+                name = EXCLUDED.name,
+                "centerLat" = EXCLUDED."centerLat",
+                "centerLng" = EXCLUDED."centerLng",
+                "defaultZoom" = EXCLUDED."defaultZoom",
+                bbox = EXCLUDED.bbox,
+                active = TRUE,
+                "sortOrder" = EXCLUDED."sortOrder",
+                "studyAreaId" = COALESCE(EXCLUDED."studyAreaId", public."City"."studyAreaId"),
+                "updatedAt" = now()
+            """,
+            (
+                city["id"],
+                city["name"],
+                lat,
+                lng,
+                city["zoom"],
+                _city_bbox_from_geojson(city),
+                city["sort_order"],
+                int(link["study_area_id"]) if link else None,
+            ),
+        )
+    print(f"City seed completed: {len(CITY_SEEDS)} thành phố (hanoi/danang/hcm).")
+
+
+# --------------------------------------------------------------------------
 # Entry point
 # --------------------------------------------------------------------------
 
 def seed() -> None:
+    """Seed idempotent — MỖI nhóm dữ liệu chạy ĐỘC LẬP.
+
+    (Fix gốc rễ Task 90): nếu một nhóm lỗi (vd. migrate_legacy vấp bảng cũ
+    của volume cũ) thì các nhóm sau — đặc biệt là _ensure_cities (cổng chọn
+    thành phố) — vẫn phải chạy, không được chết theo."""
+    steps = [
+        ("migrate_legacy", lambda: migrate_legacy(conn)),
+        ("admin", lambda: _ensure_admin(conn)),
+        ("study_areas", lambda: _ensure_study_area(conn)),
+        ("cities (cổng chọn thành phố)", lambda: _ensure_cities(conn)),
+        ("modes", lambda: _ensure_modes(conn)),
+        ("vehicle_types", lambda: _ensure_vehicle_types(conn)),
+        ("criteria", lambda: _ensure_criteria(conn)),
+        ("zones_and_rules", lambda: _ensure_zone_and_rules(conn)),
+        ("locations", lambda: _ensure_locations(conn)),
+        ("regions", lambda: _ensure_regions(conn)),
+        ("multi_city_locations", lambda: _ensure_multi_city_locations(conn)),
+        ("backfill_trip_regions", lambda: _backfill_trip_regions(conn)),
+        ("demo_trips", lambda: _ensure_demo_trips(conn)),
+    ]
     with db.get_conn() as conn:
-        migrate_legacy(conn)
-        _ensure_admin(conn)
-        _ensure_study_area(conn)
-        _ensure_modes(conn)
-        _ensure_vehicle_types(conn)
-        _ensure_criteria(conn)
-        _ensure_zone_and_rules(conn)
-        _ensure_locations(conn)
-        _ensure_regions(conn)
-        _backfill_trip_regions(conn)
-        _ensure_demo_trips(conn)
+        for label, fn in steps:
+            try:
+                fn()
+            except Exception as e:  # noqa: BLE001
+                import traceback
+
+                print(f"[seed] {label} THẤT BẠI (các nhóm khác vẫn chạy tiếp): {e!r}")
+                traceback.print_exc()
     print("Seed completed.")
 
 

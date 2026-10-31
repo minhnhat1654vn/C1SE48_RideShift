@@ -8,7 +8,7 @@ import json
 from datetime import datetime, time, timezone
 from typing import Any, Dict, Optional
 
-from .geojson import geojson_to_pairs
+from .geojson_utils import zone_pairs_from_row
 
 
 def iso_z(dt: Optional[datetime]) -> Optional[str]:
@@ -47,18 +47,20 @@ def mode_dto(r: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def zone_dto(r: Dict[str, Any], parsed_coordinates: bool = False) -> Dict[str, Any]:
-    """policy.lez_zones row → API shape.
-
-    The DB stores the boundary as geometry(MultiPolygon,4326); rows are
-    selected with db.geom_read('geometry', 'geometry_json') so the mapper
-    receives GeoJSON text and derives the historical [[lat, lng], …]
-    `coordinates` contract for the frontend:
-      * parsed_coordinates=False → coordinates as a JSON STRING (admin list,
-        the historical raw-string contract)
-      * parsed_coordinates=True  → coordinates as a pair LIST (public map)
-    """
-    pairs = geojson_to_pairs(r.get("geometry_json"))
-    coords = pairs if parsed_coordinates else json.dumps(pairs)
+    # Task 93 — không bao giờ KeyError khi gặp dòng cũ chỉ có `geometry`:
+    # zone_pairs_from_row ưu tiên coordinates, fallback phân tích geometry.
+    pairs = zone_pairs_from_row(r)
+    coords = r.get("coordinates")
+    if coords is None and pairs is not None:
+        coords = json.dumps(pairs)  # giữ nguyên contract chuỗi JSON khi chưa parse
+    if parsed_coordinates:
+        if pairs is not None:
+            coords = pairs
+        else:
+            try:
+                coords = json.loads(coords) if isinstance(coords, str) else (coords or [])
+            except Exception:
+                coords = []
     return {
         "id": r["lez_zone_id"],
         "name": r["name"],
