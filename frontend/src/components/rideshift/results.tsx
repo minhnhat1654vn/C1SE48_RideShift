@@ -17,7 +17,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { ChevronDown, ChevronRight, TriangleAlert, CheckCircle2, Ban, CircleHelp, CloudSun, Check } from 'lucide-react'
+import { ChevronDown, ChevronRight, TriangleAlert, CheckCircle2, Ban, CircleHelp, CloudSun, Check, Clock3, Wallet, Leaf, Award } from 'lucide-react'
+import { motion } from 'framer-motion'
 import type { AnalyzeResponse, ComplianceResult, Recommendation } from '@/lib/types'
 
 export const MODE_ICONS: Record<string, string> = {
@@ -28,6 +29,26 @@ export const MODE_ICONS: Record<string, string> = {
   taxi: '🚕',
   bicycle: '🚲',
   walking: '🚶',
+}
+
+/** Huy chương xếp hạng: #1 vàng đồng, #2 bạc, #3 đồng — phần còn lại trung tính. */
+function RankMedal({ rank }: { rank: number }) {
+  const medal =
+    rank === 1
+      ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-md shadow-amber-500/30'
+      : rank === 2
+        ? 'bg-gradient-to-br from-slate-300 to-slate-400 text-white shadow-md shadow-slate-400/30'
+        : rank === 3
+          ? 'bg-gradient-to-br from-orange-400 to-orange-600 text-white shadow-md shadow-orange-500/30'
+          : 'bg-muted text-muted-foreground'
+  return (
+    <span
+      aria-hidden
+      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[12px] font-extrabold tabular-nums ${medal}`}
+    >
+      {rank}
+    </span>
+  )
 }
 
 function fmtVnd(v: number) {
@@ -370,6 +391,17 @@ export function AirQualityCard({ air }: { air: AnalyzeResponse['airQuality'] }) 
 
 // ------------------------------------------------------------ Recommendations (US-10/20)
 
+/**
+ * Phân tầng tiêu chí theo mức quan tâm thực tế của người dùng (nghiên cứu UX
+ * 19/11/2026): người dùng chỉ quan tâm 3 tiêu chí ảnh hưởng trực tiếp đến
+ * quyết định đi lại — thời gian, chi phí, tuân thủ LEZ. Bốn tiêu chí kỹ thuật
+ * còn lại (accessibility / convenience / environment / trend) là điểm số mô
+ * hình 0–1 hoặc hệ số phát thải g/km mà người dùng không chuyển hoá được
+ * thành quyết định — vẫn giữ nguyên cho tính minh bạch học thuật nhưng mặc
+ * định thu gọn sau nút "tiêu chí kỹ thuật khác".
+ */
+const KEY_CRITERIA: ReadonlySet<string> = new Set(['travelTime', 'cost', 'lezCompliance'])
+
 function RecommendationRow({
   rec,
   tripId,
@@ -392,10 +424,18 @@ function RecommendationRow({
   const compliance = rec.compliance.status
   const banned = compliance === 'not_permitted'
   const restricted = compliance === 'conditionally_restricted'
+  // Tách 2 tầng tiêu chí: 3 tiêu chí người dùng quan tâm hiển thị ngay;
+  // tiêu chí kỹ thuật thu gọn (xem KEY_CRITERIA ở trên).
+  const keyCriteria = rec.criteria.filter((c) => KEY_CRITERIA.has(c.criterion))
+  const techCriteria = rec.criteria.filter((c) => !KEY_CRITERIA.has(c.criterion))
+  const techWeightPct = Math.round(techCriteria.reduce((s, c) => s + c.weightPct, 0))
   // Hàng của phương tiện người dùng đã chọn luôn được làm nổi bật — kể cả
   // khi bị cấm trong LEZ (khi đó ô cảnh báo đỏ hiện ngay trong hàng).
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25 }}
       className={`rounded-xl border p-3 transition-colors ${
         isCurrent && banned
           ? 'border-red-300 bg-red-50/70'
@@ -404,11 +444,12 @@ function RecommendationRow({
             : isCurrent
               ? 'border-primary/50 bg-primary/5'
               : rec.rank === 1
-                ? 'border-emerald-300 bg-emerald-50/60'
-                : 'bg-card'
+                ? 'border-emerald-300 bg-emerald-50/60 shadow-sm shadow-emerald-500/10'
+                : 'bg-card hover:border-emerald-200'
       }`}
     >
       <div className="flex items-start gap-2.5">
+        {!banned && <RankMedal rank={rec.rank} />}
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-lg">
           {MODE_ICONS[rec.modeId] ?? '🚍'}
         </div>
@@ -416,10 +457,12 @@ function RecommendationRow({
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="font-semibold text-sm">
               {/* Phương tiện bị cấm không tham gia xếp hạng — hiển thị tên trần */}
-              {banned ? rec.modeName : `#${rec.rank} ${rec.modeName}`}
+              {rec.modeName}
             </span>
-            {rec.rank === 1 && (
-              <Badge className="bg-emerald-600 text-white text-[10px]">Đề xuất hàng đầu</Badge>
+            {rec.rank === 1 && !banned && (
+              <Badge className="gap-1 bg-emerald-600 text-white text-[10px]">
+                <Award className="h-3 w-3" aria-hidden /> Đề xuất hàng đầu
+              </Badge>
             )}
             {isCurrent && (
               <Badge
@@ -440,13 +483,29 @@ function RecommendationRow({
             )}
             <ComplianceBadge status={compliance} />
           </div>
-          <div className="mt-1 flex flex-wrap gap-x-3.5 gap-y-0.5 text-xs text-muted-foreground">
-            <span>⏱ {fmtMin(rec.travelTimeMin)}</span>
-            <span>💰 {fmtVnd(rec.costVnd)}</span>
-            <span>🌿 {rec.co2Kg.toFixed(2)} kg CO₂</span>
-            {!banned && <span className="font-medium text-foreground">Điểm {scorePct}</span>}
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            <span className="inline-flex items-center gap-1 rounded-md bg-muted/70 px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+              <Clock3 className="h-3 w-3" aria-hidden /> {fmtMin(rec.travelTimeMin)}
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-md bg-muted/70 px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+              <Wallet className="h-3 w-3" aria-hidden /> {fmtVnd(rec.costVnd)}
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-1.5 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+              <Leaf className="h-3 w-3" aria-hidden /> {rec.co2Kg.toFixed(2)} kg CO₂
+            </span>
           </div>
         </div>
+        {!banned && (
+          <div className="shrink-0 text-right">
+            <div className="text-sm font-extrabold tabular-nums leading-none text-foreground">
+              {scorePct}
+              <span className="text-[10px] font-semibold text-muted-foreground">/100</span>
+            </div>
+            <div className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+              điểm
+            </div>
+          </div>
+        )}
       </div>
       {isCurrent && banned && (
         <div className="mt-2 rounded-lg border border-red-300 bg-white/80 p-2.5" role="alert">
@@ -503,11 +562,19 @@ function RecommendationRow({
         </div>
       )}
       {!banned && (
-        <div className="mt-2 h-1.5 w-full rounded-full bg-muted overflow-hidden">
-          <div
-            className="h-full rounded-full bg-emerald-500"
-            style={{ width: `${scorePct}%` }}
-          />
+        <div className="mt-2.5">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${scorePct}%` }}
+              transition={{ duration: 0.7, ease: 'easeOut' }}
+              className={`h-full rounded-full ${
+                rec.rank === 1
+                  ? 'bg-gradient-to-r from-emerald-500 to-emerald-400'
+                  : 'bg-emerald-500/70'
+              }`}
+            />
+          </div>
         </div>
       )}
       {banned && !isCurrent && (
@@ -547,9 +614,9 @@ function RecommendationRow({
       )}
       {!banned && open && (
         <div className="mt-3 space-y-1 border-t pt-2.5">
-          {rec.criteria.map((c) => (
+          {keyCriteria.map((c) => (
             <div key={c.criterion} className="flex items-center gap-2 text-xs">
-              <span className="w-36 shrink-0 truncate text-muted-foreground" title={c.label}>
+              <span className="w-36 shrink-0 truncate font-medium text-foreground" title={c.label}>
                 {c.label}
                 <span className="ml-1 text-[10px] opacity-60">({Math.round(c.weightPct)}%)</span>
               </span>
@@ -559,16 +626,44 @@ function RecommendationRow({
                   style={{ width: `${Math.round(c.normalized * 100)}%` }}
                 />
               </div>
-              <span className="w-24 shrink-0 text-right tabular-nums">{c.display}</span>
+              <span className="w-24 shrink-0 text-right font-semibold tabular-nums">{c.display}</span>
             </div>
           ))}
-          <p className="pt-1 text-[11px] text-muted-foreground">
-            Chấm điểm đa tiêu chí TOPSIS: mỗi tiêu chí được chuẩn hóa, gán trọng số và so với giải
-            pháp lý tưởng. Thanh cao hơn = đóng góp tốt hơn vào tổng điểm.
-          </p>
+          {techCriteria.length > 0 && (
+            <details className="group mt-1.5 rounded-lg bg-muted/40 px-2 py-1.5">
+              <summary className="flex cursor-pointer list-none items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
+                <ChevronRight
+                  className="h-3 w-3 transition-transform group-open:rotate-90"
+                  aria-hidden
+                />
+                {techCriteria.length} tiêu chí kỹ thuật khác ({techWeightPct}% trọng số)
+              </summary>
+              <div className="mt-1.5 space-y-1">
+                {techCriteria.map((c) => (
+                  <div key={c.criterion} className="flex items-center gap-2 text-xs">
+                    <span className="w-36 shrink-0 truncate text-muted-foreground" title={c.label}>
+                      {c.label}
+                      <span className="ml-1 text-[10px] opacity-60">({Math.round(c.weightPct)}%)</span>
+                    </span>
+                    <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-teal-500"
+                        style={{ width: `${Math.round(c.normalized * 100)}%` }}
+                      />
+                    </div>
+                    <span className="w-24 shrink-0 text-right tabular-nums">{c.display}</span>
+                  </div>
+                ))}
+                <p className="pt-1 text-[11px] text-muted-foreground">
+                  Chấm điểm đa tiêu chí TOPSIS: mỗi tiêu chí được chuẩn hóa, gán trọng số và so với
+                  giải pháp lý tưởng. Thanh cao hơn = đóng góp tốt hơn vào tổng điểm.
+                </p>
+              </div>
+            </details>
+          )}
         </div>
       )}
-    </div>
+    </motion.div>
   )
 }
 
@@ -597,8 +692,16 @@ export function RecommendationList({
     (r) => r.modeId !== result.vehicleId && r.compliance.status === 'not_permitted',
   )
   const ordered = chosen ? [chosen, ...usableRest, ...bannedRest] : result.recommendations
+  const nUsable = ordered.filter((r) => r.compliance.status !== 'not_permitted').length
   return (
     <div className="space-y-2.5">
+      <div className="flex items-center justify-between gap-2 rounded-lg bg-muted/50 px-2.5 py-1.5">
+        <p className="flex items-center gap-1.5 text-xs font-semibold">
+          <Award className="h-3.5 w-3.5 text-emerald-600" aria-hidden />
+          Xếp hạng TOPSIS · {nUsable} phương án khả dụng
+        </p>
+        <p className="text-[10px] text-muted-foreground">điểm 0–100</p>
+      </div>
       {ordered.map((rec) => (
         <RecommendationRow
           key={rec.modeId}
@@ -647,8 +750,9 @@ export function RecommendationsPanel({
 
 export function ComparisonTable({ result }: { result: AnalyzeResponse }) {
   const top = result.recommendations.slice(0, 4)
-  const get = (rec: Recommendation, criterion: string) =>
-    rec.criteria.find((c) => c.criterion === criterion)
+  // UX 19/11/2026: bỏ hàng "Khả năng tiếp cận" / "Thuận tiện" — điểm mô hình
+  // 0–1 mà người dùng không chuyển hoá được thành quyết định (đối chiếu
+  // KEY_CRITERIA ở trên); chi tiết đầy đủ vẫn có trong panel "Vì sao có điểm này?".
   const rows: { label: string; render: (r: Recommendation) => string }[] = [
     { label: 'Thời gian di chuyển', render: (r) => fmtMin(r.travelTimeMin) },
     // US-11: route distance is shared by every option (same origin→destination)
@@ -663,8 +767,6 @@ export function ComparisonTable({ result }: { result: AnalyzeResponse }) {
             ? 'Có điều kiện'
             : 'Không được phép',
     },
-    { label: 'Khả năng tiếp cận', render: (r) => `${Math.round((get(r, 'accessibility')?.raw ?? 0) * 100)}%` },
-    { label: 'Thuận tiện', render: (r) => `${Math.round((get(r, 'convenience')?.raw ?? 0) * 100)}%` },
     {
       label: 'Phát thải',
       render: (r) => (r.co2Kg === 0 ? 'Không phát thải' : `${r.co2Kg.toFixed(2)} kg CO₂`),
