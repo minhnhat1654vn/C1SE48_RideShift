@@ -584,6 +584,27 @@ CREATE INDEX IF NOT EXISTS user_notifications_user_idx ON decision.user_notifica
 --     with the exact DB FINAL geometry columns before the GIST indexes.
 -- ---------------------------------------------------------------------------
 
+-- 10a-bis) Hồi phục volume đã bị boot bởi schema hổng cũ (19/11/2026):
+--      lez_zones.geometry từng được tạo NOT NULL trong khi seed chèn zone
+--      với geometry NULL (sync_zone_geometry ghi shape SAU) → NotNullViolation,
+--      seed chết giữa chừng. Thả ràng buộc CHỈ khi bảng trống hoặc còn dòng
+--      NULL geometry; DB khỏe (mọi dòng đã đủ geometry) không bị đụng đến.
+--      Nhờ vậy máy thành viên đã từng chạy bản lỗi KHÔNG cần
+--      `docker compose down -v` — pull code rồi up là tự lành.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'policy' AND table_name = 'lez_zones'
+      AND column_name = 'geometry'
+  ) AND (
+    NOT EXISTS (SELECT 1 FROM policy.lez_zones LIMIT 1)
+    OR EXISTS (SELECT 1 FROM policy.lez_zones WHERE geometry IS NULL)
+  ) THEN
+    ALTER TABLE policy.lez_zones ALTER COLUMN geometry DROP NOT NULL;
+  END IF;
+END $$;
+
 -- 10a) policy.lez_zones: interim `coordinates` JSON ([[lat,lng],…]) → geometry.
 --      Per-zone conversion is exception-guarded so one corrupt ring cannot
 --      abort the whole boot; the column only becomes NOT NULL when every row
