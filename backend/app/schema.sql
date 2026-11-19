@@ -235,6 +235,40 @@ CREATE TABLE IF NOT EXISTS gis.administrative_regions (
 CREATE UNIQUE INDEX IF NOT EXISTS administrative_regions_study_name_uq
   ON gis.administrative_regions (study_area_id, name);
 
+-- Bộ máy hành chính 2025 (gộp A′): các cột mở rộng do geoimport nạp;
+-- boundary_simple = ranh giới Douglas-Peucker 0.0005° dạng GeoJSON TEXT.
+-- ADD COLUMN IF NOT EXISTS — idempotent. (Sửa hổng sync: backend PR #9 đã
+-- ghi các cột này nhưng định nghĩa bảng chưa được đồng bộ lên repo —
+-- fresh boot `docker compose up` bị lỗi "column ... does not exist".)
+ALTER TABLE gis.administrative_regions ADD COLUMN IF NOT EXISTS boundary_simple TEXT;
+ALTER TABLE gis.administrative_regions ADD COLUMN IF NOT EXISTS area_km2     DOUBLE PRECISION;
+ALTER TABLE gis.administrative_regions ADD COLUMN IF NOT EXISTS population   BIGINT;
+ALTER TABLE gis.administrative_regions ADD COLUMN IF NOT EXISTS density_km2  DOUBLE PRECISION;
+ALTER TABLE gis.administrative_regions ADD COLUMN IF NOT EXISTS merged_from  TEXT;
+
+-- ---------------------------------------------------------------------------
+-- 6b) public."City" — cổng chọn thành phố (US-44: Hà Nội / Đà Nẵng / TP.HCM).
+-- seed.py nạp 3 thành phố (upsert idempotent theo id); geoimport gắn
+-- "studyAreaId" sau khi tạo study area của từng thành phố.
+-- bbox: JSON TEXT "[[south,west],[north,east]]" — bounds WAQI + viewbox geocode.
+-- (Sửa hổng sync: seed/geoimport/airquality_sources INSERT/SELECT bảng này
+-- từ PR #9 nhưng CREATE TABLE chưa từng lên repo — fresh boot bị lỗi
+-- `relation "public.City" does not exist`, /api/cities rơi về fallback.)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public."City" (
+  id            TEXT PRIMARY KEY,             -- hanoi | danang | hochiminh
+  name          TEXT NOT NULL,
+  "centerLat"   DOUBLE PRECISION NOT NULL,
+  "centerLng"   DOUBLE PRECISION NOT NULL,
+  "defaultZoom"  INTEGER NOT NULL DEFAULT 12,
+  bbox          TEXT,
+  active        BOOLEAN NOT NULL DEFAULT TRUE,
+  "sortOrder"   INTEGER NOT NULL DEFAULT 0,
+  "studyAreaId" BIGINT REFERENCES core.study_areas(study_area_id),
+  "updatedAt"   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS city_sort_idx ON public."City" ("sortOrder");
+
 CREATE TABLE IF NOT EXISTS gis.road_segments (
   road_segment_id BIGSERIAL PRIMARY KEY,
   study_area_id   BIGINT REFERENCES core.study_areas(study_area_id),
@@ -284,7 +318,11 @@ CREATE TABLE IF NOT EXISTS policy.lez_zones (
   study_area_id  BIGINT       NOT NULL REFERENCES core.study_areas(study_area_id),
   name           VARCHAR(200) NOT NULL,
   description    TEXT,
-  geometry       GEOMETRY(MULTIPOLYGON,4326) NOT NULL,  -- ranh giới LEZ (DB FINAL)
+  geometry       GEOMETRY(MULTIPOLYGON,4326),  -- ranh giới LEZ (DB FINAL).
+  -- Nullable khi bootstrap: seed chèn zone trước, sync_zone_geometry ghi
+  -- shape sau; DO-block 10a sẽ SET NOT NULL khi mọi dòng đã có geometry
+  -- (khớp logic migration volume cũ — sửa lỗi fresh boot "null value in
+  -- column geometry violates not-null constraint").
   effective_from DATE,
   effective_to   DATE,
   status         VARCHAR(30)  NOT NULL DEFAULT 'active',  -- active | inactive
@@ -354,6 +392,14 @@ CREATE TABLE IF NOT EXISTS trip.trips (
 CREATE INDEX IF NOT EXISTS trips_created_idx  ON trip.trips (created_at);
 CREATE INDEX IF NOT EXISTS trips_purpose_idx  ON trip.trips (trip_purpose);
 CREATE INDEX IF NOT EXISTS trips_district_idx ON trip.trips (origin_district);
+
+-- Mã phường/xã của điểm đi/điểm đến (wardimport.backfill_trip_wards ghi;
+-- thống kê Admin theo khu vực đọc). ADD COLUMN IF NOT EXISTS — idempotent.
+-- (Sửa hổng sync: PR #9 đã thêm wardimport.py dùng 2 cột này nhưng ALTER
+-- chưa từng lên repo — fresh boot bị lỗi "column origin_ward_code does not
+-- exist".)
+ALTER TABLE trip.trips ADD COLUMN IF NOT EXISTS origin_ward_code      TEXT;
+ALTER TABLE trip.trips ADD COLUMN IF NOT EXISTS destination_ward_code TEXT;
 
 CREATE TABLE IF NOT EXISTS trip.trip_routes (
   route_id        BIGSERIAL PRIMARY KEY,
