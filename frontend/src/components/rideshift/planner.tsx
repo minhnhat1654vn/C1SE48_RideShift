@@ -10,8 +10,9 @@
 // (US-14), đảo chiều + tự phân tích lại (US-15), phương tiện + giờ đi (US-16),
 // mục đích + ưu tiên (US-09), xếp hạng MCDM, tuân thủ LEZ, AQI, tác động.
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
+import { motion } from 'framer-motion'
 import { apiFetch } from '@/lib/api'
 import {
   Accordion,
@@ -40,15 +41,23 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  Clock3,
   Crosshair,
+  Flag,
   Layers,
+  Leaf as LeafIcon,
   Loader2,
   MapPin,
   Minus,
+  PiggyBank,
   RotateCcw,
   Route as RouteIcon,
+  Scale,
   Search,
+  SlidersHorizontal,
   TriangleAlert,
+  Wind,
+  Zap,
 } from 'lucide-react'
 import FeedbackWidget from './feedback-widget'
 import type { AirQualityStationDto, AnalyzeResponse, LezZoneDto, ModeInfo, TripPurpose } from '@/lib/types'
@@ -97,15 +106,29 @@ const LOCATION_TYPE_VI: Record<string, string> = {
 type PrefKey = 'fastest' | 'cheapest' | 'eco' | 'comfort'
 const PRESETS: {
   key: string
-  icon: string
   label: string
+  desc: string
   prefs: Record<PrefKey, number>
 }[] = [
-  { key: 'fastest', icon: '⚡', label: 'Nhanh nhất', prefs: { fastest: 90, cheapest: 30, eco: 20, comfort: 30 } },
-  { key: 'cheapest', icon: '💰', label: 'Rẻ nhất', prefs: { fastest: 30, cheapest: 90, eco: 40, comfort: 20 } },
-  { key: 'eco', icon: '🌿', label: 'Xanh nhất', prefs: { fastest: 20, cheapest: 40, eco: 90, comfort: 30 } },
-  { key: 'balanced', icon: '⚖️', label: 'Cân bằng', prefs: { fastest: 50, cheapest: 50, eco: 50, comfort: 50 } },
+  { key: 'fastest', label: 'Nhanh nhất', desc: 'Ưu tiên tiết kiệm thời gian', prefs: { fastest: 90, cheapest: 30, eco: 20, comfort: 30 } },
+  { key: 'cheapest', label: 'Rẻ nhất', desc: 'Ưu tiên chi phí thấp nhất', prefs: { fastest: 30, cheapest: 90, eco: 40, comfort: 20 } },
+  { key: 'eco', label: 'Xanh nhất', desc: 'Ưu tiên môi trường & sức khỏe', prefs: { fastest: 20, cheapest: 40, eco: 90, comfort: 30 } },
+  { key: 'balanced', label: 'Cân bằng', desc: 'Cân bằng cả 4 tiêu chí', prefs: { fastest: 50, cheapest: 50, eco: 50, comfort: 50 } },
 ]
+
+/** Icon lucide cho từng preset (bỏ emoji — đồng bộ ngôn ngữ thị giác). */
+const PRESET_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  fastest: Zap,
+  cheapest: PiggyBank,
+  eco: LeafIcon,
+  balanced: Scale,
+}
+const PRESET_ICON_LABEL: Record<string, string> = {
+  fastest: '⚡',
+  cheapest: '💰',
+  eco: '🌿',
+  balanced: '⚖️',
+}
 
 function fmtLocalDateTime(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0')
@@ -131,36 +154,53 @@ function StepperNav({
     { n: 3 as const, label: 'Ưu tiên', done: false },
   ]
   return (
-    <nav className="flex items-center gap-1 pt-1" aria-label="Các bước lập kế hoạch">
-      {steps.map((s, i) => (
-        <Fragment key={s.n}>
-          {i > 0 && <span className="h-px w-2.5 shrink-0 bg-border sm:w-3.5" aria-hidden />}
-          <button
-            type="button"
-            onClick={() => onGo(s.n)}
-            aria-current={step === s.n ? 'step' : undefined}
-            className="flex shrink-0 items-center gap-1 rounded-full py-0.5 pr-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <span
-              className={`flex h-[18px] w-[18px] items-center justify-center rounded-full text-[10px] font-bold leading-none ${
-                s.done
-                  ? 'bg-emerald-600 text-white'
-                  : step === s.n
-                    ? 'border-2 border-emerald-600 bg-background text-emerald-700'
-                    : 'border border-border bg-background text-muted-foreground'
-              }`}
-              aria-hidden
-            >
-              {s.done ? <Check className="h-2.5 w-2.5" /> : s.n}
-            </span>
-            <span
-              className={`text-[11px] font-medium ${step === s.n ? 'text-foreground' : 'text-muted-foreground'}`}
-            >
-              {s.label}
-            </span>
-          </button>
-        </Fragment>
-      ))}
+    <nav className="pt-2" aria-label="Các bước lập kế hoạch">
+      <ol className="relative flex items-start justify-between">
+        {/* thanh tiến trình nền + phần đã đi qua (đổ đầy theo bước hiện tại) */}
+        <span
+          aria-hidden
+          className="absolute left-[18px] right-[18px] top-[13px] h-[3px] rounded-full bg-border/80"
+        />
+        <span
+          aria-hidden
+          className="absolute left-[18px] top-[13px] h-[3px] rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-500 ease-out"
+          style={{ width: `calc((100% - 36px) * ${((step - 1) / 2).toFixed(2)})` }}
+        />
+        {steps.map((s) => {
+          const Icon = s.n === 1 ? MapPin : s.n === 2 ? Flag : SlidersHorizontal
+          return (
+            <li key={s.n} className="relative z-10 flex w-[76px] flex-col items-center gap-1">
+              <button
+                type="button"
+                onClick={() => onGo(s.n)}
+                aria-current={step === s.n ? 'step' : undefined}
+                aria-label={`Bước ${s.n}: ${s.label}${s.done ? ' (đã xong)' : ''}`}
+                className="flex flex-col items-center gap-1 rounded-lg px-1 py-0.5 transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring hover:-translate-y-0.5"
+              >
+                <span
+                  className={`flex h-7 w-7 items-center justify-center rounded-full border-2 text-[11px] font-bold leading-none transition-colors ${
+                    s.done
+                      ? 'border-emerald-600 bg-emerald-600 text-white'
+                      : step === s.n
+                        ? 'border-emerald-600 bg-background text-emerald-700 shadow-[0_0_0_4px_rgba(16,185,129,0.15)]'
+                        : 'border-border bg-background text-muted-foreground'
+                  }`}
+                  aria-hidden
+                >
+                  {s.done ? <Check className="h-3.5 w-3.5" /> : <Icon className="h-3.5 w-3.5" />}
+                </span>
+                <span
+                  className={`text-[11px] font-semibold leading-none ${
+                    step === s.n ? 'text-foreground' : 'text-muted-foreground'
+                  }`}
+                >
+                  {s.label}
+                </span>
+              </button>
+            </li>
+          )
+        })}
+      </ol>
     </nav>
   )
 }
@@ -187,15 +227,23 @@ function StepCard({
     // (absolute, xổ xuống dưới input) nằm trong section, overflow-hidden cắt
     // cụp phần list tràn xuống → "có kết quả nhưng list không xổ hết".
     // Góc bo giữ riêng: header bo trên bằng rounded-t-xl.
-    <section className={`rounded-xl border ${active ? 'border-emerald-300 shadow-sm' : ''}`}>
+    <section
+      className={`rounded-xl border transition-all duration-200 ${
+        active
+          ? 'border-emerald-400/80 bg-card shadow-md shadow-emerald-500/10'
+          : 'bg-card/70 hover:border-emerald-200'
+      }`}
+    >
       <button
         type="button"
         onClick={onOpen}
         aria-expanded={active}
-        className="flex w-full items-center gap-2.5 rounded-t-xl px-3 py-2.5 text-left transition-colors hover:bg-accent/50"
+        className={`flex w-full items-center gap-2.5 rounded-t-xl px-3 py-2.5 text-left transition-colors hover:bg-accent/50 ${
+          active ? 'bg-emerald-50/40 dark:bg-emerald-950/20' : ''
+        }`}
       >
         <span
-          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
+          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold transition-colors ${
             done
               ? 'bg-emerald-600 text-white'
               : active
@@ -208,16 +256,33 @@ function StepCard({
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-            {title}
+            Bước {n} · {title}
           </span>
-          <span className="block truncate text-sm font-medium">{summary}</span>
+          <span
+            className={`block truncate text-sm font-medium ${
+              done ? 'text-emerald-700 dark:text-emerald-300' : ''
+            }`}
+          >
+            {summary}
+          </span>
         </span>
         <ChevronDown
-          className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${active ? 'rotate-180' : ''}`}
+          className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ${
+            active ? 'rotate-180 text-emerald-600' : ''
+          }`}
           aria-hidden
         />
       </button>
-      {active && <div className="border-t px-3 pb-3 pt-3">{children}</div>}
+      {active && (
+        <motion.div
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2 }}
+          className="border-t px-3 pb-3 pt-3"
+        >
+          {children}
+        </motion.div>
+      )}
     </section>
   )
 }
@@ -657,17 +722,28 @@ export default function TripPlanner({
         }`}
       >
         <Card className="pointer-events-auto flex max-h-full min-h-0 flex-col overflow-hidden rounded-2xl border bg-card/95 shadow-xl backdrop-blur">
+          {/* dải nhấn gradient trên đầu panel — nhận diện thương hiệu RideShift */}
+          <div
+            aria-hidden
+            className="h-1 shrink-0 bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-400"
+          />
         {panelView === 'form' ? (
           <>
             <CardHeader className="pb-2">
               <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <RouteIcon className="h-4 w-4" /> Lập kế hoạch chuyến đi
-                  </CardTitle>
-                  <CardDescription className="truncate">
-                    {city.name} · tìm tuyến &amp; so sánh theo quy định LEZ
-                  </CardDescription>
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <span
+                    aria-hidden
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/25"
+                  >
+                    <RouteIcon className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0">
+                    <CardTitle className="text-base leading-tight">Lập kế hoạch chuyến đi</CardTitle>
+                    <CardDescription className="truncate">
+                      {city.name} · so sánh tuyến theo LEZ &amp; AQI
+                    </CardDescription>
+                  </div>
                 </div>
                 <button
                   type="button"
@@ -718,11 +794,11 @@ export default function TripPlanner({
                           <li key={`${s.lat}-${s.lng}-${i}`}>
                             <button
                               type="button"
-                              className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
+                              className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
                               onMouseDown={() => pick(s, 'origin')}
                             >
-                              <MapPin className="mr-1.5 inline h-3.5 w-3.5 text-emerald-600" />
-                              {s.name}
+                              <MapPin className="h-3.5 w-3.5 shrink-0 text-emerald-600" aria-hidden />
+                              <span className="min-w-0 flex-1 truncate">{s.name}</span>
                             </button>
                           </li>
                         ))}
@@ -807,11 +883,11 @@ export default function TripPlanner({
                           <li key={`${s.lat}-${s.lng}-${i}`}>
                             <button
                               type="button"
-                              className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
+                              className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors hover:bg-orange-50 dark:hover:bg-orange-950/30"
                               onMouseDown={() => pick(s, 'dest')}
                             >
-                              <MapPin className="mr-1.5 inline h-3.5 w-3.5 text-orange-500" />
-                              {s.name}
+                              <MapPin className="h-3.5 w-3.5 shrink-0 text-orange-500" aria-hidden />
+                              <span className="min-w-0 flex-1 truncate">{s.name}</span>
                             </button>
                           </li>
                         ))}
@@ -843,7 +919,7 @@ export default function TripPlanner({
                 title="Ưu tiên"
                 summary={
                   activePreset
-                    ? `${activePreset.icon} ${activePreset.label} · ${selectedModeName}`
+                    ? `${PRESET_ICON_LABEL[activePreset.key] ?? ''} ${activePreset.label} · ${selectedModeName}`
                     : `Tuỳ chỉnh · ${selectedModeName}`
                 }
                 active={step === 3}
@@ -852,22 +928,48 @@ export default function TripPlanner({
               >
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-2" role="group" aria-label="Mức độ ưu tiên">
-                    {PRESETS.map((p) => (
-                      <button
-                        key={p.key}
-                        type="button"
-                        aria-pressed={presetKey === p.key}
-                        onClick={() => applyPreset(p.key)}
-                        className={`flex flex-col items-center gap-0.5 rounded-xl border-2 px-2 py-2.5 text-xs font-semibold transition-all ${
-                          presetKey === p.key
-                            ? 'border-emerald-500 bg-emerald-50 text-emerald-900 shadow-[0_0_0_3px_rgba(16,185,129,0.12)] dark:bg-emerald-950/40 dark:text-emerald-100'
-                            : 'border-border bg-card text-muted-foreground hover:border-emerald-300 hover:text-foreground'
-                        }`}
-                      >
-                        <span className="text-lg leading-none" aria-hidden>{p.icon}</span>
-                        {p.label}
-                      </button>
-                    ))}
+                    {PRESETS.map((p) => {
+                      const Icon = PRESET_ICONS[p.key] ?? LeafIcon
+                      const selected = presetKey === p.key
+                      return (
+                        <button
+                          key={p.key}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() => applyPreset(p.key)}
+                          className={`group relative flex flex-col items-start gap-1 overflow-hidden rounded-xl border-2 px-2.5 py-2.5 text-left transition-all duration-150 ${
+                            selected
+                              ? 'border-emerald-500 bg-emerald-50 text-emerald-900 shadow-[0_0_0_3px_rgba(16,185,129,0.12)] dark:bg-emerald-950/40 dark:text-emerald-100'
+                              : 'border-border bg-card text-muted-foreground hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-sm hover:text-foreground'
+                          }`}
+                        >
+                          {selected && (
+                            <span
+                              className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-600 text-white"
+                              aria-hidden
+                            >
+                              <Check className="h-2.5 w-2.5" />
+                            </span>
+                          )}
+                          <span
+                            aria-hidden
+                            className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors ${
+                              selected
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300'
+                            }`}
+                          >
+                            <Icon className="h-4 w-4" />
+                          </span>
+                          <span className="text-xs font-bold leading-tight text-foreground">
+                            {p.label}
+                          </span>
+                          <span className="text-[10px] leading-tight text-muted-foreground">
+                            {p.desc}
+                          </span>
+                        </button>
+                      )
+                    })}
                   </div>
 
                   <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
@@ -976,7 +1078,11 @@ export default function TripPlanner({
                 </Alert>
               )}
 
-              <Button className="w-full" onClick={() => analyze()} disabled={analyzing}>
+              <Button
+                className="h-10 w-full bg-gradient-to-r from-emerald-600 to-teal-600 text-sm font-semibold text-white shadow-md shadow-emerald-600/25 transition-all hover:from-emerald-700 hover:to-teal-700 hover:shadow-lg hover:shadow-emerald-600/30"
+                onClick={() => analyze()}
+                disabled={analyzing}
+              >
                 {analyzing ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Đang phân tích…
@@ -1033,28 +1139,46 @@ export default function TripPlanner({
               <CardDescription className="truncate">
                 📍 {origin?.name ?? '—'} → 🏁 {destination?.name ?? '—'}
               </CardDescription>
+              {/* hàng chỉ số nhanh: quãng đường · thời gian · AQI (một cái nhìn tổng quan trước khi cuộn) */}
+              <div className="flex flex-wrap gap-1.5 pt-0.5">
+                <span className="inline-flex items-center gap-1 rounded-lg border bg-muted/50 px-2 py-1 text-[11px] font-semibold text-foreground">
+                  <RouteIcon className="h-3 w-3 text-emerald-600" aria-hidden />
+                  {result?.route.distanceKm != null ? `${result.route.distanceKm.toFixed(1)} km` : '—'}
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-lg border bg-muted/50 px-2 py-1 text-[11px] font-semibold text-foreground">
+                  <Clock3 className="h-3 w-3 text-emerald-600" aria-hidden />
+                  {result?.route.durationMin != null
+                    ? result.route.durationMin < 60
+                      ? `${Math.round(result.route.durationMin)} phút`
+                      : `${Math.floor(result.route.durationMin / 60)} giờ ${Math.round(result.route.durationMin % 60)} phút`
+                    : '—'}
+                </span>
+                {result?.airQuality?.aqi != null && (
+                  <span
+                    className="inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-semibold"
+                    style={{
+                      borderColor: aqiCategory(result.airQuality.aqi).color,
+                      color: aqiCategory(result.airQuality.aqi).color,
+                    }}
+                  >
+                    <Wind className="h-3 w-3" aria-hidden />
+                    AQI {result.airQuality.aqi}
+                    {result.airQuality.category ? ` · ${result.airQuality.category}` : ''}
+                  </span>
+                )}
+                {result?.lez?.affected && (
+                  <span className="inline-flex items-center gap-1 rounded-lg border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                    ⚠ Đi qua vùng LEZ
+                  </span>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="min-h-0 space-y-3 overflow-y-auto p-4 pt-0">
               {analyzing && analyzingBlock}
               {result && (
                 <>
-                  {result.airQuality?.aqi != null && (
-                    <div className="rounded-xl border bg-muted/30 px-3 py-2 text-xs">
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">🌤 Chất lượng không khí</span>
-                        <span className="font-semibold">
-                          AQI {result.airQuality.aqi}
-                          {result.airQuality.category ? ` · ${result.airQuality.category}` : ''}
-                        </span>
-                      </div>
-                      {result.airQuality.locationLabel && (
-                        <p className="mt-1 text-[10px] leading-snug text-muted-foreground">
-                          Nguồn: {result.airQuality.locationLabel}
-                          {result.airQuality.source === 'interpolated' ? ' (nội suy)' : ''}
-                        </p>
-                      )}
-                    </div>
-                  )}
+                  {/* AQI tóm tắt đã rút gọn vào hàng chỉ số nhanh ở header
+                      (stat pills) — bỏ block riêng tránh lặp thông tin. */}
 
                   <RecommendationList
                     result={result}

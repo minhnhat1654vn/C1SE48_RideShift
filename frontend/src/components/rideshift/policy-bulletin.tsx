@@ -19,6 +19,7 @@
 // vehicleTypeCode khớp mã phương tiện) + GET /api/modes (danh mục + tên + icon).
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { motion } from 'framer-motion'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -38,8 +39,10 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { apiUrl } from '@/lib/api'
 import { MODE_ICONS } from '@/components/rideshift/results'
 import {
+  Ban,
   Braces,
   CalendarDays,
+  CheckCircle2,
   ChevronDown,
   Database,
   FileJson,
@@ -49,6 +52,7 @@ import {
   MapPinned,
   RefreshCcw,
   ShieldCheck,
+  TriangleAlert,
   TrafficCone,
   Wind,
 } from 'lucide-react'
@@ -179,15 +183,15 @@ function HourBar({
   const width = full ? 100 : Math.max(((e - s) / 1440) * 100, 2)
   const fill =
     tone === 'red'
-      ? 'bg-red-600 dark:bg-red-500'
-      : 'bg-amber-500 dark:bg-amber-400'
+      ? 'bg-gradient-to-r from-red-500 to-red-600'
+      : 'bg-gradient-to-r from-amber-400 to-amber-500'
   return (
     <div
       role="img"
       aria-label={`Khung giờ hạn chế từ ${start} đến ${end}`}
       className="w-full"
     >
-      <div className="relative h-3 w-full rounded-full bg-muted">
+      <div className="relative h-3.5 w-full rounded-full bg-muted ring-1 ring-inset ring-black/5">
         <div
           className={`absolute inset-y-0 rounded-full ${fill}`}
           style={{ left: `${left}%`, width: `${width}%` }}
@@ -200,6 +204,9 @@ function HourBar({
         <span>18h</span>
         <span>24h</span>
       </div>
+      <p className="mt-0.5 text-[11px] font-semibold tabular-nums text-foreground/80">
+        ⏰ Hạn chế {start} – {end}
+      </p>
     </div>
   )
 }
@@ -346,26 +353,58 @@ export default function PolicyBulletinView({
   }
 
   const activeCount = zones.filter((z) => z.status === 'active').length
+  const totalRules = zones.reduce((s, z) => s + z.rules.length, 0)
 
   return (
     <div className="mx-auto w-full max-w-3xl py-2">
-      {/* ---------------- header ---------------- */}
-      <header className="mb-4 flex flex-col gap-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <h2 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-            <TrafficCone className="h-6 w-6 text-primary" aria-hidden />
-            Chính sách vùng phát thải thấp
-          </h2>
+      {/* ---------------- header (hero) ---------------- */}
+      <header className="relative mb-5 overflow-hidden rounded-2xl border bg-gradient-to-br from-emerald-50 via-teal-50/60 to-background p-5 dark:from-emerald-950/40 dark:via-teal-950/30 dark:to-background">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-emerald-400/10 blur-2xl"
+        />
+        <div className="relative flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <span
+              aria-hidden
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25"
+            >
+              <TrafficCone className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
+                Chính sách vùng phát thải thấp
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Chọn phương tiện bạn hay đi — biết ngay có bị hạn chế khi vào vùng kiểm soát
+                ô nhiễm hay không.
+              </p>
+            </div>
+          </div>
+          {/* hàng chỉ số nhanh */}
           {zones.length > 0 && (
-            <Badge variant="outline" className="font-normal text-muted-foreground">
-              {zones.length} vùng · {activeCount} đang hiệu lực
-            </Badge>
+            <div className="flex flex-wrap gap-2" role="list" aria-label="Thống kê chính sách">
+              <span
+                role="listitem"
+                className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-card/80 px-3 py-1 text-xs font-semibold text-emerald-800 dark:border-emerald-800 dark:text-emerald-200"
+              >
+                <MapPin className="h-3.5 w-3.5" aria-hidden /> {zones.length} vùng kiểm soát
+              </span>
+              <span
+                role="listitem"
+                className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-card/80 px-3 py-1 text-xs font-semibold text-emerald-800 dark:border-emerald-800 dark:text-emerald-200"
+              >
+                <ShieldCheck className="h-3.5 w-3.5" aria-hidden /> {activeCount} đang hiệu lực
+              </span>
+              <span
+                role="listitem"
+                className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-card/80 px-3 py-1 text-xs font-semibold text-emerald-800 dark:border-emerald-800 dark:text-emerald-200"
+              >
+                <FileText className="h-3.5 w-3.5" aria-hidden /> {totalRules} quy định
+              </span>
+            </div>
           )}
         </div>
-        <p className="text-sm text-muted-foreground">
-          Chọn phương tiện bạn hay đi — hệ thống cho biết có bị hạn chế khi vào các vùng
-          kiểm soát ô nhiễm của thành phố hay không.
-        </p>
       </header>
 
       {/* ---------------- ① chọn phương tiện ---------------- */}
@@ -375,23 +414,24 @@ export default function PolicyBulletinView({
           {modes.map((m) => {
             const selected = m.id === selectedMode
             return (
-              <button
+              <motion.button
                 key={m.id}
                 type="button"
                 role="radio"
                 aria-checked={selected}
                 onClick={() => setSelectedMode(m.id)}
-                className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium transition-colors ${
+                whileTap={{ scale: 0.96 }}
+                className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-sm font-medium transition-all ${
                   selected
-                    ? 'border-primary bg-primary text-primary-foreground shadow-sm'
-                    : 'border-border bg-background hover:bg-muted'
+                    ? 'border-primary bg-primary text-primary-foreground shadow-md shadow-primary/25'
+                    : 'border-border bg-background hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-sm'
                 }`}
               >
                 <span aria-hidden className="text-base leading-none">
                   {MODE_ICONS[m.id] ?? '🚗'}
                 </span>
                 {m.name}
-              </button>
+              </motion.button>
             )
           })}
         </div>
@@ -419,7 +459,27 @@ export default function PolicyBulletinView({
             const tone = verdict === 'free' ? 'green' : banned ? 'red' : 'amber'
             const allowed = modes.filter((m) => !restrictedCodes(zone).has(m.id))
             return (
-              <Card key={zone.zoneId} className="rounded-2xl">
+              <Card
+                key={zone.zoneId}
+                className={`relative overflow-hidden rounded-2xl transition-shadow hover:shadow-md ${
+                  tone === 'red'
+                    ? 'border-red-200/70 dark:border-red-900/50'
+                    : tone === 'amber'
+                      ? 'border-amber-200/70 dark:border-amber-900/50'
+                      : 'border-emerald-200/70 dark:border-emerald-900/50'
+                }`}
+              >
+                {/* đường ray màu bên trái — báo hiệu mức độ của xe đã chọn */}
+                <span
+                  aria-hidden
+                  className={`absolute inset-y-0 left-0 w-1.5 ${
+                    tone === 'red'
+                      ? 'bg-gradient-to-b from-red-500 to-red-600'
+                      : tone === 'amber'
+                        ? 'bg-gradient-to-b from-amber-400 to-amber-500'
+                        : 'bg-gradient-to-b from-emerald-400 to-emerald-600'
+                  }`}
+                />
                 <CardHeader className="gap-2.5 pb-3">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <CardTitle className="text-lg font-bold leading-tight">{zone.name}</CardTitle>
@@ -648,17 +708,17 @@ function AnswerCard({
 
   const shell =
     tone === 'red'
-      ? 'border-red-300 bg-red-50 dark:border-red-900 dark:bg-red-950/50'
+      ? 'border-red-300 bg-gradient-to-br from-red-50 to-red-100/60 dark:border-red-900 dark:from-red-950/60 dark:to-red-950/30'
       : tone === 'amber'
-        ? 'border-amber-300 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/50'
-        : 'border-emerald-300 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/50'
+        ? 'border-amber-300 bg-gradient-to-br from-amber-50 to-amber-100/60 dark:border-amber-900 dark:from-amber-950/60 dark:to-amber-950/30'
+        : 'border-emerald-300 bg-gradient-to-br from-emerald-50 to-emerald-100/60 dark:border-emerald-900 dark:from-emerald-950/60 dark:to-emerald-950/30'
 
   const title =
     tone === 'red'
-      ? `⛔ ${modeName}: BỊ CẤM`
+      ? `${modeName}: BỊ CẤM`
       : tone === 'amber'
-        ? `⚠️ ${modeName}: ${conditional.length > 0 ? 'ĐƯỢC VÀO CÓ ĐIỀU KIỆN' : 'SẮP BỊ HẠN CHẾ'}`
-        : `✅ ${modeName}: KHÔNG BỊ HẠN CHẾ`
+        ? `${modeName}: ${conditional.length > 0 ? 'ĐƯỢC VÀO CÓ ĐIỀU KIỆN' : 'SẮP BỊ HẠN CHẾ'}`
+        : `${modeName}: KHÔNG BỊ HẠN CHẾ`
 
   const sub =
     tone === 'red'
@@ -673,43 +733,68 @@ function AnswerCard({
           : `vùng sắp áp dụng từ ${formatDate(upcoming[0]?.zone.effectiveFrom)} — theo dõi để chuẩn bị`
         : 'Đi lại tự do trong mọi vùng hiện có của thành phố'
 
+  const VerdictIcon =
+    tone === 'red' ? Ban : tone === 'amber' ? TriangleAlert : CheckCircle2
+  const iconCls =
+    tone === 'red'
+      ? 'bg-red-600 text-white shadow-lg shadow-red-500/30'
+      : tone === 'amber'
+        ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30'
+        : 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/30'
+
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 10, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.3, ease: 'easeOut' }}
       role="status"
       aria-live="polite"
       className={`rounded-2xl border p-4 sm:p-5 ${shell}`}
     >
-      <p
-        className={`text-lg font-extrabold leading-snug sm:text-xl ${
-          tone === 'red'
-            ? 'text-red-700 dark:text-red-300'
-            : tone === 'amber'
-              ? 'text-amber-800 dark:text-amber-200'
-              : 'text-emerald-700 dark:text-emerald-300'
-        }`}
-      >
-        {title}
-      </p>
-      <p
-        className={`mt-0.5 text-sm font-medium ${
-          tone === 'red'
-            ? 'text-red-700/80 dark:text-red-200/80'
-            : tone === 'amber'
-              ? 'text-amber-800/80 dark:text-amber-200/80'
-              : 'text-emerald-700/80 dark:text-emerald-300/80'
-        }`}
-      >
-        {sub}
-      </p>
-      {affected.length > 1 && (
-        <ul className="mt-2 space-y-0.5 text-sm">
-          {affected.map((c) => (
-            <li key={c.zone.zoneId} className="font-medium">
-              · {c.zone.name}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+      <div className="flex items-start gap-3.5">
+        <span
+          aria-hidden
+          className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${iconCls}`}
+        >
+          <VerdictIcon className="h-5 w-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p
+            className={`text-lg font-extrabold leading-snug sm:text-xl ${
+              tone === 'red'
+                ? 'text-red-700 dark:text-red-300'
+                : tone === 'amber'
+                  ? 'text-amber-800 dark:text-amber-200'
+                  : 'text-emerald-700 dark:text-emerald-300'
+            }`}
+          >
+            {title}
+          </p>
+          <p
+            className={`mt-0.5 text-sm font-medium ${
+              tone === 'red'
+                ? 'text-red-700/80 dark:text-red-200/80'
+                : tone === 'amber'
+                  ? 'text-amber-800/80 dark:text-amber-200/80'
+                  : 'text-emerald-700/80 dark:text-emerald-300/80'
+            }`}
+          >
+            {sub}
+          </p>
+          {affected.length > 1 && (
+            <ul className="mt-2 flex flex-wrap gap-1.5">
+              {affected.map((c) => (
+                <li
+                  key={c.zone.zoneId}
+                  className="inline-flex items-center gap-1 rounded-full border border-current/20 bg-card/60 px-2.5 py-1 text-xs font-semibold"
+                >
+                  <MapPin className="h-3 w-3" aria-hidden /> {c.zone.name}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </motion.div>
   )
 }
