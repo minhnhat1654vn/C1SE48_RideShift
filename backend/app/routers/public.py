@@ -8,12 +8,10 @@ gov FE không bao giờ gọi, 19 trong số đó 500 vì 8 bảng gov đã DROP
 FINAL). Chỉ giữ lại ĐÚNG những route FE đang gọi, path + response KHÔNG đổi.
 """
 import json
-from datetime import date, datetime, time as _dt_time, timedelta, timezone
+from datetime import date, datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel, Field
-
 from .. import db
 from ..config import APP_VERSION
 from ..dto import _hhmm, iso_z, location_dto, mode_dto, zone_dto
@@ -282,188 +280,6 @@ def dataset_summary():
 # xoá theo duyệt user 28/10). CHỈ giữ các endpoint FE đang gọi, giữ nguyên
 # path + response contract.
 # ===========================================================================
-
-# ---------------------------------------------------------------------------
-# Thông báo người dùng (notification-bell.tsx) — public, ẩn danh theo userKey
-# ---------------------------------------------------------------------------
-
-class PrefsBody(BaseModel):
-    userKey: str = Field(min_length=1, max_length=64)
-    optIn: bool
-    district: Optional[str] = Field(default=None, max_length=100)
-
-
-class ReadBody(BaseModel):
-    userKey: str = Field(min_length=1, max_length=64)
-    ids: list[int] = Field(min_length=1, max_length=200)
-
-
-def _require_user_key(user_key: str) -> str:
-    uk = (user_key or "").strip()
-    if not (1 <= len(uk) <= 64):
-        raise HTTPException(status_code=400, detail="userKey không hợp lệ (1..64 ký tự).")
-    return uk
-
-
-def _today() -> date:
-    return datetime.now(timezone.utc).date()
-
-
-def _vn_date(d: Optional[date]) -> str:
-    return d.strftime("%d/%m/%Y") if d else "—"
-
-
-def _generate_zone_notifications(conn, user_key: str) -> int:
-    """Sinh thông báo LEZ mới cho user (idempotent theo UNIQUE(user_key, type, zone_id))."""
-    today = _today()
-    zones = conn.execute(
-        """
-        SELECT lez_zone_id, name, status, decision_no, issued_by, effective_from
-        FROM policy.lez_zones
-        WHERE status IN ('published', 'active')
-          AND effective_from IS NOT NULL
-          AND effective_from BETWEEN %s AND %s
-        ORDER BY effective_from
-        """,
-        (today - timedelta(days=7), today + timedelta(days=30)),
-    ).fetchall()
-    created = 0
-    for z in zones:
-        ntype = "lez_published" if z["status"] == "published" else "lez_active"
-        eff = _vn_date(z["effective_from"])
-        qd = f"Quyết định số {z['decision_no']}" if z["decision_no"] else "Văn bản chính sách"
-        org = f" (ban hành bởi {z['issued_by']})" if z["issued_by"] else ""
-        verb = "sẽ có hiệu lực từ" if ntype == "lez_published" else "đã có hiệu lực từ"
-        title = f"Vùng kiểm soát phát thải mới: {z['name']}"[:200]
-        body = (
-            f"{qd}{org} — vùng LEZ \"{z['name']}\" {verb} {eff}. "
-            "Bạn nên xem xét lập kế hoạch lại tuyến di chuyển trong khu vực này."
-        )
-        row = conn.execute(
-            """
-            INSERT INTO decision.user_notifications (user_key, type, zone_id, title, body)
-            VALUES (%s, %s, %s, %s, %s)
-            ON CONFLICT (user_key, type, zone_id) DO NOTHING
-            RETURNING notification_id
-            """,
-            (user_key, ntype, int(z["lez_zone_id"]), title, body),
-        ).fetchone()
-        if row:
-            created += 1
-    return created
-
-
-@router.post("/api/notifications/prefs")
-def set_notification_prefs(body: PrefsBody):
-    """(Public) Lưu tùy chọn nhận thông báo chính sách (UPSERT theo user_key)."""
-    try:
-        with db.get_conn() as conn:
-            row = conn.execute(
-                """
-                INSERT INTO decision.notification_prefs (user_key, district, opt_in, updated_at)
-                VALUES (%s, %s, %s, now())
-                ON CONFLICT (user_key) DO UPDATE SET
-                    opt_in = EXCLUDED.opt_in,
-                    district = COALESCE(EXCLUDED.district, decision.notification_prefs.district),
-                    updated_at = now()
-                RETURNING user_key, opt_in, district
-                """,
-                (body.userKey.strip(), body.district, body.optIn),
-            ).fetchone()
-    except HTTPException:
-        raise
-    except Exception:
-        raise HTTPException(status_code=500, detail="Không lưu được tùy chọn thông báo. Vui lòng thử lại.")
-    return {"prefs": {"userKey": row["user_key"], "optIn": bool(row["opt_in"]), "district": row["district"]}}
-
-
-@router.get("/api/notifications/prefs")
-def get_notification_prefs(userKey: str = Query(default="")):
-    """(Public) Tra tùy chọn thông báo theo user_key."""
-    uk = _require_user_key(userKey)
-    try:
-        with db.get_conn() as conn:
-            row = conn.execute(
-                "SELECT user_key, opt_in, district FROM decision.notification_prefs WHERE user_key = %s",
-                (uk,),
-            ).fetchone()
-    except HTTPException:
-        raise
-    except Exception:
-        raise HTTPException(status_code=500, detail="Không tải được tùy chọn thông báo. Vui lòng thử lại.")
-    if not row:
-        return {"prefs": None}
-    return {"prefs": {"userKey": row["user_key"], "optIn": bool(row["opt_in"]), "district": row["district"]}}
-
-
-@router.get("/api/notifications")
-def list_notifications(userKey: str = Query(default="")):
-    """(Public) Danh sách thông báo của user (tự sinh thông báo LEZ nếu đã opt-in)."""
-    uk = _require_user_key(userKey)
-    try:
-        with db.get_conn() as conn:
-            prefs = conn.execute(
-                "SELECT opt_in FROM decision.notification_prefs WHERE user_key = %s", (uk,)
-            ).fetchone()
-            if prefs and prefs["opt_in"]:
-                _generate_zone_notifications(conn, uk)
-            rows = conn.execute(
-                """
-                SELECT notification_id, type, title, body, zone_id, read_at, created_at
-                FROM decision.user_notifications
-                WHERE user_key = %s
-                ORDER BY created_at DESC
-                LIMIT 50
-                """,
-                (uk,),
-            ).fetchall()
-            unread = int(conn.execute(
-                """
-                SELECT count(*) AS c FROM decision.user_notifications
-                WHERE user_key = %s AND read_at IS NULL
-                """,
-                (uk,),
-            ).fetchone()["c"])
-    except HTTPException:
-        raise
-    except Exception:
-        raise HTTPException(status_code=500, detail="Không tải được thông báo. Vui lòng thử lại.")
-    return {
-        "notifications": [
-            {
-                "id": int(r["notification_id"]),
-                "type": r["type"],
-                "title": r["title"],
-                "body": r["body"],
-                "zoneId": int(r["zone_id"]) if r["zone_id"] is not None else None,
-                "readAt": iso_z(r["read_at"]),
-                "createdAt": iso_z(r["created_at"]),
-            }
-            for r in rows
-        ],
-        "unread": unread,
-    }
-
-
-@router.post("/api/notifications/read")
-def mark_notifications_read(body: ReadBody):
-    """(Public) Đánh dấu một loạt thông báo là đã đọc."""
-    try:
-        with db.get_conn() as conn:
-            conn.execute(
-                """
-                UPDATE decision.user_notifications SET read_at = now()
-                WHERE user_key = %s AND notification_id = ANY(%s)
-                """,
-                (body.userKey.strip(), body.ids),
-            )
-    except HTTPException:
-        raise
-    except Exception:
-        raise HTTPException(status_code=500, detail="Không cập nhật được trạng thái thông báo. Vui lòng thử lại.")
-    return {"ok": True}
-
-
 # ---------------------------------------------------------------------------
 # Dữ liệu mở (policy-bulletin.tsx — liên kết tải GeoJSON/JSON)
 # ---------------------------------------------------------------------------
@@ -475,7 +291,7 @@ def open_lez_geojson():
         with db.get_conn() as conn:
             rows = conn.execute(
                 """
-                SELECT lez_zone_id, name, status, decision_no, effective_from, effective_to, geometry
+                SELECT lez_zone_id, name, status, effective_from, effective_to, geometry
                 FROM policy.lez_zones
                 WHERE status IN ('published', 'active')
                 ORDER BY lez_zone_id
@@ -505,7 +321,7 @@ def open_lez_geojson():
                 "id": int(r["lez_zone_id"]),
                 "name": r["name"],
                 "status": r["status"],
-                "decisionNo": r["decision_no"],
+                "decisionNo": None,
                 "effectiveFrom": r["effective_from"].isoformat() if r["effective_from"] else None,
                 "effectiveTo": r["effective_to"].isoformat() if r["effective_to"] else None,
             },
