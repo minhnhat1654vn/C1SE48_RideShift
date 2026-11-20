@@ -7,13 +7,12 @@
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 import dynamic from 'next/dynamic'
-import { BookOpenText, Landmark, Leaf, Loader2, MapPin, MapPinned, ShieldCheck } from 'lucide-react'
+import { Landmark, Leaf, Loader2, MapPin, MapPinned, ShieldCheck } from 'lucide-react'
 import { Toaster as SonnerToaster } from 'sonner'
 import { apiFetch } from '@/lib/api'
 import type { CityDto, LezZoneDto } from '@/lib/types'
 import { FALLBACK_CITIES } from '@/lib/city-fallback'
 import { useCityStore } from '@/lib/city-store'
-import DocsViewer from '@/components/rideshift/docs-viewer'
 import CityGate from '@/components/rideshift/city-gate'
 
 const TripPlanner = dynamic(() => import('@/components/rideshift/planner'), {
@@ -65,7 +64,6 @@ function zoneInCity(z: LezZoneDto, cityId: string): boolean {
 
 export default function Home() {
   const [tab, setTab] = useState<TabKey>('planner')
-  const [docsOpen, setDocsOpen] = useState(false)
   /** Task 79: ranh giới vùng LEZ cần bay tới trên bản đồ (từ tab Chính sách) */
   const [mapFocus, setMapFocus] = useState<[number, number][] | null>(null)
   const [zones, setZones] = useState<LezZoneDto[]>([])
@@ -239,13 +237,6 @@ export default function Home() {
               <ShieldCheck className="h-4 w-4" aria-hidden /> Quản trị
             </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setDocsOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-full border bg-muted/50 px-3.5 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <BookOpenText className="h-4 w-4" aria-hidden /> Tài liệu
-            </button>
           </nav>
         </div>
       </header>
@@ -298,8 +289,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* ---------------- docs viewer ---------------- */}
-      <DocsViewer open={docsOpen} onOpenChange={setDocsOpen} />
 
       {/* ---------------- toast host (sonner — dùng bởi chuông thông báo + phản hồi đề xuất) ---------------- */}
       <SonnerToaster />
