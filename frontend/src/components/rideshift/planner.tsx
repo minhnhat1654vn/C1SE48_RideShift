@@ -59,7 +59,6 @@ import {
   Wind,
   Zap,
 } from 'lucide-react'
-import FeedbackWidget from './feedback-widget'
 import type { AirQualityStationDto, AnalyzeResponse, LezZoneDto, ModeInfo, TripPurpose } from '@/lib/types'
 import { isStationAvailable } from '@/lib/types'
 import { AQI_LEGEND, aqiCategory, formatAqiTime } from '@/lib/aqi-visual'
@@ -1188,16 +1187,6 @@ export default function TripPlanner({
                   />
 
                   {/* Task 3-c: phản hồi nhanh về phương tiện được đề xuất (chỉ khi có kết quả phân tích) */}
-                  {(result.tripId || result.recommendations.length > 0) && (
-                    <div className="mt-3 border-t pt-3">
-                      <FeedbackWidget
-                        tripId={result.tripId}
-                        topModeId={result.recommendations[0]?.modeId}
-                        topModeName={result.recommendations[0]?.modeName}
-                      />
-                    </div>
-                  )}
-
                   <Accordion type="multiple" defaultValue={['trip-ov']}>
                     <AccordionItem value="trip-ov">
                       <AccordionTrigger className="py-3 text-sm">

@@ -111,6 +111,7 @@ DROP TABLE IF EXISTS public."TripRecord" CASCADE;
 DROP TABLE IF EXISTS public."AirQualityCache" CASCADE;
 DROP TABLE IF EXISTS public."LezZone" CASCADE;
 DROP TABLE IF EXISTS public."_prisma_migrations" CASCADE;
+DROP TABLE IF EXISTS decision.user_feedback CASCADE;
 
 -- ---------------------------------------------------------------------------
 -- 4) core — study areas, admin accounts, sessions, audit log, dataset runs
