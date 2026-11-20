@@ -37,11 +37,7 @@ const AdminDashboard = dynamic(
   }
 )
 
-// Chuông thông báo dùng localStorage/window → bắt buộc ssr:false
-const NotificationBell = dynamic(
-  () => import('@/components/rideshift/notification-bell'),
-  { ssr: false }
-)
+
 
 const PolicyBulletinView = dynamic(
   () => import('@/components/rideshift/policy-bulletin'),
@@ -184,10 +180,7 @@ export default function Home() {
               </p>
             </div>
           </div>
-
           <nav className="ml-auto flex flex-wrap items-center justify-end gap-2" aria-label="Điều hướng chính">
-            {/* Chuông thông báo chính sách — luôn thấy được, ngoài pill tab */}
-            <NotificationBell />
             {/* chip thành phố (yêu cầu 6 — bấm để mở lại cổng chọn thành phố) */}
             {city && (
               <button
