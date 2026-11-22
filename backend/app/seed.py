@@ -474,6 +474,7 @@ def _backfill_trip_regions(conn) -> None:
 
 
 DEMO_TRIP_TARGET = 100  # bộ chuyến mẫu luôn duy trì để biểu đồ có dữ liệu ngay
+DEMO_TRIP_MAX_AGE_DAYS = 7  # mẫu mới nhất cũ hơn ngưỡng này → cả bộ đã rơi khỏi cửa sổ thống kê
 
 
 def _ensure_demo_trips(conn) -> None:
@@ -485,14 +486,34 @@ def _ensure_demo_trips(conn) -> None:
     đúng DEMO_TRIP_TARGET: thiếu thì bù cho đủ, thừa thì cắt cái cũ
     nhất trước.
 
+    Biểu đồ thống kê mặc định chỉ nhìn 30 ngày gần nhất, trong khi bộ
+    mẫu được sinh trải trên 30 ngày tính từ lúc boot — nên volume được
+    khởi tạo từ nhiều tuần trước sẽ giữ bộ mẫu đã “hết hạn” (toàn bộ
+    rơi ra ngoài cửa sổ hiển thị dù vẫn đủ 100 dòng). Khi chuyến mẫu
+    MỚI NHẤT đã cũ hơn DEMO_TRIP_MAX_AGE_DAYS, cả bộ cũ được thay bằng
+    bộ mới trải trên 30 ngày tính từ hiện tại.
+
     Chuyến mẫu nhận biết qua preferences = '{}' — chuyến do người dùng
     phân tích trên planner luôn lưu preferences (4 thanh trượt trọng
-    số) nên hai nhóm không bao giờ nhầm vào nhau, việc cắt/bù không
-    đụng tới dữ liệu người dùng phân tích.
+    số) nên hai nhóm không bao giờ nhầm vào nhau, việc cắt/bù/làm mới
+    không đụng tới dữ liệu người dùng phân tích.
     """
-    seed_count = conn.execute(
-        "SELECT count(*) AS c FROM trip.trips WHERE preferences = '{}'"
-    ).fetchone()["c"]
+    row = conn.execute(
+        """
+        SELECT count(*) AS c, max(created_at) AS newest
+        FROM trip.trips WHERE preferences = '{}'
+        """
+    ).fetchone()
+    seed_count = int(row["c"] or 0)
+    newest = row["newest"]
+    now = datetime.now(timezone.utc)
+    if newest is not None and newest.tzinfo is None:
+        newest = newest.replace(tzinfo=timezone.utc)
+    if seed_count > 0 and (
+        newest is None or now - newest > timedelta(days=DEMO_TRIP_MAX_AGE_DAYS)
+    ):
+        conn.execute("DELETE FROM trip.trips WHERE preferences = '{}'")
+        seed_count = 0
     if seed_count > DEMO_TRIP_TARGET:
         conn.execute(
             """
@@ -528,7 +549,6 @@ def _ensure_demo_trips(conn) -> None:
     central = region_by_name.get("Central Hanoi")
 
     rng = random.Random(48)
-    now = datetime.now(timezone.utc)
     mode_codes = [m[0] for m in MODES]
     for _ in range(DEMO_TRIP_TARGET - seed_count):
         mode = rng.choice(mode_codes)

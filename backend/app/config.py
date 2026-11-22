@@ -9,7 +9,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # (rideshift/backend:<APP_VERSION>) và hiển thị ở /health. Giúp xác minh chắc
 # chắn container đang chạy code MỚI (chống tái dùng image cũ khi
 # `docker compose up` quên --build — nguyên nhân gốc của lỗi "chỉ có Hà Nội").
-APP_VERSION = "2026.10.28"
+APP_VERSION = "2026.11.22"
 
 # PostgreSQL connection (proposal: PostgreSQL; docker-compose uses postgis image).
 # The sandbox platform may inject DATABASE_URL=file:...custom.db (SQLite legacy) —
