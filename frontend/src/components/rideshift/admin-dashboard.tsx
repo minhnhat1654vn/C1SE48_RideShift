@@ -493,10 +493,6 @@ function LoginScreen({ onLoggedIn }: { onLoggedIn: (user: AdminUser) => void }) 
             <ShieldCheck className="size-6" />
           </div>
           <CardTitle className="text-xl">Đăng nhập quản trị viên</CardTitle>
-          <CardDescription>
-            RideShift — Cố vấn chuyển đổi giao thông thông minh. Quản lý vùng LEZ, quy định và cài
-            đặt xếp hạng.
-          </CardDescription>
         </CardHeader>
         <CardContent>
           {/* Submitting via the form enables Enter-key submit (US-21) */}
@@ -536,9 +532,6 @@ function LoginScreen({ onLoggedIn }: { onLoggedIn: (user: AdminUser) => void }) 
             >
               {submitting ? <Loader2 className="animate-spin" /> : <LogIn />} Đăng nhập
             </Button>
-            <p className="text-center text-xs text-muted-foreground">
-              Tài khoản demo mặc định: <span className="font-mono">admin / admin123</span>
-            </p>
           </form>
         </CardContent>
       </Card>
@@ -824,16 +817,12 @@ function OverviewSection({
       : 'Chưa bao giờ'
 
   const datasetKpis: { label: string; value: string }[] = [
-    { label: 'Chạy pipeline gần nhất', value: lastRunLabel },
+    { label: 'Lần xử lí dữ liệu gần nhất', value: lastRunLabel },
     {
       label: 'Số dòng sạch',
       value: lastRun ? lastRun.rowsClean.toLocaleString('vi-VN') : '—',
     },
     { label: 'Dòng đầu vào', value: lastRun ? lastRun.rowsIn.toLocaleString('vi-VN') : '—' },
-    {
-      label: dataset?.periodKind === 'cohort' ? 'Kỳ dữ liệu cuối' : 'Tháng mới nhất',
-      value: dataset?.latestMonth ?? '—',
-    },
   ]
 
   // Dataset pipeline rewrites decision.dataset_trends each run (unique per mode+period) —
@@ -972,7 +961,8 @@ function OverviewSection({
             )}
           </CardTitle>
           <CardDescription>
-            Cảnh báo tự động từ dữ liệu cấu hình và pipeline hiện tại — bấm để nhảy tới mục liên quan.
+            Cảnh báo tự động từ dữ liệu cấu hình và dữ liệu khảo sát hiện tại — bấm để nhảy tới mục
+            liên quan.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -1050,8 +1040,8 @@ function OverviewSection({
             Dữ liệu khảo sát
           </CardTitle>
           <CardDescription>
-            Dữ liệu khảo sát “Vehicle at Ha Noi” đã qua xử lý — nguồn của tiêu chí Xu hướng và các
-            thị phần phương tiện bên dưới (US-25).
+            Dữ liệu khảo sát lấy từ việc thu thập ý kiến người dân trong việc chuyển đổi phương tiện
+            (2019, tập trung vào năm 2021).
           </CardDescription>
           <CardAction>
             <AlertDialog>
@@ -1081,8 +1071,8 @@ function OverviewSection({
           </CardAction>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          {/* KPI row: last run, clean rows, rows in, latest month */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {/* KPI row: last run, clean rows, rows in */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {datasetKpis.map((kpi) => (
               <div key={kpi.label} className="rounded-lg border p-3">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -1150,32 +1140,6 @@ function OverviewSection({
               </BarChart>
             </ResponsiveContainer>
           )}
-
-          {trendData.length > 0 && (
-            <p className="text-xs text-muted-foreground">
-              {dataset?.periodKind === 'cohort'
-                ? 'Thị phần phương tiện trong toàn bộ mẫu khảo sát'
-                : 'Thị phần phương tiện cho tháng khảo sát mới nhất'}
-              {dataset?.periodKind === 'cohort'
-                ? lastRun
-                  ? (
-                    <>
-                      {' '}(<span className="font-medium text-foreground">{lastRun.rowsClean.toLocaleString('vi-VN')}</span> dòng)
-                    </>
-                  )
-                  : null
-                : dataset?.latestMonth
-                  ? (
-                    <>
-                      {' '}<span className="font-medium text-foreground">{dataset.latestMonth}</span>
-                    </>
-                  )
-                  : null}
-              {lastRun?.sourceFile ? (
-                <> {' '}· nguồn <span className="font-mono">{lastRun.sourceFile}</span></>
-              ) : null}
-            </p>
-          )}
         </CardContent>
       </Card>
 
@@ -1183,7 +1147,7 @@ function OverviewSection({
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Phân bố phương tiện được đề xuất</CardTitle>
+            <CardTitle className="text-base">Phân bố lựa chọn phương tiện</CardTitle>
             <CardDescription>
               Tỷ lệ chuyến đi theo phương tiện được đề xuất hàng đầu.
             </CardDescription>
