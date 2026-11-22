@@ -13,7 +13,8 @@ Two responsibilities, both idempotent (safe on every boot):
 2. seed() — reference/demo data: Hanoi study area, admin account, 7
    transportation modes, 7 vehicle types, 2 LEZ rules of Vành đai 1,
    7 MCDM criteria weights, bus/metro/BRT stops, Hanoi districts and
-   140 demo trip records for the analytics dashboard.
+   a maintained baseline of demo trip records for the analytics
+   dashboard (see DEMO_TRIP_TARGET in _ensure_demo_trips).
 """
 import hashlib
 import json
@@ -472,9 +473,41 @@ def _backfill_trip_regions(conn) -> None:
     )
 
 
+DEMO_TRIP_TARGET = 100  # bộ chuyến mẫu luôn duy trì để biểu đồ có dữ liệu ngay
+
+
 def _ensure_demo_trips(conn) -> None:
-    count = conn.execute("SELECT count(*) AS c FROM trip.trips").fetchone()["c"]
-    if count >= 50:
+    """Duy trì bộ chuyến mẫu DEMO_TRIP_TARGET dòng trong trip.trips.
+
+    Trước đây bước này chỉ chèn khi bảng gần trống (< 50 dòng), nên các
+    máy đã tích lũy sẵn dữ liệu sẽ không bao giờ được bổ sung và biểu
+    đồ thống kê hiển thị rất ít cột. Bây giờ mỗi lần boot đều cân về
+    đúng DEMO_TRIP_TARGET: thiếu thì bù cho đủ, thừa thì cắt cái cũ
+    nhất trước.
+
+    Chuyến mẫu nhận biết qua preferences = '{}' — chuyến do người dùng
+    phân tích trên planner luôn lưu preferences (4 thanh trượt trọng
+    số) nên hai nhóm không bao giờ nhầm vào nhau, việc cắt/bù không
+    đụng tới dữ liệu người dùng phân tích.
+    """
+    seed_count = conn.execute(
+        "SELECT count(*) AS c FROM trip.trips WHERE preferences = '{}'"
+    ).fetchone()["c"]
+    if seed_count > DEMO_TRIP_TARGET:
+        conn.execute(
+            """
+            DELETE FROM trip.trips
+            WHERE trip_id IN (
+                SELECT trip_id FROM trip.trips
+                WHERE preferences = '{}'
+                ORDER BY created_at ASC
+                LIMIT %s
+            )
+            """,
+            (seed_count - DEMO_TRIP_TARGET,),
+        )
+        seed_count = DEMO_TRIP_TARGET
+    if seed_count >= DEMO_TRIP_TARGET:
         return
     study_id = _study_area_id(conn)
     mode_ids = _mode_id_map(conn)
@@ -497,7 +530,7 @@ def _ensure_demo_trips(conn) -> None:
     rng = random.Random(48)
     now = datetime.now(timezone.utc)
     mode_codes = [m[0] for m in MODES]
-    for _ in range(140):
+    for _ in range(DEMO_TRIP_TARGET - seed_count):
         mode = rng.choice(mode_codes)
         top = rng.choice(mode_codes)
         switched = rng.random() < 0.3
