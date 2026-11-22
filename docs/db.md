@@ -4,7 +4,7 @@
 > (PostgreSQL + PostGIS), Objective 3 (spatial qua PostgreSQL/PostGIS),
 > NFR-02 (PostGIS indexes), Deliverable #10 (PostgreSQL + PostGIS Database),
 > Deliverable #11 (Processed Survey Dataset), Deliverable #12 (Database design + ERD).
-> Sơ đồ CSDL: **`public/docs/db-erd.svg`** — ERD 28 bảng · 6 schema + `public.City` sinh TỰ ĐỘNG từ `app/schema.sql` (chạy `python3 scripts/gen_erd_svg.py` — luôn đồng bộ DB thật), theo thiết kế DB FINAL **v1.1** — điều chỉnh đa thành phố
+> Sơ đồ CSDL: **`public/docs/db-erd.svg`** — ERD 25 bảng · 6 schema + `public.City` sinh TỰ ĐỘNG từ `app/schema.sql` (chạy `python3 scripts/gen_erd_svg.py` — luôn đồng bộ DB thật), theo thiết kế DB FINAL **v1.1** — điều chỉnh đa thành phố
 > + ERD nhóm trên dbdiagram.
 
 ---
@@ -17,9 +17,9 @@
 | §10 + Deliverable #10: **PostGIS** spatial database | `postgis/postgis:16-3.4` trong docker-compose; `app/db.py` tự `CREATE EXTENSION postgis` + nâng cột `lez_zones.geometry` thành `GEOMETRY(MULTIPOLYGON,4326)` đúng DB FINAL (luôn có ở dạng GeoJSON TEXT trên sandbox) | ✅ deploy / ⚠️ sandbox fallback Shapely (không có root để cài extension — hạn chế môi trường) |
 | NFR-02: **PostGIS indexes** cho spatial query | `CREATE INDEX lez_zones_geometry_gist ON lez_zones USING gist (geometry)` tự tạo khi PostGIS bật | ✅ deploy / ⚠️ sandbox |
 | Objective 3: outside / partial / within bằng PostgreSQL/PostGIS | Dual-mode: PostGIS path (geom sync + DB-level) hoặc Shapely trong `services/geo.py` — cùng kết quả 3 trạng thái | ✅ |
-| Deliverable #10: DB chứa structured + spatial data | **28 bảng / 6 schema + `public.City`** theo DB FINAL v1.1; spatial = `lez_zones.geometry` (GEOMETRY(MULTIPOLYGON,4326) khi PostGIS / GeoJSON TEXT portable) + tọa độ GeoJSON trips/locations/regions | ✅ |
+| Deliverable #10: DB chứa structured + spatial data | **25 bảng / 6 schema + `public.City`** theo DB FINAL v1.1; spatial = `lez_zones.geometry` (GEOMETRY(MULTIPOLYGON,4326) khi PostGIS / GeoJSON TEXT portable) + tọa độ GeoJSON trips/locations/regions | ✅ |
 | Deliverable #11: processed survey dataset | Bảng `decision.vehicle_survey_responses` (25.586 dòng thật đã làm sạch) + `decision.dataset_trends` (42 dòng) + `core.dataset_runs` + 3 CSV trong `data/processed/` | ✅ chạy trên bộ dữ liệu thật Kaggle "Vehicle at Ha Noi Dataset" (xem §7) |
-| Deliverable #12: Database design + ERD | 28 bảng (21 bảng DB FINAL gốc − users/vehicles + 9 bảng điều chỉnh v1.1 — xem mục "Điều chỉnh DB FINAL v1.1"), tên bảng số nhiều + PK `BIGSERIAL` khớp ERD nhóm | ✅ |
+| Deliverable #12: Database design + ERD | 25 bảng (21 bảng DB FINAL gốc − users/vehicles + 6 bảng điều chỉnh v1.1 — xem mục "Điều chỉnh DB FINAL v1.1"; 3 bảng US-45/47 đã gỡ khỏi phạm vi sản phẩm), tên bảng số nhiều + PK `BIGSERIAL` khớp ERD nhóm | ✅ |
 
 **Điểm mạnh kiến trúc DB**: một chủ sở hữu duy nhất — FastAPI tạo/migrate schema
 (`schema.sql`, idempotent), frontend là API consumer thuần (không ORM);
@@ -47,7 +47,7 @@ Runtime  : psycopg 3 (dict_row), connection-per-request; transactional context `
 
 ---
 
-## 3. Sơ đồ ERD — 28 bảng · 6 schema + public.City
+## 3. Sơ đồ ERD — 25 bảng · 6 schema + public.City
 
 Xem **`public/docs/db-erd.svg`** (trong app: tab Tài liệu → Sơ đồ ERD) — sinh tự động từ `app/schema.sql` bằng `scripts/gen_erd_svg.py`. Thiết kế theo **DB FINAL.pdf + ERD nhóm (dbdiagram)**
 với các điều chỉnh đã chốt của Capstone:
@@ -76,7 +76,7 @@ core.admins ──▶ core.admin_sessions / core.system_logs
 
 ---
 
-## 4. Bảng dữ liệu (28 bảng, 6 schema + public.City, snake_case số nhiều)
+## 4. Bảng dữ liệu (25 bảng, 6 schema + public.City, snake_case số nhiều)
 
 ### core (5)
 
@@ -145,7 +145,7 @@ core.admins ──▶ core.admin_sessions / core.system_logs
   (outside/partial/within), `applicable_lez_rule_id`, `compliance_status`,
   `compliance_reason`, `analyzed_at`.
 
-### decision (10)
+### decision (7)
 
 - **`recommendation_criteria`** — 7 tiêu chí TOPSIS (admin sửa được, tổng = 100):
   `code` UNIQUE ∈ {`travelTime`, `cost`, `lezCompliance`, `accessibility`,
@@ -168,13 +168,6 @@ core.admins ──▶ core.admin_sessions / core.system_logs
   (đủ 58 cột gốc của dòng CSV).
 - **`dataset_trends`** — aggregate feed tiêu chí `trend` của TOPSIS + dashboard:
   UNIQUE(mode, month), `share` (0..1), `trend_index` (0..1), `sample_count`.
-- **`user_feedback`** — lý do khách không chọn phương tiện được đề xuất
-  (`user_key` ẩn danh, `reason` ∈ cost/time/safety/weather/infrastructure/
-  habit/other, FK trip + mode).
-- **`notification_prefs`** — opt-in nhận thông báo chính sách theo khu vực
-  quan tâm (`user_key` PK, `district`, `opt_in`).
-- **`user_notifications`** — thông báo đã sinh cho từng `user_key`
-  (`type` ∈ lez_published/lez_active/aqi_alert, UNIQUE(user_key, type, zone_id)).
 
 ### public (1)
 
@@ -244,7 +237,7 @@ GET `/api/dataset/summary` là read-only (aggregate từ DB, không chạy lại
 - Họ bảng camelCase Prisma (`AdminUser`, `TripRecord`, …) — **đã xoá hoàn toàn**
   khỏi DB (schema.sql tự DROP) và khỏi code; frontend không giữ ORM nào.
 - Các layout cũ (`public.admin_user`, `trip.trip_record`, tên số ít…) — tự
-  migrate sang 28 bảng mới bởi `seed.py::migrate_legacy()` rồi bị DROP.
+  migrate sang 25 bảng mới bởi `seed.py::migrate_legacy()` rồi bị DROP.
 - `db/custom.db` (SQLite) — backup thời kỳ đầu, không còn được đọc.
 
 ## 9. Đối chiếu tài liệu chính thức v1.0 (Task 23) & mapping US → bảng
@@ -301,19 +294,19 @@ khai PostGIS (docker-compose `postgis/postgis:16-3.4` + GIST index — NFR-02).
 | `core.users` | → `core.admins` + `core.admin_sessions` | Chính DB FINAL ghi chú trên bảng users: *"Xem lại có nên không, vì hiện tại đang publish"* — app publish/guest không lưu thông tin cá nhân; users thu nhỏ thành admins phục vụ tab Quản trị (chức năng 30–41) |
 | `core.vehicles` | bỏ | Guest không đăng ký xe — loại xe chọn trực tiếp từ `policy.vehicle_types` khi kiểm tra tuân thủ LEZ (hàm năng 11–13) |
 
-### Điều chỉnh có chủ đích (+9 bảng = 28)
+### Điều chỉnh có chủ đích (+6 bảng = 25)
 
 | Thêm | Lý do (tính năng đã được duyệt) |
 |---|---|
 | `public.City` + cột `city_id` (lez_zones, transportation_locations) | Đa thành phố Hà Nội / Đà Nẵng / TP.HCM — mở rộng được duyệt; 422 phường/xã đọc từ `gis.administrative_regions` (1 nguồn) |
 | `core.admins` + `core.admin_sessions` | Thay `core.users` (xem bảng trên) — đăng nhập tab Quản trị, cookie httpOnly 8h |
-| `decision.user_feedback` | US phản hồi "vì sao không chọn phương tiện được đề xuất" |
-| `decision.notification_prefs` + `user_notifications` | US đăng ký nhận thông báo chính sách (opt-in, ẩn danh) |
 | `decision.vehicle_survey_responses` | US khảo sát nhanh phương tiện đang dùng để kiểm tra tuân thủ LEZ |
 | `core.dataset_runs` + `decision.dataset_trends` | Audit pipeline Kaggle 25.586 chuyến + xu hướng cho tab Quản trị (chức năng 35–41) |
 | 4 cột `lez_zones`: `decision_no`, `issued_by`, `published_at`, `created_by` | Vòng đời văn bản cho tab Chính sách (6 thành phần) |
 
-Số học: **21 (gốc) − 2 (users, vehicles) + 9 (mới) = 28 bảng**.
+Số học: **21 (gốc) − 2 (users, vehicles) + 6 (mới) = 25 bảng** — 3 bảng của
+US-45/47 (`user_feedback`, `notification_prefs`, `user_notifications`) đã
+gỡ khỏi phạm vi sản phẩm (PR #16/#17) và bị DROP khỏi schema.
 
 Cột `lez_zones.geometry` trên sandbox lưu GeoJSON TEXT (không cài được
 extension PostGIS — hạn chế môi trường, đã ghi rõ §5); bản Docker nâng đúng
