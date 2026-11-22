@@ -304,13 +304,7 @@ export default function Home() {
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-4 py-4 text-center text-xs text-muted-foreground sm:flex-row sm:text-left">
           <p className="flex items-center gap-1.5">
             <Leaf className="h-3.5 w-3.5 text-primary" aria-hidden />
-            <strong className="font-semibold text-foreground">RideShift</strong> – Trợ lý chuyển đổi
-            giao thông thông minh · Dự án tốt nghiệp 1 (CMU-SE 450) · Nhóm C1SE.48 · Trường Quốc tế,
-            Đại học Duy Tân
-          </p>
-          <p>
-            Dữ liệu bản đồ © OpenStreetMap · Định tuyến OSRM · Chất lượng không khí trạm đo thật (Sở NN&MT, WAQI) &amp; Open-Meteo ·{' '}
-            <span className="italic">Hà Nội sạch hơn cho một ngày mai tốt đẹp hơn</span>
+            <strong className="font-semibold text-foreground">RideShift</strong>
           </p>
         </div>
       </footer>
